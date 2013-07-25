@@ -1,4 +1,4 @@
-function [csi,NoiseCorrMat,csi_kspace] = read_csi_1_6(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
+function [csi,NoiseCorrMat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
 % read_csi_x_x Read in csi-data
 %

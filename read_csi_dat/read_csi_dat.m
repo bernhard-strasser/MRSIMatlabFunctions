@@ -1,4 +1,4 @@
-function [csi,NoiseCorrMat,csi_kspace] = read_csi_dat_2_4(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+function [csi,NoiseCorrMat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
 % read_csi_dat_x_x Read in csi-data from Siemens raw file format
 %

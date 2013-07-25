@@ -1,4 +1,4 @@
-function [csi, csi_kspace] = read_csi_dicom_1_2(csi_path, zerofilling_fact, x_shift,y_shift)
+function [csi, csi_kspace] = read_csi_dicom(csi_path, zerofilling_fact, x_shift,y_shift)
 %
 % read_csi_dicom_x_x Read in csi-data from DICOM file format.
 %
