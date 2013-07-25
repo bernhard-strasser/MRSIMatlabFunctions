@@ -1,4 +1,4 @@
-function [csi,NoiseCorrMat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
+function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
 % read_csi_x_x Read in csi-data
 %
@@ -65,19 +65,20 @@ end
 if(numel(strfind(csi_file, '.dat')) > 0)
     % Avoid memory problems. If only image space data is needed, pass over only this.    
     if(nargout < 3)
-        [csi,NoiseCorrMat] = read_csi_dat_2_4(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,false,NoiseCorrMat);
+        [csi,NoiseCorrMat,Noise_mat] = read_csi_dat(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,false,NoiseCorrMat);
     else
-        [csi,NoiseCorrMat,csi_kspace] = read_csi_dat_2_4(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat);        
+        [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi_dat(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat);        
     end
     
 else
     
-    if(nargout < 3)
-        csi = read_csi_dicom_1_2(csi_file,zerofilling_fact, x_shift,y_shift);        
+    if(nargout < 4)
+        csi = read_csi_dicom(csi_file,zerofilling_fact, x_shift,y_shift);        
     else
-        [csi, csi_kspace] = read_csi_dicom_1_2(csi_file,zerofilling_fact, x_shift,y_shift);
+        [csi, csi_kspace] = read_csi_dicom(csi_file,zerofilling_fact, x_shift,y_shift);
     end
     NoiseCorrMat = 0;
+    Noise_mat = 0;
     
 end
 

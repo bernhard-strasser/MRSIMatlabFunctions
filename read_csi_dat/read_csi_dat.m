@@ -1,4 +1,4 @@
-function [csi,NoiseCorrMat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
 % read_csi_dat_x_x Read in csi-data from Siemens raw file format
 %
@@ -26,6 +26,7 @@ function [csi,NoiseCorrMat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_next
 % Output:
 % -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
 % -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
+% -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
 % -         csi_kspace                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
 %
 %
@@ -70,6 +71,9 @@ if(~exist('NoFFT_flag','var'))
 end
 if(~exist('NoiseCorrMat','var'))
     NoiseCorrMat = false;
+end
+if(~exist('Noise_mat','var'))
+    Noise_mat = 0;
 end
 
 
@@ -180,7 +184,7 @@ if(exist('NoiseCorrMat','var'))
         fprintf('\nNoise Decorrelating Using\t...\tHanded Over NoiseCorr Matrix.')    
         %DecorrelationMatrix = inv(chol(Noise_CorrMat/2,'lower'));
         csi_kspace = reshape(chol(NoiseCorrMat/2,'lower') \ reshape(csi_kspace, [size(csi_kspace,1) numel(csi_kspace)/size(csi_kspace,1)]), size(csi_kspace));    % Matrix multiplication
-
+        
 
     elseif(NoiseCorrMat)
         fprintf('\nNoise Decorrelating Using\t...\tCSI Data Itself.')    
@@ -220,10 +224,6 @@ if(exist('NoiseCorrMat','var'))
         
     end
     
-end
-
-if(~exist('NoiseCorrMat','var'))
-    NoiseCorrMat = 0;
 end
 
 
