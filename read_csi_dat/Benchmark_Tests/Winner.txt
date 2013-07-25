@@ -1,0 +1,17 @@
+In case of 32x64x64x1x2048:
+
+Time for FFT Process (incl ifftshifts, fftshifts etc)
+
+1. Direct: 										~ 14 sec
+2. + 3. Channel By Channel and Channel By Channel ExtraAssign: 	~ 30 sec
+4. SliceBySlice Extra Assign: 						~ 301 sec
+5. SliceBySlice: 									~ 540 sec
+
+
+In case of 32x64x64x4x1024:
+
+1. + 2. Channel By Channel and Channel By Channel ExtraAssign: 	~ 61 sec
+3. SliceBySlice Extra assign: 						~ 68 sec
+4. SliceBySlice: 									~ 409 sec
+5. Direct:										> 30.000 secs
+
