@@ -35,8 +35,8 @@ function distance = kSpace_Distance(PtsMeas, CellSize)
 %% 0. PREPARATIONS
 
 % Assign standard values to variables if nothing is passed to function.
-if(varargin < 2)
-    display([ char(10) 'Gimme more input!' char(10) ])
+if(nargin < 2)
+    display([ char(10) 'Gimme more input, Ma''am!' char(10) ])
     return;
 end 
 
