@@ -219,7 +219,7 @@ if(exist('NoiseCorrMat','var'))
         % Apply Noise Decorrelation
         csi_kspace = reshape(chol(NoiseCorrMat/2,'lower') \ reshape(csi_kspace, [size(csi_kspace,1) numel(csi_kspace)/size(csi_kspace,1)]), size(csi_kspace));    % Matrix multiplication   
 
-        clear nFIDendpoints TakeNPointsOutOfEnd randy Noise_csi Elliptical_dummy OuterkSpace_mask2 OuterkSpace_mask1 OuterkSpace_mask PI_mask csi_mask Noise_mat NoiseCorrMat
+        clear nFIDendpoints TakeNPointsOutOfEnd randy Noise_csi Elliptical_dummy OuterkSpace_mask2 OuterkSpace_mask1 OuterkSpace_mask PI_mask csi_mask
         
         
     end
