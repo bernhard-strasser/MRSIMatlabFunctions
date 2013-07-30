@@ -12,7 +12,7 @@ clear variables; clear functions; close all;
 pause on
 
 
-cell_size = [4 4];      % e.g. undersampling of factor 2 in both directions, and to get more patterns double that size in both directions.
+cell_size = [6 6];      % e.g. undersampling of factor 2 in both directions, and to get more patterns double that size in both directions.
 no_measured_points = 4; % So R = 4*4/4 = 4;
 R = prod(cell_size)/no_measured_points
 
@@ -30,7 +30,7 @@ PtsMeas = cat(2, ones(size(PtsMeas,1),1), PtsMeas);          % Add the point (1,
 %% 2. Loop over all Patterns, Compute the mean distance for each.
 
 
-QualityMeasure = zeros([size(PtsMeas,1) 2]);
+QualityMeasure = zeros([size(PtsMeas,1) 3]);
 
 
 for Patt_no = 1:size(PtsMeas,1)
@@ -44,14 +44,18 @@ end
 
 %% 3. Find the Best 10%
 
-Index_best10p_std = QualityMeasure(:,1) <= quantile(QualityMeasure(:,1),0.20);
-Index_best_std = QualityMeasure(:,1) == min(QualityMeasure(:,1));
+% Index_best10p_std = QualityMeasure(:,1) <= quantile(QualityMeasure(:,1),0.10);
+% Index_best_std = QualityMeasure(:,1) == min(QualityMeasure(:,1));
+% 
+% Index_best10p_min = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),0.90);
+% Index_best_min = QualityMeasure(:,2) == max(QualityMeasure(:,2));
+% 
+% Index_best10p = find(Index_best10p_std .* Index_best10p_min);
+% Index_best = find(Index_best_std .* Index_best_min);
 
-Index_best10p_min = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),0.80);
-Index_best_min = QualityMeasure(:,2) == max(QualityMeasure(:,2));
 
-Index_best10p = find(Index_best10p_std .* Index_best10p_min);
-Index_best = find(Index_best_std .* Index_best_min);
+Index_best10p_comb = find(QualityMeasure(:,3) <= quantile(QualityMeasure(:,3),0.025));
+Index_best_comb = find(QualityMeasure(:,3) == min(QualityMeasure(:,3)));
 
 
 
@@ -59,7 +63,7 @@ Index_best = find(Index_best_std .* Index_best_min);
 
 
 
-for Indexl = transpose(Index_best)
+for Indexl = transpose(Index_best_comb)
     
     Indexl
     QualityMeasure(Indexl,:)
@@ -85,7 +89,7 @@ end
 
 
 
-for Indexl = transpose(Index_best10p)
+for Indexl = transpose(Index_best10p_comb)
     
     Indexl
     QualityMeasure(Indexl,:)
@@ -111,3 +115,8 @@ end
 
 
 pause off
+
+
+
+
+
