@@ -1,16 +1,15 @@
-function distance = kSpace_Distance(PtsMeas, CellSize)
+function QualityMeasure = kSpace_Distance(PtsMeas, CellSize)
 %
-% kSpace_Distance Compute average distance of not-measured points to measured.
+% kSpace_Distance Compute quality measure of kSpace Pattern.
 %
 % This function was written by Bernhard Strasser, July 2013.
 %
 %
 % This function 1) calculates the distance of a non-measured kSpace point to all the measured ones.
 %               2) Does this for all non-measured points.
-%               3) Averages over the distances between a certain non-measured point to the measured ones.
+%               3) Calculates a quality measure for those distances (like maximum, mean or combination).
 %               4) Does this for all non-measured points.
-%               5) Averages over all those distances of all non-measured-points.
-% So it computes the mean of all the mean distances between the measured and the non-measured points.
+%               5) Computes the same quality measure using all non-measured points (maximum, mean or combination).
 %
 %
 % [csi,csi_kspace] = read_csi_1_4(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, x_shift,y_shift)
@@ -22,7 +21,8 @@ function distance = kSpace_Distance(PtsMeas, CellSize)
 %                                               Otherwise you get only 1 possible undersampling cell.
 %
 % Output:
-% -         distance                    ...     The mean of the mean distances between the measured and the not-measured kSpace points.
+% -         QualityMeasure              ...     The quality measure of the kSpace Pattern, e.g. the mean distance of non-measured to measured points,
+%                                               or the maximum of the distances between measured and non-measured ones.
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -96,6 +96,8 @@ Dist_y = abs(PtsMeas_y - PtsNotMeas_y);
 %   o 2 o o | o 2 o o | o 2 o o
 
 
+
+
 MaxDistance_x = floor(CellSize(1)/2);   % It is not possible that two points are farther apart from each other in the replicated cell
 MaxDistance_y = floor(CellSize(2)/2);
 
@@ -108,11 +110,12 @@ Dist_y(Dist_y > MaxDistance_y) = Dist_y_mod(Dist_y > MaxDistance_y);
 
 
 
-%% 6. Compute the euclidian distance and the mean distance
+%% 6. Compute the Euclidean distance and the QualityMeasure
 
 distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
 
-distance = mean(mean(distance_mat,1),2);    % Compute the mean distance of the not-measured points to all measured, and then the mean distance over all those not-measured points.
+
+QualityMeasure = 1.0*mean(mean(distance_mat,1),2) + 0.0*max(reshape(distance_mat,[1 numel(distance_mat)]));    % Compute a quality measure.
 
 
 
