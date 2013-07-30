@@ -30,12 +30,12 @@ PtsMeas = cat(2, ones(size(PtsMeas,1),1), PtsMeas);          % Add the point (1,
 %% 2. Loop over all Patterns, Compute the mean distance for each.
 
 
-distance = zeros([1 size(PtsMeas,1)]);
+QualityMeasure = zeros([size(PtsMeas,1) 2]);
 
 
 for Patt_no = 1:size(PtsMeas,1)
     
-    distance(Patt_no) = kSpace_Distance(squeeze(PtsMeas(Patt_no,:)), cell_size);
+    QualityMeasure(Patt_no,:) = kSpace_DistBtwMeasPts(squeeze(PtsMeas(Patt_no,:)), cell_size);
     
 end
 
@@ -44,9 +44,14 @@ end
 
 %% 3. Find the Best 10%
 
-Index_best10p = find( distance <= quantile(distance,0.10) );
-Index_worst10p = find( distance >= quantile(distance,0.90) );
-Index_best = find(distance == min(distance));
+Index_best10p_std = QualityMeasure(:,1) <= quantile(QualityMeasure(:,1),0.20);
+Index_best_std = QualityMeasure(:,1) == min(QualityMeasure(:,1));
+
+Index_best10p_min = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),0.80);
+Index_best_min = QualityMeasure(:,2) == max(QualityMeasure(:,2));
+
+Index_best10p = find(Index_best10p_std .* Index_best10p_min);
+Index_best = find(Index_best_std .* Index_best_min);
 
 
 
@@ -54,10 +59,10 @@ Index_best = find(distance == min(distance));
 
 
 
-for Indexl = Index_best
+for Indexl = transpose(Index_best)
     
     Indexl
-    distance(Indexl)
+    QualityMeasure(Indexl,:)
     
     ElemCell = zeros(cell_size);
     ElemCell(squeeze(PtsMeas(Indexl,:))) = 1;
@@ -80,15 +85,28 @@ end
 
 
 
-for Indexl = Index_best10p
+for Indexl = transpose(Index_best10p)
     
     Indexl
+    QualityMeasure(Indexl,:)
+    
     ElemCell = zeros(cell_size);
     ElemCell(squeeze(PtsMeas(Indexl,:))) = 1;
-    figure; imagesc(ElemCell)
-    waitforbuttonpress
-    close(gcf)
+    ElemCell_fig = figure; 
+    imagesc(ElemCell)
+    movegui(ElemCell_fig, 'northwest')
     
+    
+    ElemCell_recol = ElemCell; ElemCell_recol(ElemCell_recol == 0) = 2; ElemCell_recol(ElemCell_recol == 1) = 3;
+    RepCell = repmat(ElemCell,[3 3]);
+    RepCell(size(ElemCell,1)+1 : 2*size(ElemCell,1), size(ElemCell,2)+1 : 2*size(ElemCell,2)) = ElemCell_recol;
+    RepCell_fig = figure; 
+    imagesc(RepCell)
+    movegui(RepCell_fig, 'north')    
+    
+    pause
+    close all    
+        
 end
 
 
