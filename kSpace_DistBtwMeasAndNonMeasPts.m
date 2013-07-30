@@ -1,4 +1,4 @@
-function QualityMeasure = kSpace_Distance(PtsMeas, CellSize)
+function QualityMeasure = kSpace_DistBtwMeasAndNonMeasPts(PtsMeas, CellSize)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -110,12 +110,32 @@ Dist_y(Dist_y > MaxDistance_y) = Dist_y_mod(Dist_y > MaxDistance_y);
 
 
 
-%% 6. Compute the Euclidean distance and the QualityMeasure
+%% 6. Compute the Euclidean distance and the QualityMeasures
 
 distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
 
 
-QualityMeasure = 1.0*mean(mean(distance_mat,1),2) + 0.0*max(reshape(distance_mat,[1 numel(distance_mat)]));    % Compute a quality measure.
+QualityMeasure_mean = 1.0*mean(mean(distance_mat,1),2);    % Compute a quality measure.
+
+
+QualityMeasure_max = max(reshape(distance_mat,[1 numel(distance_mat)]));    % Compute a quality measure.
+
+
+
+
+
+
+
+
+
+
+%% 7. Gather all QualityMeasures
+
+
+
+QualityMeasure = cat(2,QualityMeasure_mean,QualityMeasure_max);
+
+
 
 
 
