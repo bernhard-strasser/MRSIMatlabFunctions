@@ -43,19 +43,13 @@ end
 
 
 
-%% 1. Find the non-measured points.
 
 
-PtsNotMeas = setdiff(1:prod(CellSize),PtsMeas);
-
-
-
-
-%% 2. Replicate the Measured and Not Measured Points in such a way to get all combinations
+%% 2. Replicate the Measured in such a way to get all combinations for the distances between them
 % (for every non-measured point we want the distance to all measured ones)
 
-PtsMeas_rep = repmat(transpose(PtsMeas),[1 numel(PtsNotMeas)]);
-PtsNotMeas_rep = repmat(PtsNotMeas,[numel(PtsMeas) 1]);
+PtsMeas_rep = repmat(transpose(PtsMeas),[1 numel(PtsMeas)]);
+PtsMeas2_rep = repmat(PtsMeas,[numel(PtsMeas) 1]);
 
 
 
@@ -63,7 +57,7 @@ PtsNotMeas_rep = repmat(PtsNotMeas,[numel(PtsMeas) 1]);
 %% 3. Find the x-y coordinates of the measured and not measured points within the cell.
 
 [PtsMeas_x, PtsMeas_y] = ind2sub(CellSize,PtsMeas_rep);
-[PtsNotMeas_x, PtsNotMeas_y] = ind2sub(CellSize,PtsNotMeas_rep);
+[PtsMeas2_x, PtsMeas2_y] = ind2sub(CellSize,PtsMeas2_rep);
 
 
 
@@ -71,8 +65,8 @@ PtsNotMeas_rep = repmat(PtsNotMeas,[numel(PtsMeas) 1]);
 
 %% 4. Compute the x and y distances
 
-Dist_x = abs(PtsMeas_x - PtsNotMeas_x);
-Dist_y = abs(PtsMeas_y - PtsNotMeas_y);
+Dist_x = abs(PtsMeas_x - PtsMeas2_x);
+Dist_y = abs(PtsMeas_y - PtsMeas2_y);
 
 
 
@@ -110,37 +104,26 @@ Dist_y(Dist_y > MaxDistance_y) = Dist_y_mod(Dist_y > MaxDistance_y);
 
 
 
+
 %% 6. Compute the Euclidean distance and the QualityMeasures
 
-distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
-
-
-QualityMeasure_mean = 1.0*mean(mean(distance_mat,1),2);    % Compute a quality measure.
-
-
-QualityMeasure_max = max(reshape(distance_mat,[1 numel(distance_mat)]));    % Compute a quality measure.
+Distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
+Distance_mat = triu(Distance_mat,1);        % Only take upper right part (without diagonal, therefore the 1) of the matrix
+Distance_mat(Distance_mat == 0) = NaN;      % Distances of 0 should not count.
 
 
 
 
+%% 7. Compute all QualityMeasures
 
 
+% The minimum distance between points. 
+QualityMeasure_min = nanmin(reshape(Distance_mat, [1 numel(Distance_mat)]));
+
+% The mean distance between points.
+QualityMeasure_mean = nanmean(reshape(Distance_mat, [1 numel(Distance_mat)]));
 
 
-
-
-%% 7. Gather all QualityMeasures
-
-
-
-QualityMeasure = cat(2,QualityMeasure_mean);
-
-
-
-
-
-
-
-
+QualityMeasure = QualityMeasure_mean;
 
 
