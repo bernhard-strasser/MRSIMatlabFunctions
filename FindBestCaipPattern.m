@@ -36,8 +36,10 @@ function [BestPatterns,BestXPercPatterns,QualityMeasure, no_Patterns, AllPattern
 %% 0. DEFINITIONS, PREPARATIONS
 
 % Initialize
-BestPatterns = 0;
-BestXPercPatterns = 0;
+BestPatterns.Indices = 0;
+BestPatterns.Patterns = 0;
+BestXPercPatterns.Indices = 0;
+BestXPercPatterns.Patterns = 0;
 QualityMeasure = 0;
 no_Patterns = 0;
 
@@ -106,18 +108,23 @@ end
 Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),0.1);
 Index_Best = QualityMeasure(:,end) == min(QualityMeasure(:,end));
 
+BestPatterns.Indices = find(Index_Best);
+BestXPercPatterns.Indices = find(Index_BestXPerc);
+
 Index_BestXPerc = repmat(Index_BestXPerc, [1 no_measured_points]);
 Index_Best = repmat(Index_Best, [1 no_measured_points]);
 
 
-BestPatterns = AllPatterns(Index_Best);
-BestXPercPatterns = AllPatterns(Index_BestXPerc);
+BestPatterns.Patterns = AllPatterns(Index_Best);
+BestXPercPatterns.Patterns = AllPatterns(Index_BestXPerc);
 
-BestPatterns = reshape(BestPatterns, [numel(BestPatterns)/no_measured_points no_measured_points]);
-BestXPercPatterns = reshape(BestXPercPatterns, [numel(BestXPercPatterns)/no_measured_points no_measured_points]);
+BestPatterns.Patterns = reshape(BestPatterns.Patterns, [numel(BestPatterns.Patterns)/no_measured_points no_measured_points]);
+BestXPercPatterns.Patterns = reshape(BestXPercPatterns.Patterns, [numel(BestXPercPatterns.Patterns)/no_measured_points no_measured_points]);
 
-BestPatterns = transpose(BestPatterns);
-BestXPercPatterns = transpose(BestXPercPatterns);
+BestPatterns.Patterns = transpose(BestPatterns.Patterns);
+BestXPercPatterns.Patterns = transpose(BestXPercPatterns.Patterns);
+
+
 
 
 
