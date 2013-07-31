@@ -121,9 +121,9 @@ Distance_mat(Distance_mat == 0) = NaN;      % Distances of 0 should not count.
 QualityMeasure_min = nanmin(reshape(Distance_mat, [1 numel(Distance_mat)]));
 
 % The mean distance between points.
-QualityMeasure_mean = nanmean(reshape(Distance_mat, [1 numel(Distance_mat)]));
+QualityMeasure_std = nanstd(reshape(Distance_mat, [1 numel(Distance_mat)]));
 
 
-QualityMeasure = QualityMeasure_mean;
-
+QualityMeasure = [QualityMeasure_std QualityMeasure_min QualityMeasure_std/(QualityMeasure_min^1.5)];
+%QualityMeasure = QualityMeasure_std/(QualityMeasure_min^1.5);
 
