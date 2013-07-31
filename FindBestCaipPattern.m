@@ -1,120 +1,124 @@
-%% -1.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%                                 PROGRAM TO HELL AND BACK                           %%%%%%%%%%%%%%
-%%%%%%%%%%%%%%     ENTSTANDEN DURCH DIE KUNST DES PROGRAMMIERENS DURCH KONSEQUENTES ANSTARREN     %%%%%%%%%%%%%%
-%%%%%%%%%%%%%%     Find out the best CAIPIRINHA pattern by computing the average distance of      %%%%%%%%%%%%%%
-%%%%%%%%%%%%%%                        measured to not measured k-space points.                    %%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [BestPatterns,BestXPercPatterns,QualityMeasure, no_Patterns, AllPatterns] = FindBestCaipPattern(cell_size, no_measured_points)
+%
+% kSpace_Distance Compute quality measure of kSpace Pattern.
+%
+% This function was written by Bernhard Strasser, July 2013.
+%
+%
+% This function 1) calculates the distance of a non-measured kSpace point to all the measured ones.
+%               2) Does this for all non-measured points.
+%               3) Calculates a quality measure for those distances (like maximum, mean or combination).
+%               4) Does this for all non-measured points.
+%               5) Computes the same quality measure using all non-measured points (maximum, mean or combination).
+%
+%
+% [csi,csi_kspace] = read_csi_1_4(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, x_shift,y_shift)
+%
+% Input: 
+% -         PtsMeas                     ...     The measured points as linear index (e.g. if A=[1 0;0 1], 1...measured --> PtsMeas = [1 4])
+% -         CellSize                    ...     The size of the elementary caipirinha cell. in the above example: CellSize = [2 2]
+%                                               Use at least 2*[Rx,Ry], where Rx and Ry would be the GRAPPA acceleration factors in x and y dir.
+%                                               Otherwise you get only 1 possible undersampling cell.
+%
+% Output:
+% -         QualityMeasure              ...     The quality measure of the kSpace Pattern, e.g. the mean distance of non-measured to measured points,
+%                                               or the maximum of the distances between measured and non-measured ones.
+%
+%
+% Feel free to change/reuse/copy the function. 
+% If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
+% Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
+% File dependancy: none yet.
+
+
+
 
 %% 0. DEFINITIONS, PREPARATIONS
 
-clear variables; clear functions; close all;
-pause on
+% Initialize
+BestPatterns = 0;
+BestXPercPatterns = 0;
+QualityMeasure = 0;
+no_Patterns = 0;
 
 
-cell_size = [6 6];      % e.g. undersampling of factor 2 in both directions, and to get more patterns double that size in both directions.
-no_measured_points = 4; % So R = 4*4/4 = 4;
-R = prod(cell_size)/no_measured_points
+% Assign standard values to variables if nothing is passed to function.
+if(nargin < 2)
+    display([ char(10) 'Gimme more input, Ma''am!' char(10) ])
+    return;
+end 
 
+
+
+
+% Check if too many patterns are possible
 no_Patterns = nchoosek(prod(cell_size)-1,no_measured_points-1);
+fprintf('\n\n%d possible patterns.', no_Patterns)
+
+if(no_Patterns > 10^9)
+    fprintf('\nThese are too many. I will quit here.')
+    return
+elseif(no_Patterns > 10^7)
+    fprintf('\nThis may take really long. Overnight processing recommended!')    
+elseif(no_Patterns > 10^6)
+    fprintf('\nThis may take a while. Sit back, relax & drink a tea!')
+else
+    fprintf('\n')    
+end
 
 
-%% 1. Create All Possible Patterns.
 
 
-PtsMeas = nchoosek(2:prod(cell_size),no_measured_points-1);    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
-PtsMeas = cat(2, ones(size(PtsMeas,1),1), PtsMeas);          % Add the point (1,1) to all Patterns.
+
+
+
+%% 1. Create All Possible Patterns of the Measured Points.
+
+
+AllPatterns = nchoosek(2:prod(cell_size),no_measured_points-1);    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
+AllPatterns = cat(2, ones(size(AllPatterns,1),1), AllPatterns);          % Add the point (1,1) to all Patterns.
 
 
 
 %% 2. Loop over all Patterns, Compute the mean distance for each.
 
+QltyMeas_dummy = kSpace_DistBtwMeasPts(squeeze(AllPatterns(1,:)), cell_size);
+NoQltyMeas = size(QltyMeas_dummy,2);
 
-QualityMeasure = zeros([size(PtsMeas,1) 3]);
+QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas]);
+clear QltyMeas_dummy NoQltyMeas
 
-
-for Patt_no = 1:size(PtsMeas,1)
+for Patt_no = 1:size(AllPatterns,1)
     
-    QualityMeasure(Patt_no,:) = kSpace_DistBtwMeasPts(squeeze(PtsMeas(Patt_no,:)), cell_size);
-    
-end
-
-
-
-
-%% 3. Find the Best 10%
-
-% Index_best10p_std = QualityMeasure(:,1) <= quantile(QualityMeasure(:,1),0.10);
-% Index_best_std = QualityMeasure(:,1) == min(QualityMeasure(:,1));
-% 
-% Index_best10p_min = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),0.90);
-% Index_best_min = QualityMeasure(:,2) == max(QualityMeasure(:,2));
-% 
-% Index_best10p = find(Index_best10p_std .* Index_best10p_min);
-% Index_best = find(Index_best_std .* Index_best_min);
-
-
-Index_best10p_comb = find(QualityMeasure(:,3) <= quantile(QualityMeasure(:,3),0.025));
-Index_best_comb = find(QualityMeasure(:,3) == min(QualityMeasure(:,3)));
-
-
-
-%% 4. Plot those
-
-
-
-for Indexl = transpose(Index_best_comb)
-    
-    Indexl
-    QualityMeasure(Indexl,:)
-    
-    ElemCell = zeros(cell_size);
-    ElemCell(squeeze(PtsMeas(Indexl,:))) = 1;
-    ElemCell_fig = figure; 
-    imagesc(ElemCell)
-    movegui(ElemCell_fig, 'northwest')
-    
-    
-    ElemCell_recol = ElemCell; ElemCell_recol(ElemCell_recol == 0) = 2; ElemCell_recol(ElemCell_recol == 1) = 3;
-    RepCell = repmat(ElemCell,[3 3]);
-    RepCell(size(ElemCell,1)+1 : 2*size(ElemCell,1), size(ElemCell,2)+1 : 2*size(ElemCell,2)) = ElemCell_recol;
-    RepCell_fig = figure; 
-    imagesc(RepCell)
-    movegui(RepCell_fig, 'north')    
-    
-    pause
-    close all
+    QualityMeasure(Patt_no,:) = kSpace_DistBtwMeasPts(squeeze(AllPatterns(Patt_no,:)), cell_size);
     
 end
 
 
 
-for Indexl = transpose(Index_best10p_comb)
-    
-    Indexl
-    QualityMeasure(Indexl,:)
-    
-    ElemCell = zeros(cell_size);
-    ElemCell(squeeze(PtsMeas(Indexl,:))) = 1;
-    ElemCell_fig = figure; 
-    imagesc(ElemCell)
-    movegui(ElemCell_fig, 'northwest')
-    
-    
-    ElemCell_recol = ElemCell; ElemCell_recol(ElemCell_recol == 0) = 2; ElemCell_recol(ElemCell_recol == 1) = 3;
-    RepCell = repmat(ElemCell,[3 3]);
-    RepCell(size(ElemCell,1)+1 : 2*size(ElemCell,1), size(ElemCell,2)+1 : 2*size(ElemCell,2)) = ElemCell_recol;
-    RepCell_fig = figure; 
-    imagesc(RepCell)
-    movegui(RepCell_fig, 'north')    
-    
-    pause
-    close all    
-        
-end
 
 
-pause off
+
+
+%% 3. Find the Best & the Best 10% Patterns
+
+
+Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),0.1);
+Index_Best = QualityMeasure(:,end) == min(QualityMeasure(:,end));
+
+Index_BestXPerc = repmat(Index_BestXPerc, [1 no_measured_points]);
+Index_Best = repmat(Index_Best, [1 no_measured_points]);
+
+
+BestPatterns = AllPatterns(Index_Best);
+BestXPercPatterns = AllPatterns(Index_BestXPerc);
+
+BestPatterns = reshape(BestPatterns, [numel(BestPatterns)/no_measured_points no_measured_points]);
+BestXPercPatterns = reshape(BestXPercPatterns, [numel(BestXPercPatterns)/no_measured_points no_measured_points]);
+
+BestPatterns = transpose(BestPatterns);
+BestXPercPatterns = transpose(BestXPercPatterns);
+
 
 
 
