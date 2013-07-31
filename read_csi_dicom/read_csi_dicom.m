@@ -1,6 +1,6 @@
 function [csi, csi_kspace] = read_csi_dicom(csi_path, zerofilling_fact, x_shift,y_shift)
 %
-% read_csi_dicom_x_x Read in csi-data from DICOM file format.
+% read_csi_dicom Read in csi-data from DICOM file format.
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
@@ -8,7 +8,7 @@ function [csi, csi_kspace] = read_csi_dicom(csi_path, zerofilling_fact, x_shift,
 % The function can read in MRS(I) data in the DICOM file format.
 %
 %
-% [csi,csi_kspace] = read_csi_dicom_1_1(csi_path, zerofilling_fact, x_shift,y_shift)
+% [csi, csi_kspace] = read_csi_dicom(csi_path, zerofilling_fact, x_shift,y_shift)
 %
 % Input: 
 % -         csi_path                    ...     Path of spectroscopy (imaging) file.

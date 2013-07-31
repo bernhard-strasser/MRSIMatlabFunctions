@@ -1,15 +1,15 @@
 function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
-% read_csi_dat_x_x Read in csi-data from Siemens raw file format
+% read_csi_dat Read in csi-data from Siemens raw file format
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
 %
-% The function can read in MRS(I) data in the Siemens raw file format ".DAT" 
-% and perform some easy corrections like zerofilling, Hadamard decoding, etc.
+% The function can read in MRS(I) data in the Siemens raw file format ".DAT" and performs
+% some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [csi,csi_kspace] = read_csi_dat_1_10(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, x_shift,y_shift)
+% [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
 % Input: 
 % -         csi_path                    ...     Path of MRS(I) file.

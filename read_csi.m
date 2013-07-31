@@ -1,6 +1,6 @@
 function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
-% read_csi_x_x Read in csi-data
+% read_csi Read in csi-data
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
@@ -9,7 +9,7 @@ function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to
 % functions. Refer to these for more info
 %
 %
-% [csi,csi_kspace] = read_csi_1_4(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, x_shift,y_shift)
+% [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
 % Input: 
 % -         csi_file                    ...     Path of MRS(I) file.
@@ -25,7 +25,9 @@ function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to
 %
 % Output:
 % -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
-% -         csi_kspace                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize
+% -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
+% -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
+% -         csi_kspace                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
 %
 %
 % Feel free to change/reuse/copy the function. 
