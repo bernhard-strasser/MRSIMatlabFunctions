@@ -1,4 +1,4 @@
-function [BestPatterns,BestXPercPatterns,QualityMeasure, no_Patterns, AllPatterns] = FindBestCaipPattern(cell_size, no_measured_points)
+function [BestPatterns,BestXPercPatterns,no_Patterns,QualityMeasure, AllPatterns] = FindBestCaipPattern(cell_size, no_measured_points)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -68,8 +68,8 @@ else
     fprintf('\n')    
 end
 
-
-
+PercentageBestPatterns = 200/no_Patterns;
+fprintf('\n Use %10.8f %% for the BestXPercPatterns.', PercentageBestPatterns*100)    
 
 
 
@@ -105,7 +105,7 @@ end
 %% 3. Find the Best & the Best 10% Patterns
 
 
-Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),0.1);
+Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),PercentageBestPatterns);
 Index_Best = QualityMeasure(:,end) == min(QualityMeasure(:,end));
 
 BestPatterns.Indices = find(Index_Best);
