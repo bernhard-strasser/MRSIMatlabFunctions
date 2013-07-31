@@ -124,6 +124,6 @@ QualityMeasure_min = nanmin(reshape(Distance_mat, [1 numel(Distance_mat)]));
 QualityMeasure_std = nanstd(reshape(Distance_mat, [1 numel(Distance_mat)]));
 
 
-QualityMeasure = [QualityMeasure_std QualityMeasure_min QualityMeasure_std/(QualityMeasure_min^1.5)];
+QualityMeasure = [QualityMeasure_std QualityMeasure_min QualityMeasure_std/(QualityMeasure_min^2)];
 %QualityMeasure = QualityMeasure_std/(QualityMeasure_min^1.5);
 
