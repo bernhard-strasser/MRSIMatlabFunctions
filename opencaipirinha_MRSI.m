@@ -285,8 +285,8 @@ for KernelIndex = 1:nKernels
     % Apply Relative Info
     Source_x = repmat(transpose(Source_x), [1 no_SourcePoints]);
     Source_y = repmat(transpose(Source_y), [1 no_SourcePoints]);
-    Source_x = Source_x + repmat(reshape(int16(SrcRelativeTarg{1}(:,1)),[1 no_SourcePoints]),[size(Source_x,1) 1]);
-    Source_y = Source_y + repmat(reshape(int16(SrcRelativeTarg{1}(:,2)),[1 no_SourcePoints]),[size(Source_y,1) 1]);
+    Source_x = Source_x + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,1)),[1 no_SourcePoints]),[size(Source_x,1) 1]);
+    Source_y = Source_y + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,2)),[1 no_SourcePoints]),[size(Source_y,1) 1]);
 
     % Replicate spatial info
     Source_x = repmat(Source_x, [1 1 nChannel ny_ACS_wo_border]);
