@@ -1,4 +1,4 @@
-function [OutData,weights]=opencaipirinha_MRSI_0_2(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
+function [OutData,weights]=opencaipirinha_MRSI_0_3(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
 % 
 % opengrappa_MRSI_x_y Reconstruct Undersampled MRSI and MRI Data
 % 
@@ -190,7 +190,9 @@ CentralCellLinearIndex_ACS = find(CentralCellLinearIndex_ACS);
 kernelsize = cell([1 nKernels]);               % each cell element is 1x4-matrix, with elements [x_up x_down y_left y_right]
 kernel = cell([1 nKernels]);
 kernel_TargetPoint = cell([1 nKernels]);
+SrcRelativeTarg = cell([1 nKernels]);
 weights = cell([1 nKernels]);
+
 
 % Iterate over all Kernels
 for KernelIndex = 1:nKernels
@@ -229,7 +231,7 @@ for KernelIndex = 1:nKernels
     clear kernel_dummy_cropped no_SourcePoints_cropped
     
   
-    
+        
     % Test for kernel equality. If the now defined kernel is equal to a formerly processed one, don't do the rest, but copy the weights of this former kernel
     kernel_found = false;
     for test_against_kernel_no = 1:KernelIndex-1
@@ -237,6 +239,7 @@ for KernelIndex = 1:nKernels
             if(isequal(kernel{test_against_kernel_no},kernel_dummy))
                 % Copy Weights of kernel{test_against_kernel_no}
                 weights{KernelIndex} = weights{test_against_kernel_no};
+                SrcRelativeTarg{KernelIndex} = SrcRelativeTarg{test_against_kernel_no};
                 kernel_found = true;
                 break
             end
@@ -246,11 +249,16 @@ for KernelIndex = 1:nKernels
     kernel{KernelIndex} = myrepmat_1_0(logical(kernel_dummy), [nChannel size(kernel_dummy)], 2);
     kernel_TargetPoint{KernelIndex} = false(size(kernel_dummy));
     kernel_TargetPoint{KernelIndex}(kernelsize{KernelIndex}(1)+1,kernelsize{KernelIndex}(3)+1) = true;
-    kernel_TargetPoint{KernelIndex} = myrepmat_1_0(kernel_TargetPoint{KernelIndex}, [nChannel size(kernel_TargetPoint{KernelIndex})], 2);
+    %kernel_TargetPoint{KernelIndex} = myrepmat_1_0(kernel_TargetPoint{KernelIndex}, [nChannel size(kernel_TargetPoint{KernelIndex})], 2);
     if(kernel_found)
         break
     end
     
+      
+    [SrcRelativeTarg_x,SrcRelativeTarg_y] = find(kernel_dummy);
+    [TargPos_x, TargPos_y] = find(kernel_TargetPoint{KernelIndex});
+    SrcRelativeTarg{KernelIndex} = [SrcRelativeTarg_x-TargPos_x,SrcRelativeTarg_y-TargPos_y];
+    clear SrcRelativeTarg_x SrcRelativeTarg_y TargPos_x TargPos_y
     
     
     
@@ -267,16 +275,12 @@ for KernelIndex = 1:nKernels
             SourcePattern_ACS = false([nChannel size(UndersamplingPattern_ACS)]);
             SourcePattern_ACS(:,xind-kernelsize{KernelIndex}(1):xind+kernelsize{KernelIndex}(2),yind-kernelsize{KernelIndex}(3):yind+kernelsize{KernelIndex}(4)) = kernel{KernelIndex};
             
-            
-%             TargetPattern_ACS = false([nChannel size(UndersamplingPattern_ACS)]);
-%             TargetPattern_ACS(:,xind-kernelsize{KernelIndex}(1):xind+kernelsize{KernelIndex}(2),yind-kernelsize{KernelIndex}(3):yind+kernelsize{KernelIndex}(4)) = kernel_TargetPoint{KernelIndex};
-            
-            
+                    
             % These are the source points. size: #coils*kernelsize_y*kernelsize_x   x   kernel repetitions in ACS data
             % In the first index just all the ACS points which should be fitted to the target are saved, for one kernel repetition
             % In the second index, all kernel repetitions are saved.
             SourcePoints_ACS(:,loopy) = ACS(SourcePattern_ACS);                   
-
+            
 
             % these are the taget points. size: #coils  x  kernel repetitions in ACS data    
             % Again, the first index gives all the target points.
@@ -291,15 +295,12 @@ for KernelIndex = 1:nKernels
     weights{KernelIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
 
 
-    fprintf('... %f sec \n',toc)                                                          
-    fprintf('Aaaaahhh! This SMELL! \n')    
-    
-    
 end
 
+fprintf('... %f sec \n',toc)                                                          
+fprintf('Aaaaahhh! This SMELL! \n') 
 
-
-
+assdf
 
 %% 3. Apply weights
 
@@ -318,10 +319,11 @@ Maxkernelsize = max(transpose(reshape(Maxkernelsize, [4 numel(Maxkernelsize)/4])
 % Prepare the enlarged/extended Reconstruction Matrix
 Reco_dummy = zeros([nChannel nx+sum(kernelsize{KernelIndex}(1:2)) ny+sum(kernelsize{KernelIndex}(3:4)) nSlice nTime]);              % This has to be changed for "TODO 2)"
 Reco_dummy(:,kernelsize{KernelIndex}(1)+1:end-kernelsize{KernelIndex}(2),kernelsize{KernelIndex}(3)+1:end-kernelsize{KernelIndex}(4),:,:) = InData; 
-
+fprintf('\nInitializing took %d s',toc);
 
 
 for KernelIndex = 1:nKernels
+    tic
     fprintf('Gulp ')
 
     % Computer number of source points for that kernel
@@ -329,29 +331,31 @@ for KernelIndex = 1:nKernels
     
     % Compute all the linear indices of the target points within Reco_dummy of the processed Kernel
     UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));                  % Mark the current target point in the undersampling cell
-    UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex)) = true;       
-    TargetPoints = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  % This has to be changed for "TODO 2)"
-    TargetPoints = cat(1,zeros(Maxkernelsize(1),size(TargetPoints,2)), TargetPoints, zeros(Maxkernelsize(2),size(TargetPoints,2)));
-    TargetPoints = cat(2,zeros(size(TargetPoints,1),Maxkernelsize(3)), TargetPoints, zeros(size(TargetPoints,1),Maxkernelsize(4)));
+    UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex)) = true; 
+    TargetPoints = false([size(Reco_dummy,2) size(Reco_dummy,3) size(Reco_dummy,4)]);
+    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  % This has to be changed for "TODO 2)"
     [TargetPoints_x TargetPoints_y] = find(TargetPoints);
-    %TargetPattern = myrepmat_1_0(TargetPattern, [nSlice size(TargetPattern) nSlice nTime], 2); 
-    %TargetPattern = transpose(find(TargetPattern));
+    fprintf('\nInitializing Target Points took %d s',toc);    
      
     
     % Loop over all target points for the processed kernel
     for Targetloopy = 1:numel(TargetPoints_x)
-        display([num2str(Targetloopy) ' of ' num2str(numel(TargetPoints_x))])
+        tic
+        %display([num2str(Targetloopy) ' of ' num2str(numel(TargetPoints_x))])
 
+        SourceIndices = [TargetPoints_x(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,1), TargetPoints_y(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,2)];
+        
         % Compute the Source Points for that specific TargetIndex
-        SourcePattern = false(size(Reco_dummy));
-        kernel_dummy = repmat(kernel{KernelIndex}, [1 1 1 nSlice nTime]);
-        SourcePattern(:,TargetPoints_x(Targetloopy)-kernelsize{KernelIndex}(1):TargetPoints_x(Targetloopy)+kernelsize{KernelIndex}(2), ...
-                      TargetPoints_y(Targetloopy)-kernelsize{KernelIndex}(3):TargetPoints_y(Targetloopy)+kernelsize{KernelIndex}(4),:,:) = kernel_dummy;
+        SourcePoints = zeros([nChannel*size(SourceIndices,1) nSlice*nTime]);
+        for Sourceloopy = 1:size(SourceIndices,1)
+            SourcePoints((Sourceloopy-1)*nChannel+1:Sourceloopy*nChannel,:) = reshape(Reco_dummy(:,SourceIndices(Sourceloopy,1),SourceIndices(Sourceloopy,2),:,:), [nChannel nSlice*nTime]);
+        end
+        fprintf('\nComputing Source Points took %d s',toc);           
         
-        SourcePoints=reshape(Reco_dummy(SourcePattern), [no_SourcePoints nSlice*nTime]);        
-        
+        tic
         % Reconstruct data by applying weights to Sourcepoints.
         Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),:,:)=reshape(weights{KernelIndex}*SourcePoints, [nChannel 1 1 nSlice nTime]); 
+        fprintf('\nReconstructing took %d s',toc);                  
     end
 
 
@@ -362,7 +366,10 @@ end
 
 OutData = Reco_dummy(:,Maxkernelsize(1)+1:nx+Maxkernelsize(2),Maxkernelsize(3)+1:ny+Maxkernelsize(4),:,:);                                           %Crop out the good data.
 
-fprintf('... %f sec \n',toc)
+%fprintf('... %f sec \n',toc)
+
+
+
 
 
 
