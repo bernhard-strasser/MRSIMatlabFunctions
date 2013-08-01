@@ -196,6 +196,8 @@ weights = cell([1 nKernels]);
 
 % Iterate over all Kernels
 for KernelIndex = 1:nKernels
+    
+    fprintf('\nFilling Glass %d',KernelIndex)
 
     % Compute kernel size for processed Kernel
     kernelsize{KernelIndex} = [1 1 1 1];
@@ -304,11 +306,12 @@ for KernelIndex = 1:nKernels
     
     
     % Linear Indices
-    Target_linear = sub2ind([nChannel nx_ACS ny_ACS], uint32(reshape(Target_Channels, [1 numel(Target_Channels)])), uint32(reshape(Target_x, [1 numel(Target_x)])), uint32(reshape(Target_y, [1 numel(Target_y)])));    
-    Source_linear = sub2ind([nChannel nx_ACS ny_ACS], uint32(reshape(Source_Channels, [1 numel(Source_Channels)])), uint32(reshape(Source_x, [1 numel(Source_x)])), uint32(reshape(Source_y, [1 numel(Source_y)])));
+    Target_linear = sub2ind( ...
+    [nChannel nx_ACS ny_ACS], uint32(reshape(Target_Channels, [1 numel(Target_Channels)])), uint32(reshape(Target_x, [1 numel(Target_x)])), uint32(reshape(Target_y, [1 numel(Target_y)])));    
+    Source_linear = sub2ind( ...
+    [nChannel nx_ACS ny_ACS], uint32(reshape(Source_Channels, [1 numel(Source_Channels)])), uint32(reshape(Source_x, [1 numel(Source_x)])), uint32(reshape(Source_y, [1 numel(Source_y)])));
     % For Reconstructing MRSI data, uint32 has to be changed to uint64
-    
-    
+
     
     
     % The Target Points, size: nChannel x kernel repetitions in ACS data
@@ -339,7 +342,7 @@ fprintf('Aaaaahhh! This SMELL! \n')
 %% 3. Apply weights
 
 % Fancy Text Message
-tic; fprintf('Drinking CAIPIRINHA (Applyig weights) ')
+tic; fprintf('\nDrinking CAIPIRINHA (Applyig weights) ')
 
 
 
@@ -348,25 +351,33 @@ tic; fprintf('Drinking CAIPIRINHA (Applyig weights) ')
 
 % Find Maximum Kernelsize of all kernels
 Maxkernelsize = [kernelsize{:}];
-Maxkernelsize = max(transpose(reshape(Maxkernelsize, [4 numel(Maxkernelsize)/4])), [], 1);
+Maxkernelsize = max(reshape(Maxkernelsize, [4 numel(Maxkernelsize)/4]), [], 2);
 
 % Prepare the enlarged/extended Reconstruction Matrix
-Reco_dummy = zeros([nChannel nx+sum(kernelsize{KernelIndex}(1:2)) ny+sum(kernelsize{KernelIndex}(3:4)) nSlice nTime]);              % This has to be changed for "TODO 2)"
-Reco_dummy(:,kernelsize{KernelIndex}(1)+1:end-kernelsize{KernelIndex}(2),kernelsize{KernelIndex}(3)+1:end-kernelsize{KernelIndex}(4),:,:) = InData; 
-fprintf('\nInitializing took %d s',toc);
+Reco_dummy = zeros([nChannel nx+sum(Maxkernelsize(1:2)) ny+sum(Maxkernelsize(3:4)) nSlice nTime]);              % This has to be changed for "TODO 2)"
+Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:,:) = InData; 
+%fprintf('\nInitializing took %4.2f s',toc);
 
 
 for KernelIndex = 1:nKernels
-    fprintf('Gulp ')
+    fprintf('\nDrinking Glass %d\tGUUULLPP . . . UAHHHH . . . ',KernelIndex)
 
-    % Compute number of source points for that kernel
-    no_SourcePoints = sum(sum(sum(kernel{KernelIndex})));
     
     % Compute all the linear indices of the target points within Reco_dummy of the processed Kernel
     UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));                  % Mark the current target point in the undersampling cell
     UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex)) = true; 
     TargetPoints = false([size(Reco_dummy,2) size(Reco_dummy,3) size(Reco_dummy,4)]);
-    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  % This has to be changed for "TODO 2)"
+    
+    
+    % This has to be changed for "TODO 2)"
+    % What is done here?
+    % 1) The inner part of the TargetPoints are called, because the target points can only be in that part of Reco_dummy which implements the InData, not the zerofilled part 
+    %    (we dont want to reconstruct the zeros, do we?)
+    % 2) The UndersamplinCell with the current target point gets replicated to the size of the InData. If the InData is not an integer multiple of the UndersamplingCell then
+    %    this will lead to an error here.
+    % 3) Then the x- and y-coordinates of the target points are computed.
+    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
+    repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
     [TargetPoints_x TargetPoints_y] = find(TargetPoints);
      
     
