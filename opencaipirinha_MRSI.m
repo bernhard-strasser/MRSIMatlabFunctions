@@ -1,4 +1,4 @@
-function [OutData,weights]=opencaipirinha_MRSI_1_0(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
+function [OutData,weights]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
 % 
 % opengrappa_MRSI_x_y Reconstruct Undersampled MRSI and MRI Data
 % 
