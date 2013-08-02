@@ -1,0 +1,38 @@
+Version 1.0 created on October 24, 2012 based on Alins skip_lines.m function. 
+
+
+
+
+CHANGED IN VERSION 1.0:
+
+- (October 24 2012):	Generalized Alins function, so that you pass over the data that should be undersampled, and the elementary cell. This cell has ones where the k-points should
+				be kept, and zeros for k-points that should be removed (set to zero). The elementary cell is the smallest cell that describes the pattern for that k-points that
+				should be removed, but (DIFFERENCE TO CRISTALLOGRAPHY!!!) with fixed orthogonal unit coordinate system vector. Thus, this cell gets replicated to the same size
+				of the input data.
+
+
+- (October 24 2012):	Instead of skipping the skipped-kpoints totally, set them just to zero. If they were set to [], the csi_in would be reshaped.
+
+- (October 25 2012):	Additional Output: The SkipkPoints_Spatial
+
+
+
+
+CHANGED IN VERSION 1.1:
+
+- (October 29 2012):	The "skipped" k-points are now again really skipped, not set to zero. Reason: See CHANGE_HISTORY_opengrappa_MRSI, ver 1.1. The output of the function is thus
+				a vector, not an array. Reshaping has to be performed after this function.
+
+
+
+CHANGED IN VERSION 1.2:
+
+- (October 31 2012):	Function can skip now also elementary cells which can not replicated to csi_in with an integer number, e.g. if you have a 64x64 matrix and want to take every
+				third row/col (elementary cell = [1 0 0; 0 0 0; 0 0 0] or [0 0 0; 0 0 0; 0 0 1]), but mod(64/3,1) ~= 0. This is done by replicating it as often as it is fully
+				possible and then appending zeros to the Skip_kPoints_Spatial. However, this may be only meaningful for csi_in 64x64 and R_x = R_y = 3. For other cofnigurations
+				the kspace center may not be included! Always use a elementary cell that includes the k-space center!
+
+
+CHANGED IN VERSION 1.3:
+
+- (February 28 2013):	The "skipped" k-points are now again set to zero, not skipped. Reason: opencaipirinha_x_y needs it like that.
