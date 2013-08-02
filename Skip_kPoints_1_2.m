@@ -78,7 +78,7 @@ Skip_kPoints = repmat(Skip_kPoints_Spatial, [1 1 1 size(csi_in,5)]);
 
 %% 2. Set kPoints to Zero 
 
-csi_out = zeros([size(csi_in,1) sum(~Skip_kPoints_Spatial(:,3))*sum(~Skip_kPoints_Spatial(3,:))*size(csi_in,4)*size(csi_in,5)]);
+csi_out = zeros([size(csi_in,1) numel(find(sum(~Skip_kPoints_Spatial,1)))*numel(find(sum(~Skip_kPoints_Spatial,2)))*size(csi_in,4)*size(csi_in,5)]);
 for cha = 1:size(csi_in,1)
     csi_out_dummy = csi_in(cha,:,:,:,:);
     csi_out_dummy(Skip_kPoints) = [];
