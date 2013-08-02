@@ -1,4 +1,4 @@
-function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints_1_1(csi_in, Keep_kPoints_ElementaryCell)
+function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints_1_2(csi_in, Keep_kPoints_ElementaryCell)
 %
 % EllipticalFilter_x_y Apply an elliptical filter to k-space data
 %
@@ -53,18 +53,36 @@ Skip_kPoints_ElementaryCell = ~Keep_kPoints_ElementaryCell;
 %% 1. Replicate Elementary Cell
 
 % Replicate in spatial dimensions.
-Skip_kPoints_Spatial = repmat(Skip_kPoints_ElementaryCell, SizeRatio);
+Skip_kPoints_Spatial = repmat(Skip_kPoints_ElementaryCell, floor(SizeRatio));
+%figure; imagesc(Skip_kPoints_Spatial)
+% Append zeros if elementary cell cannot be replicated to the size of csi_in
+if(mod(SizeRatio(1),1) ~= 0)
+    Append_RowNo = size(csi_in,2) - size(Skip_kPoints_Spatial,1);
+	Append_RowAtBeginning = ones([floor(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
+	Append_RowAtEnd = ones([ceil(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
+    Skip_kPoints_Spatial = cat(1,Append_RowAtBeginning,Skip_kPoints_Spatial,Append_RowAtEnd);
+end
+if(mod(SizeRatio(2),1) ~= 0)
+    Append_ColNo = size(csi_in,3) - size(Skip_kPoints_Spatial,2);
+	Append_ColAtBeginning = ones([size(Skip_kPoints_Spatial,1) floor(Append_ColNo/2)]);
+	Append_ColAtEnd = ones([size(Skip_kPoints_Spatial,1) ceil(Append_ColNo/2)]);
+    Skip_kPoints_Spatial = cat(2,Append_ColAtBeginning,Skip_kPoints_Spatial,Append_ColAtEnd);
+end
+Skip_kPoints_Spatial = logical(Skip_kPoints_Spatial);
+%figure; imagesc(Skip_kPoints_Spatial)
 
 % Replicate in channel and time dimensions
-Skip_kPoints = myrepmat_1_0(Skip_kPoints_Spatial, [size(csi_in,1) 1 1 1 size(csi_in,5)], 2);
-
+Skip_kPoints = repmat(Skip_kPoints_Spatial, [1 1 1 size(csi_in,5)]);
 
 
 
 %% 2. Set kPoints to Zero 
 
-csi_out = csi_in;
-csi_out(Skip_kPoints) = [];
-
+csi_out = zeros([size(csi_in,1) sum(~Skip_kPoints_Spatial(:,3))*sum(~Skip_kPoints_Spatial(3,:))*size(csi_in,4)*size(csi_in,5)]);
+for cha = 1:size(csi_in,1)
+    csi_out_dummy = csi_in(cha,:,:,:,:);
+    csi_out_dummy(Skip_kPoints) = [];
+    csi_out(cha,:) = csi_out_dummy;
+end
 
 
