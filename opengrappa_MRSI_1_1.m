@@ -1,4 +1,4 @@
-function [recon,ws]=opengrappa_MRSI_1_0(sig, acs, R, type) 
+function [recon,ws]=opengrappa_MRSI_1_1(sig, acs, R, type) 
 
 % This code is written by Felix Breuer based on opengrappa by Mark Griswold 
 %
@@ -67,8 +67,8 @@ function [recon,ws]=opengrappa_MRSI_1_0(sig, acs, R, type)
 
 if(strcmp(type, 'row') == 1)
 
-    [nc,ny,nx, ns, nTime]=size(sig);
-    ny_red = ny/R;
+    [nc,ny_red,nx, ns, nTime]=size(sig);
+    ny = ny_red * R;
     [nc_acs,nyacs,nxacs]=size(acs);     %Get the size of both the input data and the ref data
 
     if nc_acs~=nc
@@ -151,11 +151,11 @@ if(strcmp(type, 'row') == 1)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     tic; fprintf('Applyig weights ')
-    recon = zeros(size(sig));
+    recon = zeros([size(sig,1) size(sig,2)*R size(sig,3) size(sig,4) size(sig,5)]);
     for t=1:nTime
         
         sigrecon = zeros(nc,ny+2*dy+1,nx+2*dx);                                                       % prepare matrix for convolution   
-        sigrecon(:,dy+1:ny+dy,dx+1:end-dx) = sig(:,:,:, 1, t);                                        % Write undersampled data into zero-padded matrix 
+        sigrecon(:,dy+1:R:ny+dy,dx+1:end-dx) = sig(:,:,:, 1, t);                                        % Write undersampled data into zero-padded matrix 
 
         for xind = dx+1:nx+dx, 
             for yind= 1:R:ny,
@@ -178,8 +178,25 @@ if(strcmp(type, 'row') == 1)
 
 
 
-
-
+%     tic; fprintf('Applyig weights ')
+%     recon = zeros([size(sig,1) size(sig,2)*R size(sig,3) size(sig,4) size(sig,5)]);
+%         
+%         sigrecon = zeros(nc,ny+2*dy+1,nx+2*dx,1, size(sig,5));                                                       % prepare matrix for convolution   
+%         sigrecon(:,dy+1:R:ny+dy,dx+1:end-dx,1,:) = sig;                                        % Write undersampled data into zero-padded matrix 
+% 
+%         for xind = dx+1:nx+dx, 
+%             for yind= 1:R:ny,
+% 
+%                 src=reshape(sigrecon(:,yind:R:yind + (srcy-1)*R,xind-dx:xind+dx),nc*srcy*srcx,1);
+% 
+%                 sigrecon(:,yind+dy+1:yind+dy+R-1,xind)=reshape(ws*src,[nc (R-1)]);           %Apply weights to source points
+% 
+%             end
+%         end
+%         recon = sigrecon(:,dy+1:ny+dy,dx+1:nx+dx);                                           %Crop out the good data.
+% 
+% 
+%     fprintf('... %f sec \n',toc)
 
 
 
@@ -194,8 +211,8 @@ if(strcmp(type, 'row') == 1)
 
 elseif(strcmp(type, 'col') == 1)
   
-    [nc,ny,nx, ns, nTime]=size(sig);
-    nx_red = nx/R;
+    [nc,ny,nx_red, ns, nTime]=size(sig);
+    nx = nx_red * R;
     
     [nc_acs,nyacs,nxacs]=size(acs);     %Get the size of both the input data and the ref data
 
@@ -273,10 +290,10 @@ elseif(strcmp(type, 'col') == 1)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     tic; fprintf('Applyig weights ')
-    recon = zeros(size(sig));
+    recon = zeros([size(sig,1) size(sig,2) size(sig,3)*R size(sig,4) size(sig,5)]);
     for t = 1:nTime,
         sigrecon = zeros(nc,ny+2*dy,nx+2*dx+ 1);                                                         % prepare matrix for convolution     
-        sigrecon(:,dy+1:end-dy,dx+1:nx+dx) = sig(:,:,:, 1, t);                                           % Write undersampled data into zero-padded matrix 
+        sigrecon(:,dy+1:end-dy,dx+1:R:nx+dx) = sig(:,:,:, 1, t);                                           % Write undersampled data into zero-padded matrix 
         %sigrecon(:,dy+1:R:ny+dy,dx+1:end-dx) = sig(:,:,:, 1, t);
 
         for xind = 1:R:nx, 
