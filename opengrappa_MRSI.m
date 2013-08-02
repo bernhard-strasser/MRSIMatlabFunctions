@@ -1,4 +1,4 @@
-function [OutData,weights]=opengrappa_MRSI_1_2(InData, ACS, R, ApplyAlongDim) 
+function [OutData,weights]=opengrappa_MRSI(InData, ACS, R, ApplyAlongDim) 
 % 
 % opengrappa_MRSI_x_y Reconstruct Undersampled MRSI Data
 % 
@@ -64,7 +64,10 @@ if(~exist('ApplyAlongDim','var'))
     ApplyAlongDim = 2;
 end 
 
-
+if(R == 1)
+    OutData = InData;
+    return
+end
 
 
 %% 1. Apply Along ROW dimension
