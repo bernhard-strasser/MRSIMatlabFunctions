@@ -1,4 +1,4 @@
-function QualityMeasure = kSpace_DistBtwMeasPts(PtsMeas, CellSize)
+function QualityMeasure = DistBtwMeasPts(PtsMeas, CellSize,FFT_flag)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -40,7 +40,28 @@ if(nargin < 2)
     return;
 end 
 
+if(~exist('FFT_flag','var'))
+    FFT_flag = 0;
+end
 
+
+
+%% 1. FFT if necessary
+
+
+
+if(FFT_flag)
+    PSF = zeros(CellSize);
+    PSF(PtsMeas) = 1;
+    PSF = fft(fft(PSF,[],1),[],2) / sqrt(numel(PSF));
+    if(~isreal(PSF))
+        fprintf('\nSorry, the Point Spread Function is complex. I cannot define a distance for complex points\nStopping . . .\n')
+        QualityMeasure = [NaN NaN NaN];
+        return
+    end
+    PtsMeas = transpose(find(PSF));
+    clear PSF
+end
 
 
 
@@ -90,17 +111,17 @@ Dist_y = abs(PtsMeas_y - PtsMeas2_y);
 %   o 2 o o | o 2 o o | o 2 o o
 
 
+% Do I also have to do this in image domain?
+if(~FFT_flag)
+    MaxDistance_x = floor(CellSize(1)/2);   % It is not possible that two points are farther apart from each other in the replicated cell
+    MaxDistance_y = floor(CellSize(2)/2);
 
+    Dist_x_mod = mod(CellSize(1),Dist_x);
+    Dist_y_mod = mod(CellSize(1),Dist_y);
 
-MaxDistance_x = floor(CellSize(1)/2);   % It is not possible that two points are farther apart from each other in the replicated cell
-MaxDistance_y = floor(CellSize(2)/2);
-
-Dist_x_mod = mod(CellSize(1),Dist_x);
-Dist_y_mod = mod(CellSize(1),Dist_y);
-
-Dist_x(Dist_x > MaxDistance_x) = Dist_x_mod(Dist_x > MaxDistance_x);
-Dist_y(Dist_y > MaxDistance_y) = Dist_y_mod(Dist_y > MaxDistance_y);
-
+    Dist_x(Dist_x > MaxDistance_x) = Dist_x_mod(Dist_x > MaxDistance_x);
+    Dist_y(Dist_y > MaxDistance_y) = Dist_y_mod(Dist_y > MaxDistance_y);
+end
 
 
 
