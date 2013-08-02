@@ -1,4 +1,4 @@
-function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints_1_0(csi_in, Keep_kPoints_ElementaryCell)
+function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints_1_1(csi_in, Keep_kPoints_ElementaryCell)
 %
 % EllipticalFilter_x_y Apply an elliptical filter to k-space data
 %
@@ -64,7 +64,7 @@ Skip_kPoints = myrepmat_1_0(Skip_kPoints_Spatial, [size(csi_in,1) 1 1 1 size(csi
 %% 2. Set kPoints to Zero 
 
 csi_out = csi_in;
-csi_out(Skip_kPoints) = 0;
+csi_out(Skip_kPoints) = [];
 
 
 
