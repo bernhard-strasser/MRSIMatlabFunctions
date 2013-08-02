@@ -1,0 +1,52 @@
+Version 1.0 created on October 24, 2012 based on Alins opengrappa_time.m function. 
+
+
+
+
+CHANGED IN VERSION 1.0:
+
+- (October 24 2012):	Renamed af to R.
+
+- (October 24 2012):	Input data should now be data not with skipped k-points, but set to zero.
+
+
+
+CHANGED IN VERSION 1.1:
+
+- (October 29 2012):	Input data should now again be with skipped k-points, NOT set to zero. The reason for this is, if reconstructions in two dimensions are performed,
+				the zeros are wrong.
+
+
+CHANGED IN VERSION 1.2:
+
+- (Jannuary 07 2013):	Interchanged x and y, so that x is the first and y the second spatial index in arrays (e.g. CSI(cha,x,y,slc,time) instead of CSI(cha,y,x,slc,time) as it was before)
+
+- (Jannuary 07 2013):	Instead of string-variable "type", which is either 'row' or 'col', use now variable "ApplyAlongDim", which you can set to 2 or 3.
+
+- (Jannuary 07 2013):	Renamed variables: recon --> OutData, acs --> ACS, sig --> InData, ws --> weights, nc --> nChannel, ns --> nSlice, srcx --> kernelsize_x, sigrecon --> Reco_dummy
+
+- (Jannuary 07 2013):	Added Preparation part with standard value assignments.
+
+- (Jannuary 08 2013):	Improved computational speed by vectorizing time points loop when applying the weights.
+
+
+
+
+CHANGED IN VERSION 1.3:
+
+- (February 04 2013):	a
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
