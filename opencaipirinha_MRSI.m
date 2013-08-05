@@ -312,7 +312,12 @@ for KernelIndex = 1:nKernels
     [nChannel nx_ACS ny_ACS], uint32(reshape(Source_Channels, [1 numel(Source_Channels)])), uint32(reshape(Source_x, [1 numel(Source_x)])), uint32(reshape(Source_y, [1 numel(Source_y)])));
     % For Reconstructing MRSI data, uint32 has to be changed to uint64
 
-    
+    if(max(Source_linear) > 2^31)
+        max(Source_linear)
+        display('Change to uint64 in code.')
+        OutData = InData; weights = 0;
+        return
+    end
     
     % The Target Points, size: nChannel x kernel repetitions in ACS data
     TargetPoints_ACS = ACS(Target_linear);
