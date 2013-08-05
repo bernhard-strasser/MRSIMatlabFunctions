@@ -238,7 +238,7 @@ for KernelIndex = 1:nKernels
     kernel_found = false;
     for test_against_kernel_no = 1:KernelIndex-1
         if(isequal(kernelsize{test_against_kernel_no},kernelsize{KernelIndex}))
-            if(isequal(kernel{test_against_kernel_no},kernel_dummy))
+            if(isequal(squeeze(kernel{test_against_kernel_no}(1,:,:)),kernel_dummy))        % kernel gets replicated with channels. --> Must index into kernel.
                 % Copy Weights of kernel{test_against_kernel_no}
                 weights{KernelIndex} = weights{test_against_kernel_no};
                 SrcRelativeTarg{KernelIndex} = SrcRelativeTarg{test_against_kernel_no};
@@ -253,7 +253,7 @@ for KernelIndex = 1:nKernels
     kernel_TargetPoint{KernelIndex}(kernelsize{KernelIndex}(1)+1,kernelsize{KernelIndex}(3)+1) = true;
     %kernel_TargetPoint{KernelIndex} = myrepmat_1_0(kernel_TargetPoint{KernelIndex}, [nChannel size(kernel_TargetPoint{KernelIndex})], 2);
     if(kernel_found)
-        break
+        continue
     end
     
       
@@ -314,7 +314,7 @@ for KernelIndex = 1:nKernels
 
     if(max(Source_linear) > 2^31)
         max(Source_linear)
-        display('Change to uint64 in code.')
+        display('Change to uint64 in code. Aborting.')
         OutData = InData; weights = 0;
         return
     end
