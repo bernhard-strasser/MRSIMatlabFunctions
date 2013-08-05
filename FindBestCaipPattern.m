@@ -68,8 +68,14 @@ else
     fprintf('\n')    
 end
 
-PercentageBestPatterns = 200/no_Patterns;
-fprintf('\n Use %10.8f %% for the BestXPercPatterns.', PercentageBestPatterns*100)    
+if(no_Patterns < 70)
+    PercentageBestPatterns = 0.51;
+elseif(no_Patterns < 2000)
+    PercentageBestPatterns = 0.1;
+else
+    PercentageBestPatterns = 200/no_Patterns;
+end
+fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*100)    
 
 
 
@@ -84,7 +90,7 @@ AllPatterns = cat(2, ones(size(AllPatterns,1),1), AllPatterns);          % Add t
 
 %% 2. Loop over all Patterns, Compute the mean distance for each.
 
-QltyMeas_dummy = kSpace_DistBtwMeasPts(squeeze(AllPatterns(1,:)), cell_size);
+QltyMeas_dummy = DistBtwMeasPts(squeeze(AllPatterns(1,:)), cell_size,0);
 NoQltyMeas = size(QltyMeas_dummy,2);
 
 QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas]);
@@ -92,7 +98,7 @@ clear QltyMeas_dummy NoQltyMeas
 
 for Patt_no = 1:size(AllPatterns,1)
     
-    QualityMeasure(Patt_no,:) = kSpace_DistBtwMeasPts(squeeze(AllPatterns(Patt_no,:)), cell_size);
+    QualityMeasure(Patt_no,:) = DistBtwMeasPts(squeeze(AllPatterns(Patt_no,:)), cell_size,0);
     
 end
 
@@ -105,6 +111,11 @@ end
 %% 3. Find the Best & the Best 10% Patterns
 
 
+% In Image Domain
+% Index_BestXPerc = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),PercentageBestPatterns);
+% Index_Best = QualityMeasure(:,2) == max(QualityMeasure(:,2));
+
+% In kSpace domain
 Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),PercentageBestPatterns);
 Index_Best = QualityMeasure(:,end) == min(QualityMeasure(:,end));
 
