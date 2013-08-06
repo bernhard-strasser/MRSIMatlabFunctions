@@ -1,4 +1,4 @@
-function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints(csi_in, Keep_kPoints_ElementaryCell)
+function [OutData, Skip_kPoints_Spatial] = Skip_kPoints(InData, Keep_kPoints_ElementaryCell)
 %
 % EllipticalFilter_x_y Apply an elliptical filter to k-space data
 %
@@ -41,7 +41,7 @@ function [csi_out, Skip_kPoints_Spatial] = Skip_kPoints(csi_in, Keep_kPoints_Ele
 
 
 % Compute the Ratios of the size(Input)/size(ElementaryCell)
-SizeRatio = size(squeeze(csi_in(1,:,:,:,1))) ./ size(Keep_kPoints_ElementaryCell);
+SizeRatio = size(squeeze(InData(1,:,:,:,1))) ./ size(Keep_kPoints_ElementaryCell);
 
 
 % Compute Elementary Cell of the k_points to skip
@@ -54,35 +54,41 @@ Skip_kPoints_ElementaryCell = ~Keep_kPoints_ElementaryCell;
 
 % Replicate in spatial dimensions.
 Skip_kPoints_Spatial = repmat(Skip_kPoints_ElementaryCell, floor(SizeRatio));
+
+% Append beginning of pattern if elementary cell cannot be replicated to the size of InData
+Skip_kPoints_Spatial = cat(1,Skip_kPoints_Spatial,Skip_kPoints_Spatial(1:size(InData,2)-size(Skip_kPoints_Spatial,1),:,:));
+Skip_kPoints_Spatial = cat(2,Skip_kPoints_Spatial,Skip_kPoints_Spatial(:,1:size(InData,3)-size(Skip_kPoints_Spatial,2),:));
+Skip_kPoints_Spatial = cat(3,Skip_kPoints_Spatial,Skip_kPoints_Spatial(:,:,1:size(InData,4)-size(Skip_kPoints_Spatial,3)));
+
 %figure; imagesc(Skip_kPoints_Spatial)
-% Append zeros if elementary cell cannot be replicated to the size of csi_in
-if(mod(SizeRatio(1),1) ~= 0)
-    Append_RowNo = size(csi_in,2) - size(Skip_kPoints_Spatial,1);
-	Append_RowAtBeginning = ones([floor(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
-	Append_RowAtEnd = ones([ceil(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
-    Skip_kPoints_Spatial = cat(1,Append_RowAtBeginning,Skip_kPoints_Spatial,Append_RowAtEnd);
-end
-if(mod(SizeRatio(2),1) ~= 0)
-    Append_ColNo = size(csi_in,3) - size(Skip_kPoints_Spatial,2);
-	Append_ColAtBeginning = ones([size(Skip_kPoints_Spatial,1) floor(Append_ColNo/2)]);
-	Append_ColAtEnd = ones([size(Skip_kPoints_Spatial,1) ceil(Append_ColNo/2)]);
-    Skip_kPoints_Spatial = cat(2,Append_ColAtBeginning,Skip_kPoints_Spatial,Append_ColAtEnd);
-end
+% Append zeros if elementary cell cannot be replicated to the size of InData
+% if(mod(SizeRatio(1),1) ~= 0)
+%     Append_RowNo = size(InData,2) - size(Skip_kPoints_Spatial,1);
+% 	Append_RowAtBeginning = ones([floor(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
+% 	Append_RowAtEnd = ones([ceil(Append_RowNo/2) size(Skip_kPoints_Spatial,2)]);
+%     Skip_kPoints_Spatial = cat(1,Append_RowAtBeginning,Skip_kPoints_Spatial,Append_RowAtEnd);
+% end
+% if(mod(SizeRatio(2),1) ~= 0)
+%     Append_ColNo = size(InData,3) - size(Skip_kPoints_Spatial,2);
+% 	Append_ColAtBeginning = ones([size(Skip_kPoints_Spatial,1) floor(Append_ColNo/2)]);
+% 	Append_ColAtEnd = ones([size(Skip_kPoints_Spatial,1) ceil(Append_ColNo/2)]);
+%     Skip_kPoints_Spatial = cat(2,Append_ColAtBeginning,Skip_kPoints_Spatial,Append_ColAtEnd);
+% end
 Skip_kPoints_Spatial = logical(Skip_kPoints_Spatial);
 %figure; imagesc(Skip_kPoints_Spatial)
 
 % Replicate in channel and time dimensions
-Skip_kPoints = repmat(Skip_kPoints_Spatial, [1 1 1 size(csi_in,5)]);
+Skip_kPoints = repmat(Skip_kPoints_Spatial, [1 1 1 size(InData,5)]);
 
 
 
 %% 2. Set kPoints to Zero 
 
-csi_out = zeros(size(csi_in));
-for cha = 1:size(csi_in,1)
-    csi_out_dummy = csi_in(cha,:,:,:,:);
+OutData = zeros(size(InData));
+for cha = 1:size(InData,1)
+    csi_out_dummy = InData(cha,:,:,:,:);
     csi_out_dummy(Skip_kPoints) = 0;
-    csi_out(cha,:,:,:,:) = csi_out_dummy;
+    OutData(cha,:,:,:,:) = csi_out_dummy;
 end
 
 
