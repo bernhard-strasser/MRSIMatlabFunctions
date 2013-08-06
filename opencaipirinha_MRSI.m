@@ -381,8 +381,13 @@ for KernelIndex = 1:nKernels
     % 2) The UndersamplinCell with the current target point gets replicated to the size of the InData. If the InData is not an integer multiple of the UndersamplingCell then
     %    this will lead to an error here.
     % 3) Then the x- and y-coordinates of the target points are computed.
-    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
-    repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
+    UC_dummy = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);
+    UC_dummy = cat(  1,UC_dummy, UC_dummy(1:nx-size(UC_dummy,1),:,:)  );
+    UC_dummy = cat(  2,UC_dummy, UC_dummy(:,1:ny-size(UC_dummy,2),:)  );
+    UC_dummy = cat(  3,UC_dummy, UC_dummy(:,:,1:nSlice-size(UC_dummy,3))  );  
+    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = UC_dummy;
+%     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
+%     repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
     [TargetPoints_x TargetPoints_y] = find(TargetPoints);
      
     
@@ -407,7 +412,7 @@ for KernelIndex = 1:nKernels
 end
 
 
-OutData = Reco_dummy(:,Maxkernelsize(1)+1:nx+Maxkernelsize(2),Maxkernelsize(3)+1:ny+Maxkernelsize(4),:,:);                                           %Crop out the good data.
+OutData = Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:,:);                                           %Crop out the good data.
 
 fprintf('... %f sec \n',toc)
 
