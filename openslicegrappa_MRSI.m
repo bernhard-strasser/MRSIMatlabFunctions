@@ -1,71 +1,36 @@
 function [OutData,weights]=openslicegrappa_MRSI(InData, ACS, kernelsize) 
 % 
-% opengrappa_MRSI_x_y Reconstruct Undersampled MRSI and MRI Data
+% openslicegrappa_MRSI Reconstruct the Slices of MRSI and MRI Data Ehen Only the Sum of Those Slices Was Measured.
 % 
-%  [OutData,weights] = opengrappa(InData,ACS,UndersamplingCell);
+%  [OutData,weights] = openslicegrappa_MRSI(InData,ACS,kernelsize);
 %       
 %   Input:      
-% -     InData             Undersampled Data            (size: [#coils, k_x, k_y, slices, nTime]) (nTime = 1 for MRI)
-%                          The undersampled points must be set to zero, NOT MISSING!
-% -     ACS                AutoCalibration Signal       (size: [#coils, k_y, k_x, slices])     
-% -     UndersamplingCell  Elementary Cell, logical array (or array containing only 1's and 0's) which tells you the measured points (1's) and omitted points (0's). 
-%                          Gets replicated to spatial size of InData to define the undersampling pattern. 
-%                          Thus spatial size of InData and ACS must be integer multiple of UndersamplingCell.
-% -     MinKernelSrcPts    The minimum source points in the kernel that are fitted to the target points. 20 is a good value, as that is standard in GRAPPA.
+% -     InData             Undersampled Data            (size: [#coils, nx, ny, nSlice = 1, nTime]) (nTime = 1 for MRI)
+%                          There must be only 1 slice!
+% -     ACS                AutoCalibration Signal       (size: [#coils, nx_ACS, ny_ACS, nSlice_ACS])  
+%                          Must have as many slices as the OutData should have. Use similar sequence parameters as for the InData.
+% -     kernelsize         The kernelsize. Input should be either one of those formats (examples produce exactly the same results):
+%                               *   [1 4]-vector: These give the maximum distance of the kernel from the target point
+%                                   to the left and right (x direction), and to down and up (y direction). E.g.: [2 2 2 2]
+%                               *   [1 2]-vector: The kernelsize in x- and y-direction. E.g. [5 5]
+%                               *   scalar: The kernel size in both directions. E.g. 5.
 % 
 %   Output:
-% -     OutData            Reconstructed Output Data    (size: [#coils, k_x, k_y, slc, nTime]) (nTime = 1 for MRI)
+% -     OutData            Reconstructed Output Data    (size: [#coils, nx, ny, nSlice_ACS, nTime]) (nTime = 1 for MRI)
 % -     weights            Weights for Reconstruction              
 %              
 %
 
-
-
-% This code is based on the teaching version of the opengrappa function of Felix Breuer that was provided 
-% on the parallel imaging workshop in Wuerzburg, 2012, which in turn is based on the opengrappa of Mark Griswold.
-%
-% 22.06.2008 Felix Breuer (breuer@mr-bavaria.de)
-% November 2012 - January 2013 Bernhard Strasser
-%
-%
-%   Please read the license text at the bottom of this program. By using this program, you 
-%   implicity agree with the license. 
-%
-%   The main points of the license:
-%
-%   1) This code is strictly for non-commercial applications. The code is protected by
-%      multiple patents.
-%   2) This code is strictly for research purposes, and should not be used in any
-%      diagnostic setting.
-
-
-
-
-%   Some things to think about when using this code:
-%
-%           - The ACS lines used for reconstruction are NOT included in the final reconstructed
-%             data sets. If you want to do this, you can do it after reconstruction. Please check
-%             that they are lined up with the reconstructed data. I have not checked this.
-%
-%           - Since the ACS lines are not included, feel free to use a different imaging sequence
-%             for acquisition of the ACS lines. We have seen some advantage in doing this when
-%             the sequence used for the reduced acquisition is very flow sensitive, for example.
-%             This can also be faster in many cases.
-%
-%           - The matrix problems here are normally so overdetermined that numerical conditioning 
-%             is normally not necessary. You could try something out on your problem and see what
-%             you get. I have never seen any real advantage.
-%
-
-
+% August 2013 - Bernhard Strasser
 
 
 % TODO: 
-%       1)   Get License.
-%       4)   If it is not too complicated, compute different kernels for the border voxels. 
+%       1)   If it is not too complicated, compute different kernels for the border voxels. 
 %            Because the border voxels are computed with a lot of zeros, but with the "normal" reconstruction weights.
 %            Yet, these "normal" weights assume that there is still data in all source points, and not zeros.
-%       5)   A ball-shaped kernel instead of a cube might be a little better. Only little advantages expected.
+%       2)   A ball-shaped kernel instead of a cube might be a little better. Only little advantages expected.
+
+
 
 
 
@@ -126,15 +91,19 @@ end
 
 
 
-%% 2. Calculate weights
+%% 1. Calculate weights
 
 % Fancy Text Message
 tic;
-fprintf('\nFilling the glasses (Calculating weights)')
+fprintf('\nFilling the glasses and cutting lemon slices (Calculating weights)')
 
 % What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
-%
-% For visualization, run the script Caipirinha_VisualizingWeightsComputation_And_Application_1_x.m
+% No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
+% (to avoid slow loops). The computation of the linear indices looks quite complicated, and in fact -- it is :)
+% Well in principle the target points are just all points all x- and y-values of all channels. The relative distance of the
+% source points to a target point is computed within the kernel, and this relative information is applied to the target points
+% in order to get the source points. Then the linear indices can be computed.
+% For visualization, run the script SliceGrappa_Visualizing.m
 
 
 % Compute the Source and Target Points as linear indices
@@ -233,7 +202,7 @@ fprintf('Aaaaahhh! This SMELL! \n')
 
 
 
-%% 3. Apply weights
+%% 2. Apply weights
 
 % Fancy Text Message
 tic; fprintf('\nDrinking GRAPPA with slices of lemon (Applyig weights).')
@@ -283,7 +252,7 @@ fprintf('\nDrinking took\t...\t%f sec.',toc)
 %% ~. Postparations
 
 % Fancy Text Message
-fprintf('\nMmmmhhh, I love CAIPIRINHA! \n')    
+fprintf('\nMmmmhhh, I love GRAPPA! \n')    
 
 
 
