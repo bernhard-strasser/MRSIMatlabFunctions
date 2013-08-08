@@ -1,13 +1,14 @@
 function [OutData,weights]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
 % 
-% opengrappa_MRSI_x_y Reconstruct Undersampled MRSI and MRI Data
+% opencaipirinha_MRSI Reconstruct MRSI and MRI Data Undersampled With caipirinha Patterns
 % 
-%  [OutData,weights] = opengrappa(InData,ACS,UndersamplingCell);
+%  [OutData,weights]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts) 
 %       
 %   Input:      
-% -     InData             Undersampled Data            (size: [#coils, k_x, k_y, slices, nTime]) (nTime = 1 for MRI)
+% -     InData             Undersampled Data            (size: [#coils, nx, ny, nSlice, nTime]) (nTime = 1 for MRI)
 %                          The undersampled points must be set to zero, NOT MISSING!
-% -     ACS                AutoCalibration Signal       (size: [#coils, k_y, k_x, slices])     
+%                          It was never tested with nSlice > 1.
+% -     ACS                AutoCalibration Signal       (size: [#coils, nx_ACS, ny_ACS, nSlice_ACS])     
 % -     UndersamplingCell  Elementary Cell, logical array (or array containing only 1's and 0's) which tells you the measured points (1's) and omitted points (0's). 
 %                          Gets replicated to spatial size of InData to define the undersampling pattern. 
 %                          Thus spatial size of InData and ACS must be integer multiple of UndersamplingCell.
@@ -61,17 +62,12 @@ function [OutData,weights]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, M
 
 
 % TODO: 
-%       1)   Get License.
-%       2)   If the InData is not integer muiltiple of UndersamplingCell, it should still be processed:
-%            When the data to reconstruct get zerofilled in order to apply the kernel also to the border voxels,
-%            copy this extent data instead of the zeros to the zerofilled data.
-%       3)   Can something similar be achieved for the ACS data ???
-%       4)   If it is not too complicated, compute different kernels for the border voxels. 
+%       1)   Get License Text.
+%       2)   If it is not too complicated, compute different kernels for the border voxels. 
 %            Because the border voxels are computed with a lot of zeros, but with the "normal" reconstruction weights.
 %            Yet, these "normal" weights assume that there is still data in all source points, and not zeros.
-%       5)   A ball-shaped kernel instead of a cube might be a little better. Only little advantages expected.
-%       6)   Instead of gathering the Source & Target Points for computing the weights in a loop, do it probably
-%            by creating a Target-mask and a Source-mask.
+%       3)   A ball-shaped kernel instead of a cube might be a little better. Only little advantages expected.
+
 
 
 %% 0. Preparation
@@ -130,7 +126,7 @@ ElementaryCellLinearIndex = find(~UndersamplingCell);
 
 
 
-%% 2. Calculate weights
+%% 1. Calculate weights
 
 % Fancy Text Message
 tic;
@@ -161,7 +157,7 @@ fprintf('\nFilling the glasses (Calculating weights)')
 % 8) Compute the weights for the processed kernel
 % 9) Process next kernel.
 %
-% For visualization, run the script Caipirinha_VisualizingWeightsComputation_And_Application_1_x.m
+% For visualization, run the script Caipirinha_Visualizing_SameAsFunction.m.
 
 
 
@@ -268,6 +264,13 @@ for KernelIndex = 1:nKernels
     
     
     % Compute the Source and Target Points as linear indices
+    % What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
+    % No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
+    % (to avoid slow loops). The computation of the linear indices looks quite complicated, and in fact -- it is :)
+    % Well in principle the target points are just all points all x- and y-values of all channels. The relative distance of the
+    % source points to a target point is computed within the kernel, and this relative information is applied to the target points
+    % in order to get the source points. Then the linear indices can be computed.
+    
     nx_ACS_wo_border = nx_ACS - sum(kernelsize{KernelIndex}(1:2));
     ny_ACS_wo_border = ny_ACS - sum(kernelsize{KernelIndex}(3:4));
     
@@ -344,7 +347,7 @@ fprintf('Aaaaahhh! This SMELL! \n')
 
 
 
-%% 3. Apply weights
+%% 2. Apply weights
 
 % Fancy Text Message
 tic; fprintf('\nDrinking CAIPIRINHA (Applyig weights) ')
