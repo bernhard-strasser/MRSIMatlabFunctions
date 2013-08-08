@@ -88,7 +88,7 @@ if(~exist('ACS','var'))
     return
 end
 
-if(~exist('ACS','var'))
+if(~exist('UndersamplingCell','var'))
     display([char(10) 'Please tell me how your data was undersampled by inputting ''UndersamplingCell''. Aborting . . .'])
     return
 end
