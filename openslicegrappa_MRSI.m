@@ -137,6 +137,9 @@ fprintf('\nFilling the glasses (Calculating weights)')
 % For visualization, run the script Caipirinha_VisualizingWeightsComputation_And_Application_1_x.m
 
 
+% Compute the Source and Target Points as linear indices
+nx_ACS_wo_border = nx_ACS - sum(kernelsize(1:2));
+ny_ACS_wo_border = ny_ACS - sum(kernelsize(3:4));
 
 kernel_Src = ones([sum(kernelsize(1:2))+1, sum(kernelsize(3:4))+1]);
 kernel_Targ = zeros([sum(kernelsize(1:2))+1, sum(kernelsize(3:4))+1]);
@@ -198,11 +201,11 @@ if(max(Source_linear) > 2^31)
 end
 
 
-% The Source Points, size: nChannel*no_SourcePoints x kernel repetitions in ACS data
+% The Source Points, size: nChannel*no_SrcPts x kernel repetitions in ACS data
 ACS_sum = sum(ACS,4);
 SourcePoints_ACS = ACS_sum(Source_linear);
 clear ACS_sum
-SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SourcePoints numel(SourcePoints_ACS)/(nChannel*no_SourcePoints)]);
+SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SrcPts numel(SourcePoints_ACS)/(nChannel*no_SrcPts)]);
     
  
 % Iterate over all Slices
@@ -218,7 +221,7 @@ for SliceIndex = 1:nSlice_ACS
     
     % find weights by fitting the source data to target data.
     % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
-    % size: nChannel x nChannel*no_SourcePoints
+    % size: nChannel x nChannel*no_SrcPts
     weights{SliceIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
     
 end
@@ -257,7 +260,7 @@ for SliceIndex = 1:nSlice_ACS
             SourcePoints = reshape(Reco_dummy(:,Target_x-kernelsize(1):Target_x+kernelsize(2),Target_y-kernelsize(3):Target_y+kernelsize(4),1,:), [nChannel*kernelsize_x*kernelsize_y nTime]);
 
             % Reconstruct data by applying weights to Sourcepoints.
-            OutData(:,Target_x,Target_y,SliceIndex,:)=reshape(weights{SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
+            OutData(:,Target_x-kernelsize(1),Target_y-kernelsize(3),SliceIndex,:)=reshape(weights{SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
 
         end
     end
