@@ -243,6 +243,9 @@ tic; fprintf('\nDrinking GRAPPA with slices of lemon (Applyig weights).')
 % Create an extended matrix, extended by the kernelsize. This extension is necessary, so that also the target points at the border of the matrix can be reconstructed, using the kernel.
 Reco_dummy = zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) 1 nTime]);
 Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),1,:) = InData;
+InPlane_UndersamplingPattern = abs(squeeze(Reco_dummy(1,:,:,1,1))) > 0;
+[TargetPoints_x TargetPoints_y] = find(InPlane_UndersamplingPattern);   % Find the target points that should be reconstructed.
+
 
 % Create the OutData which has to have as many slices as the ACS data because we want to reconstruct all those slices.
 OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
@@ -253,16 +256,15 @@ for SliceIndex = 1:nSlice_ACS
 
     
     % Loop over all target points for the processed kernel
-    for Target_y = kernelsize(3)+1:ny+kernelsize(3)
-        for Target_x = kernelsize(1)+1:nx+kernelsize(1)            
+    for Targetloopy = 1:numel(TargetPoints_x)
 
-            % Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
-            SourcePoints = reshape(Reco_dummy(:,Target_x-kernelsize(1):Target_x+kernelsize(2),Target_y-kernelsize(3):Target_y+kernelsize(4),1,:), [nChannel*kernelsize_x*kernelsize_y nTime]);
+        % Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
+        SourcePoints = reshape(Reco_dummy(:,TargetPoints_x(Targetloopy)-kernelsize(1):TargetPoints_x(Targetloopy)+kernelsize(2), ...
+        TargetPoints_y(Targetloopy)-kernelsize(3):TargetPoints_y(Targetloopy)+kernelsize(4),1,:), [nChannel*kernelsize_x*kernelsize_y nTime]);
 
-            % Reconstruct data by applying weights to Sourcepoints.
-            OutData(:,Target_x-kernelsize(1),Target_y-kernelsize(3),SliceIndex,:)=reshape(weights{SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
-
-        end
+        % Reconstruct data by applying weights to Sourcepoints.
+        OutData(:,TargetPoints_x(Targetloopy)-kernelsize(1),TargetPoints_y(Targetloopy)-kernelsize(3),SliceIndex,:)=reshape(weights{SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
+                
     end
 
 
