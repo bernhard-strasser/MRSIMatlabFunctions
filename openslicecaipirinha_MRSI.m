@@ -43,17 +43,25 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, ker
 
 %% 0. Preparation
 
+% Fancy Text Message
+fprintf('\nLet the lemon-slice-caipirinha party start!')
+
+
 % Assign standard values to variables if nothing is passed to function.
 
 if(~exist('InData','var'))
-    display([char(10) 'You should consider inputting data which can be reconstructed. Aborting . . .'])
+    display([char(10) 'I need Cachaca ( = data which should be processed (InData)) for preparing CAIPIRINHA! Aborting . . .'])
     return
 end
 
 if(~exist('ACS','var'))
-    display([char(10) 'I need an Auto Calibration Signal (ACS) for drinking GRAPPA/CAIPIRINHA! Aborting . . .'])
+    display([char(10) 'I need Glasses ( = Auto Calibration Signal (ACS)) for preparing CAIPIRINHA! Aborting . . .'])
     return
 end
+if(~exist('FoV_shifts','var'))
+    FoV_shifts = zeros([size(ACS,4) 2]);
+end
+
 
 if(~exist('kernelsize','var'))
     kernelsize = [2 2 2 2];
@@ -100,6 +108,9 @@ end
 
 
 %% 1. Shift the ACS FoV
+
+
+ACS = kSpace_FoVShift(ACS,FoV_shifts);
 
 
 
@@ -218,7 +229,7 @@ fprintf('Aaaaahhh! This SMELL! \n')
 %% 3. Apply weights
 
 % Fancy Text Message
-tic; fprintf('\nDrinking GRAPPA with slices of lemon (Applyig weights).')
+tic; fprintf('\nDrinking Caipirinha with slices of lemon (Applyig weights).')
 
 
 
@@ -234,7 +245,7 @@ OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
 
 
 for SliceIndex = 1:nSlice_ACS
-    fprintf('\nDrinking Grappa with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SliceIndex)
+    fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SliceIndex)
 
     
     % Loop over all target points for the processed kernel
@@ -265,7 +276,7 @@ fprintf('\nDrinking took\t...\t%f sec.',toc)
 %% ~. Postparations
 
 % Fancy Text Message
-fprintf('\nMmmmhhh, I love GRAPPA! \n')    
+fprintf('\nMmmmhhh, I love Caipirinha! \n')    
 
 
 
