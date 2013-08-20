@@ -41,10 +41,11 @@ function [OutData, Skip_kPoints_Spatial] = Skip_kPoints(InData, Keep_kPoints_Ele
 
 
 % Compute the Ratios of the size(Input)/size(ElementaryCell)
-[nx_ElCel ny_ElCel nz_ElCel] = size(Keep_kPoints_ElementaryCell);
-size_ElCel = [nx_ElCel ny_ElCel nz_ElCel];                          % Use this approach instead of dividing here by size(Keep_kPoints_ElementaryCell),
-SizeRatio = size(squeeze(InData(1,:,:,:,1))) ./ size_ElCel;         % because if size(Keep_kPoint...,3) = 1, there will be a dimension problem when dividing ./
+[nCha nx ny nz nTime] = size(InData);
 
+[nx_ElCel ny_ElCel nz_ElCel] = size(Keep_kPoints_ElementaryCell);    % Use this approach instead of dividing here by size(Keep_kPoints_ElementaryCell),
+SizeRatio = [nx ny nz] ./ [nx_ElCel ny_ElCel nz_ElCel];               % because if size(Keep_kPoint...,3) = 1, there will be a dimension problem when dividing ./
+%SizeRatio = squeeze(SizeRatio);         % Is this necessary?
 
 % Compute Elementary Cell of the k_points to skip
 Skip_kPoints_ElementaryCell = ~Keep_kPoints_ElementaryCell;
