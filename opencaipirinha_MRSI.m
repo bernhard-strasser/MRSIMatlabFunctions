@@ -163,7 +163,7 @@ fprintf('\nFilling the glasses (Calculating weights)')
 
 
 % Create the undersampling pattern of the ACS data, to determine the source and target points for computing the weights
-UndersamplingPattern_ACS = repmat(UndersamplingCell, [floor(nx_ACS/size(UndersamplingCell,1)) floor(ny_ACS/size(UndersamplingCell,2)) floor(nSlice_ACS/size(UndersamplingCell,3))]);
+UndersamplingPattern_ACS = repmat(UndersamplingCell, [floor(nx_ACS/size(UndersamplingCell,1)) floor(ny_ACS/size(UndersamplingCell,2))]);
 
 % Find the central lower right elementary cell replication within the UndersamplingPattern_ACS, and the indices of the first (upper left) voxel of this elementary cell.
 % In this cell, the kernelsize is computed for all kernels.
@@ -187,7 +187,7 @@ kernelsize = cell([1 nKernels]);               % each cell element is 1x4-matrix
 kernel = cell([1 nKernels]);
 kernel_TargetPoint = cell([1 nKernels]);
 SrcRelativeTarg = cell([1 nKernels]);
-weights = cell([1 nKernels]);
+weights = cell([nKernels nSlice]);
 
 
 % Iterate over all Kernels
@@ -236,7 +236,7 @@ for KernelIndex = 1:nKernels
         if(isequal(kernelsize{test_against_kernel_no},kernelsize{KernelIndex}))
             if(isequal(squeeze(kernel{test_against_kernel_no}(1,:,:)),kernel_dummy))        % kernel gets replicated with channels. --> Must index into kernel.
                 % Copy Weights of kernel{test_against_kernel_no}
-                weights{KernelIndex} = weights{test_against_kernel_no};
+                [weights{KernelIndex,:}] = deal(weights{test_against_kernel_no,:});
                 SrcRelativeTarg{KernelIndex} = SrcRelativeTarg{test_against_kernel_no};
                 kernel_found = true;
                 break
@@ -322,21 +322,28 @@ for KernelIndex = 1:nKernels
         return
     end
     
-    % The Target Points, size: nChannel x kernel repetitions in ACS data
-    TargetPoints_ACS = ACS(Target_linear);
-    TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);
     
-    % The Source Points, size: nChannel*no_SourcePoints x kernel repetitions in ACS data
-    SourcePoints_ACS = ACS(Source_linear);    
-    SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SourcePoints numel(SourcePoints_ACS)/(nChannel*no_SourcePoints)]);
-    
+    for SliceIndex = 1:nSlice_ACS
+        
+        % Slice ACS data
+        ACS_sliced = ACS(:,:,:,SliceIndex);
+        
+        % The Target Points, size: nChannel x kernel repetitions in ACS data
+        TargetPoints_ACS = ACS_sliced(Target_linear);
+        TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);
 
-    
-    % find weights by fitting the source data to target data.
-    % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
-    % size: nChannel x nChannel*no_SourcePoints
-    weights{KernelIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
+        % The Source Points, size: nChannel*no_SourcePoints x kernel repetitions in ACS data
+        SourcePoints_ACS = ACS_sliced(Source_linear);    
+        SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SourcePoints numel(SourcePoints_ACS)/(nChannel*no_SourcePoints)]);
 
+
+
+        % find weights by fitting the source data to target data.
+        % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
+        % size: nChannel x nChannel*no_SourcePoints
+        weights{KernelIndex,SliceIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
+        
+    end
 
 
     
@@ -374,7 +381,7 @@ for KernelIndex = 1:nKernels
     % Compute all the linear indices of the target points within Reco_dummy of the processed Kernel
     UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));                  % Mark the current target point in the undersampling cell
     UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex)) = true; 
-    TargetPoints = false([size(Reco_dummy,2) size(Reco_dummy,3) size(Reco_dummy,4)]);
+    TargetPoints = false([size(Reco_dummy,2) size(Reco_dummy,3)]);
     
     
     % This has to be changed for "TODO 2)"
@@ -384,10 +391,10 @@ for KernelIndex = 1:nKernels
     % 2) The UndersamplinCell with the current target point gets replicated to the size of the InData. If the InData is not an integer multiple of the UndersamplingCell then
     %    this will lead to an error here.
     % 3) Then the x- and y-coordinates of the target points are computed.
-    UC_dummy = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);
+    UC_dummy = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2))]);
     UC_dummy = cat(  1,UC_dummy, UC_dummy(1:nx-size(UC_dummy,1),:,:)  );
     UC_dummy = cat(  2,UC_dummy, UC_dummy(:,1:ny-size(UC_dummy,2),:)  );
-    UC_dummy = cat(  3,UC_dummy, UC_dummy(:,:,1:nSlice-size(UC_dummy,3))  );  
+    %UC_dummy = cat(  3,UC_dummy, UC_dummy(:,:,1:nSlice-size(UC_dummy,3))  );  
     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = UC_dummy;
 %     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
 %     repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
@@ -399,14 +406,18 @@ for KernelIndex = 1:nKernels
 
         SourceIndices = [TargetPoints_x(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,1), TargetPoints_y(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,2)];
         
-        % Compute the Source Points for that specific TargetIndex
-        SourcePoints = zeros([nChannel*size(SourceIndices,1) nSlice*nTime]);
-        for Sourceloopy = 1:size(SourceIndices,1)
-            SourcePoints((Sourceloopy-1)*nChannel+1:Sourceloopy*nChannel,:) = reshape(Reco_dummy(:,SourceIndices(Sourceloopy,1),SourceIndices(Sourceloopy,2),:,:), [nChannel nSlice*nTime]);
+        
+        for SliceIndex = 1:nSlice
+            % Compute the Source Points for that specific TargetIndex
+            SourcePoints = zeros([nChannel*size(SourceIndices,1) nTime]);
+            for Sourceloopy = 1:size(SourceIndices,1)
+                SourcePoints((Sourceloopy-1)*nChannel+1:Sourceloopy*nChannel,:) = reshape(Reco_dummy(:,SourceIndices(Sourceloopy,1),SourceIndices(Sourceloopy,2),SliceIndex,:), [nChannel nTime]);
+            end
+
+            % Reconstruct data by applying weights to Sourcepoints.
+            Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),SliceIndex,:)=reshape(weights{KernelIndex,SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
         end
         
-        % Reconstruct data by applying weights to Sourcepoints.
-        Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),:,:)=reshape(weights{KernelIndex}*SourcePoints, [nChannel 1 1 nSlice nTime]); 
     end
 
 
