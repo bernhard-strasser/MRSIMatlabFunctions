@@ -5,8 +5,8 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, ker
 %  [OutData,weights] = openslicegrappa_MRSI(InData,ACS,kernelsize);
 %       
 %   Input:      
-% -     InData             Undersampled Data            (size: [#coils, nx, ny, nSlice = 1, nTime]) (nTime = 1 for MRI)
-%                          There must be only 1 slice!
+% -     InData             Undersampled Data            (size: [#coils, nx, ny, nSlice, nTime]) (nTime = 1 for MRI)
+%                          nSlice must be nSlice = nSlice_ACS/R_Slice, where R_Slice is the acceleration factor in slice direction.
 % -     ACS                AutoCalibration Signal       (size: [#coils, nx_ACS, ny_ACS, nSlice_ACS])  
 %                          Must have as many slices as the OutData should have. Use similar sequence parameters as for the InData.
 % -     FoV_shifts         The multiples of the FoV with which each slice was shifted 
@@ -21,6 +21,10 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, ker
 %                                   to the left and right (x direction), and to down and up (y direction). E.g.: [2 2 2 2]
 %                               *   [1 2]-vector: The kernelsize in x- and y-direction. E.g. [5 5]
 %                               *   scalar: The kernel size in both directions. E.g. 5.
+% -     AliasedSlices      A matrix telling the function which slices are aliased.
+%                          E.g.: [1 3 5; 2 4 6]. This tells the program:
+%                          AliasedSlices(1,:) = 1 3 5 --> Slice 1 of InData contains the aliased Slices of 1,3 and 5
+%                          AliasedSlices(2,:) = 2 4 6 --> Slice 2 of Indata contains the aliased Slices of 2,4 and 6
 % 
 %   Output:
 % -     OutData            Reconstructed Output Data    (size: [#coils, nx, ny, nSlice_ACS, nTime]) (nTime = 1 for MRI)
@@ -72,6 +76,16 @@ elseif(numel(kernelsize) < 4)
     kernelsize = [floor(kernelsize(1)/2) floor(kernelsize(1)/2) floor(kernelsize(2)/2) floor(kernelsize(2)/2)];
 end
 
+if(~exist('AliasedSlices','var'))                           % Produce patterns like [1 3; 2 4; 1 3; 2 4] or [1 4; 2 5; 3 6; 1 4; 2 5; 3 6].
+    R_Slice = size(ACS,4)/size(InData,4);
+    nSlice = size(InData,4);    
+    AliasedSlices = zeros([nSlice R_Slice]);
+    for dummy = 1:nSlice
+       AliasedSlices(dummy,:) = dummy:nSlice:size(ACS,4);
+    end 
+    %AliasedSlices = repmat(AliasedSlices,[R_Slice 1]);
+    clear R_Slice nSlice dummy
+end
 
 
 
@@ -194,29 +208,30 @@ if(max(Source_linear) > 2^31)
 end
 
 
-% The Source Points, size: nChannel*no_SrcPts x kernel repetitions in ACS data
-ACS_sum = sum(ACS,4);
-SourcePoints_ACS = ACS_sum(Source_linear);
-clear ACS_sum
-SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SrcPts numel(SourcePoints_ACS)/(nChannel*no_SrcPts)]);
     
  
 % Iterate over all Slices
 weights = cell([1 nSlice_ACS]);
-for SliceIndex = 1:nSlice_ACS
+for SourceSliceIndex = 1:nSlice                                 % Iterate over the slices of the InData (so the aliased or source slices)
     
-    fprintf('\nCutting slice %d of the lemon.',SliceIndex)
+    % The Source Points, size: nChannel*no_SrcPts x kernel repetitions in ACS data
+    ACS_sum = sum(ACS(:,:,:,AliasedSlices(SourceSliceIndex,:)),4);
+    SourcePoints_ACS = ACS_sum(Source_linear);
+    SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SrcPts numel(SourcePoints_ACS)/(nChannel*no_SrcPts)]);     
     
-    % The Target Points, size: nChannel x kernel repetitions in ACS data    
-    ACS_sliced = ACS(:,:,:,SliceIndex);    
-    TargetPoints_ACS = ACS_sliced(Target_linear);
-    TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);    
+    for TargetSliceIndex = AliasedSlices(SourceSliceIndex,:)                    % Iterate over the corresponding (corr to source slices) Target Slices.
+                                                                                % So if Slice 1 of the InData contains the aliased slices [1 3 5], then compute the weights
+        % The Target Points, size: nChannel x kernel repetitions in ACS data    % For Slices 1,3 and 5 to be able to reconstruct those out of Slice 1 of the InData.
+        ACS_sliced = ACS(:,:,:,TargetSliceIndex);    
+        TargetPoints_ACS = ACS_sliced(Target_linear);
+        TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);        
     
-    % find weights by fitting the source data to target data.
-    % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
-    % size: nChannel x nChannel*no_SrcPts
-    weights{SliceIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
+        % find weights by fitting the source data to target data.
+        % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
+        % size: nChannel x nChannel*no_SrcPts
+        weights{TargetSliceIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
     
+    end
 end
 
 fprintf('\nCutting took\t... %f sec \n',toc)                                                          
@@ -234,33 +249,30 @@ tic; fprintf('\nDrinking Caipirinha with slices of lemon (Applyig weights).')
 
 
 % Create an extended matrix, extended by the kernelsize. This extension is necessary, so that also the target points at the border of the matrix can be reconstructed, using the kernel.
-Reco_dummy = zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) 1 nTime]);
-Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),1,:) = InData;
+Reco_dummy = zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) nSlice nTime]);
+Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),:,:) = InData;
 InPlane_UndersamplingPattern = abs(squeeze(Reco_dummy(1,:,:,1,1))) > 0;
 [TargetPoints_x TargetPoints_y] = find(InPlane_UndersamplingPattern);   % Find the target points that should be reconstructed.
 
 
 % Create the OutData which has to have as many slices as the ACS data because we want to reconstruct all those slices.
 OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
-
-
-for SliceIndex = 1:nSlice_ACS
-    fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SliceIndex)
-
-    
+for SourceSliceIndex = 1:nSlice
+	fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SourceSliceIndex)   
     % Loop over all target points for the processed kernel
-    for Targetloopy = 1:numel(TargetPoints_x)
-
+    for Targetloopy = 1:numel(TargetPoints_x)   
         % Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
         SourcePoints = reshape(Reco_dummy(:,TargetPoints_x(Targetloopy)-kernelsize(1):TargetPoints_x(Targetloopy)+kernelsize(2), ...
-        TargetPoints_y(Targetloopy)-kernelsize(3):TargetPoints_y(Targetloopy)+kernelsize(4),1,:), [nChannel*kernelsize_x*kernelsize_y nTime]);
-
-        % Reconstruct data by applying weights to Sourcepoints.
-        OutData(:,TargetPoints_x(Targetloopy)-kernelsize(1),TargetPoints_y(Targetloopy)-kernelsize(3),SliceIndex,:)=reshape(weights{SliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]); 
-                
+        TargetPoints_y(Targetloopy)-kernelsize(3):TargetPoints_y(Targetloopy)+kernelsize(4),SourceSliceIndex,:), [nChannel*kernelsize_x*kernelsize_y nTime]);        
+          
+        for TargetSliceIndex = AliasedSlices(SourceSliceIndex,:)
+            % Reconstruct data by applying weights to Sourcepoints.
+            OutData(:,TargetPoints_x(Targetloopy)-kernelsize(1),TargetPoints_y(Targetloopy)-kernelsize(3),TargetSliceIndex,:) = ...
+            reshape(weights{TargetSliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]);         
+        end
+        
     end
-
-
+         
 end
 
 
