@@ -88,13 +88,13 @@ kernelsize_y = sum(kernelsize(3:4))+1;
 
 % Check for dimension size
 if(nChannel_ACS~=nChannel)
-    disp('Error! The number of coils has to be the same for both inputs! Aborting . . .')
+    disp([char(10) 'Error! The number of coils has to be the same for both inputs! Aborting . . .'])
     OutData = InData;
     weights = 0;
     return;
 end
 if(nSlice == nSlice_ACS)
-    disp('Nothing to do, since the InData has the same amount of slices as the ACS data . . .')
+    disp([char(10) 'Nothing to do, since the InData has the same amount of slices as the ACS data . . .'])
     OutData = InData;
     weights = 0;
     return;
@@ -269,6 +269,10 @@ fprintf('\nDrinking took\t...\t%f sec.',toc)
 
 
 
+
+%% 4. Undo FoV-Shifts
+
+OutData = kSpace_FoVShift(OutData,-FoV_shifts);
 
 
 
