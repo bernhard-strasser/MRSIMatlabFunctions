@@ -76,16 +76,22 @@ function [OutData,weights]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, M
 
 if(~exist('InData','var'))
     display([char(10) 'You should consider inputting data which can be reconstructed. Aborting . . .'])
+    OutData = InData;
+    weights = 0;    
     return
 end
 
 if(~exist('ACS','var'))
     display([char(10) 'I need an Auto Calibration Signal (ACS) for drinking GRAPPA/CAIPIRINHA! Aborting . . .'])
+    OutData = InData;
+    weights = 0;    
     return
 end
 
 if(~exist('UndersamplingCell','var'))
     display([char(10) 'Please tell me how your data was undersampled by inputting ''UndersamplingCell''. Aborting . . .'])
+    OutData = InData;
+    weights = 0;    
     return
 end
 
@@ -93,6 +99,12 @@ if(~exist('MinKernelSrcPts','var'))
     MinKernelSrcPts = 20;
 end
 
+if(sum(sum(sum(UndersamplingCell))) == numel(UndersamplingCell))
+    fprintf('\nNothing to do, as the UndersamplingCell only contains ones')
+    OutData = InData;
+    weights = 0;
+    return
+end
 
 
 
