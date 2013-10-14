@@ -1,4 +1,4 @@
-function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDims,exp_filter_Hz, dwelltime)
+function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDim,exp_filter_Hz, dwelltime)
 %
 % EllipticalFilter_1_0 Apply an elliptical filter to k-space data
 %
@@ -15,7 +15,7 @@ function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDims,
 %
 % Input: 
 % -         InArray                     ...    Input array to which the filter should be applied
-% -         ApplyAlongDims              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
+% -         ApplyAlongDim              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %                                              Filter is applied. Otherwise, a 3d filter is used.
 % -         EllipsoidCoefficients       ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
 %                                              Filter, set c = 1;
@@ -39,14 +39,14 @@ function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDims,
 %% 0. Declarations, Preparations, Definitions
 
 
-OutArray = InArray; 
 
-%% 1. run Parameter.m
-
-run ./tmp/Parameter.m;
+vecSize = size(InArray,ApplyAlongDim);
 
 
-%% 2. Compute exponential Time-Domain Filter
+
+
+
+%% 1. Compute exponential Time-Domain Filter
 
 dwelltime_in_s = dwelltime/1000000000;
 
@@ -54,8 +54,37 @@ t= 0:dwelltime_in_s:dwelltime_in_s*(vecSize-1);
 exp_filter_funct = exp(-exp_filter_Hz*t);     %exp(-t/a) wobei "1/a" = "exp_filter" Linebroadening in Hz
 
 
+
+
+%% 2. Replicate Filter to size of InArray
+
+% Find out along which dimensions the filter has to be replicated in order to match the size of InArray
+ReplicateAlongDims = setdiff(1:numel(size(InArray)),ApplyAlongDim);
+
+% Compute the size to which the filter has to be replicated. The first element is always 1, because this is the dimension of the filter (e.g. [1024 1])
+ReplicateToSize = ones([1 numel(size(InArray))]);
+loopy2 = 1;
+for loopy = ReplicateAlongDims
+    loopy2 = loopy2 + 1;
+    ReplicateToSize(loopy2) = size(InArray,loopy);
+end
+
+
+% Replicate the filter, e.g. [1024 1] -> [1024 64 64]
+exp_filter_mat = repmat(transpose(exp_filter_funct),ReplicateToSize);
+
+
+% shiftdim: [1024 64 64] -> [64 64 1024], reshape: [64 64 1024] -> [64 64 1 1024]
+exp_filter_mat = reshape(shiftdim(exp_filter_mat, ApplyAlongDim), size(InArray));
+
+
+
+
+
+
 %% 3. Apply Hamming Filter
 
-OutArray = (permute(repmat(exp_filter_funct', [1 ROW COL SLC]),[2 3 4 1])).*OutArray;         %apply exponential filter
+
+OutArray = exp_filter_mat.*InArray;
 
 
