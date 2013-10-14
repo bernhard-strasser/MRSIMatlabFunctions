@@ -1,36 +1,30 @@
-function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDim,exp_filter_Hz, dwelltime)
+function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,exp_filter_Hz,ApplyAlongDim)
 %
-% EllipticalFilter_1_0 Apply an elliptical filter to k-space data
+% ExponentialFilter Apply an Exponential filter to time-domain signals (e.g. FIDs)
 %
-% This function was written by Bernhard Strasser, July 2012.
-%
-%
-% The function masks the data in k-space, so that k-space values outside of an ellipsoid-shaped mask are set to zero. The mask can be a
-% 3d-ellipsoid, or an 2d-ellipse. The equation for the mask is
-% mask = {(x,y,z) E R³ | (x/a)² + (y/b)² + (z/c)² <= R²}
-% a, b, c, and R can be chosen by the user.
+% This function was written by Wolfgang Bogner 2013, revised by Bernhard Strasser, October 2013.
 %
 %
-% [A,B] = read_csi_dat_1_10(inputvar1,inputvar2)
+% The function computes an exponential filter in Hertz
+%
+%
+% [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,ApplyAlongDim,exp_filter_Hz)
 %
 % Input: 
 % -         InArray                     ...    Input array to which the filter should be applied
-% -         ApplyAlongDim              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
-%                                              Filter is applied. Otherwise, a 3d filter is used.
-% -         EllipsoidCoefficients       ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
-%                                              Filter, set c = 1;
-% -         InputIskSpace_flag          ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
-%                                              and transformed back to image domain afterwards
+% -         dwelltime                   ...    The dwelltime in [us], i.e. the time between two consecutive time points.
+% -         ApplyAlongDim               ...    Along this dimension the filter is applied. 
+% -         exp_filter_Hz               ...    The filter strength in Hz
 %
 % Output:
-% -         OutArray                    ...     The filtered/masked output array
-% -         mask                        ...     The mask of the filter
+% -         OutArray                    ...     The filtered output array
+% -         exp_filter_funct            ...     The filter
 %
 %
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: myrepmat_1_0
+% File dependancy:
 
 % Further remarks: 
 
@@ -39,7 +33,19 @@ function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,ApplyAlongDim,e
 %% 0. Declarations, Preparations, Definitions
 
 
+% Define variables if not defined
+if(~exist('dwelltime','var'))
+    dwelltime = 1;
+end
+if(~exist('exp_filter_Hz','var'))
+    exp_filter_Hz = 3;
+end
+if(~exist('ApplyAlongDim','var'))
+    ApplyAlongDim = numel(size(InArray));
+end
 
+
+% Define vecSize
 vecSize = size(InArray,ApplyAlongDim);
 
 
