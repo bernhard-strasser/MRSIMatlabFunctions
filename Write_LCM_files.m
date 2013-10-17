@@ -1,4 +1,4 @@
-function Write_LCM_files_1_8(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
+function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %
 % Write_LCM_files_x_y Write the files necessary for LCModel fittting.
 %
@@ -75,7 +75,7 @@ end
 % The function can only handle Input Array with 6 dimensions. Quit function if input is larger.
 DimNumber_Input = numel(size(InArray));
 if(DimNumber_Input > 6)
-    display('Dimension of Input Array too large. Rewrite function ''Write_LCM_files_x_y'' or shrink Input Array. char(10) Program quitted without output.')
+    display('Dimension of Input Array too large. Rewrite function ''Write_LCM_files'' or shrink Input Array. char(10) Program quitted without output.')
     return
 end
 
@@ -98,50 +98,6 @@ end
 if(~exist('CPU_cores','var'))
     CPU_cores = 8;
 end
-
-
-%% 0.3 Create files, directories, Compute variables
-
-
-% Create directory
-if(~exist(Paths.out_dir,'dir'))
-    mkdir(Paths.out_dir);
-end
-if(~exist([Paths.out_dir '/CoordFiles'],'dir'))
-    mkdir([Paths.out_dir '/CoordFiles']);
-end
-
-vecSize = size(InArray,MetaInfo.Dimt1);
-TotalVoxelNo = sum(reshape(mask,1,[]));
-
-
-% creating one batch file PER CPU core for LCmodel processing
-batch_fids = zeros([1 CPU_cores]);
-for core = 1:CPU_cores
-    if(exist(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'file'))
-        delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
-    end
-    batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
-end
-fprintf(batch_fids(1), 'echo -e ''LCModel Processing\t...\t0 %%''\n');  
-
-% Find out the dimensions of InArray over which should be looped (e.g. for [size(InArray) = [32 32 1 1024] these dimensions would be [1 2 3 5 6]
-% The dimensions 5 and 6 will be ignored because size(InArray,5) = 1 = size(InArray,6) with the above InArray)
-ArrayDimIndices = 1:6;
-ArrayDimIndices(MetaInfo.Dimt1) = [];
-
-% Define the string to access the InArray, e.g. 'VarInd1,VarInd2,VarInd3,:'
-InArray_AccessStr = cell([1 6]);
-InArray_AccessStr(ArrayDimIndices) = {'VarInd1','VarInd2','VarInd3','VarInd4','VarInd5'};
-InArray_AccessStr{MetaInfo.Dimt1} = ':';
-
-for CommaLoop = 1:5
-    InArray_AccessStr{CommaLoop} = [InArray_AccessStr{CommaLoop} ','];
-end
-InArray_AccessStr = cell2mat(InArray_AccessStr);
-
-
-
 
 
 
@@ -253,6 +209,68 @@ elseif(isstruct(ControlInfo))
 end
 
 clear ControlInfo
+
+
+
+
+
+
+
+
+
+
+
+
+%% 0.3 Create files, directories, Compute variables
+
+
+% Create directory
+if(~exist(Paths.out_dir,'dir'))
+    mkdir(Paths.out_dir);
+end
+if(~exist([Paths.out_dir '/CoordFiles'],'dir'))
+    mkdir([Paths.out_dir '/CoordFiles']);
+end
+
+vecSize = size(InArray,MetaInfo.Dimt1);
+TotalVoxelNo = sum(reshape(mask,1,[]));
+
+
+% creating one batch file PER CPU core for LCmodel processing
+batch_fids = zeros([1 CPU_cores]);
+for core = 1:CPU_cores
+    if(exist(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'file'))
+        delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
+    end
+    batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
+end
+fprintf(batch_fids(1), 'echo -e ''LCModel Processing\t...\t0 %%''\n');  
+
+% Find out the dimensions of InArray over which should be looped (e.g. for [size(InArray) = [32 32 1 1024] these dimensions would be [1 2 3 5 6]
+% The dimensions 5 and 6 will be ignored because size(InArray,5) = 1 = size(InArray,6) with the above InArray)
+ArrayDimIndices = 1:6;
+ArrayDimIndices(MetaInfo.Dimt1) = [];
+
+% Define the string to access the InArray, e.g. 'VarInd1,VarInd2,VarInd3,:'
+InArray_AccessStr = cell([1 6]);
+InArray_AccessStr(ArrayDimIndices) = {'VarInd1','VarInd2','VarInd3','VarInd4','VarInd5'};
+InArray_AccessStr{MetaInfo.Dimt1} = ':';
+
+for CommaLoop = 1:5
+    InArray_AccessStr{CommaLoop} = [InArray_AccessStr{CommaLoop} ','];
+end
+InArray_AccessStr = cell2mat(InArray_AccessStr);
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -425,6 +443,15 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                         end
                     end
 
+                    
+                    
+                    % Other Parameters. These have to be set in the format ControlWrite.Others[n] (e.g. ControlWrite.Others1), where n is a natural number.
+                    fields = fieldnames(ControlWrite);
+                    fields(cellfun(@isempty,(regexp(fields,'Others')))) = [];       % Kill all fields that dont have 'Others' in their names.
+                    for field_loopy = transpose(fields)
+                        fprintf(control_fid, ' %s\n', eval(['ControlWrite.' field_loopy{:}]));
+                    end
+                    
                     
                     
                     % Controls for creating different files
