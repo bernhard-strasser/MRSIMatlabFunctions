@@ -1,4 +1,4 @@
-function [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,exp_filter_Hz,ApplyAlongDim)
+function [OutArray,exp_filter_mat] = ExponentialFilter(InArray,dwelltime,exp_filter_Hz,ApplyAlongDim)
 %
 % ExponentialFilter Apply an Exponential filter to time-domain signals (e.g. FIDs)
 %
@@ -81,7 +81,9 @@ exp_filter_mat = repmat(transpose(exp_filter_funct),ReplicateToSize);
 
 
 % shiftdim: [1024 64 64] -> [64 64 1024], reshape: [64 64 1024] -> [64 64 1 1024]
-exp_filter_mat = reshape(shiftdim(exp_filter_mat, ApplyAlongDim), size(InArray));
+exp_filter_mat = shiftdim(exp_filter_mat, numel(size(InArray)) - ApplyAlongDim + 1);
+exp_filter_mat = reshape(exp_filter_mat, size(InArray));
+
 
 
 
