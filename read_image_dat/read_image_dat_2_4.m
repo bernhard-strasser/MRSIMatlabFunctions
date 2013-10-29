@@ -1,4 +1,4 @@
-function [image,image_kspace] = read_image_dat_2_3(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image,image_kspace] = read_image_dat_2_4(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -25,6 +25,7 @@ function [image,image_kspace] = read_image_dat_2_3(image_path, DesiredSize,inter
 % -         EllipticalFilterSize        ...     If >0, cut out an circle in k-space with radius EllipticalFilterSize
 % -         phase_encod_dir             ...     If the phase encoding direction is in right-left direction, the image is rotated by 90°.
 %                                               If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
+% -         sum_averages_flag           ...     If = 1, the averages will be summed
 %
 % Output:
 % -         image                         ...     Output data in image domain. size: channel x ROW x COL x SLC x Averages
@@ -87,6 +88,9 @@ end
 if(~exist('phase_encod_dir','var'))
     phase_encod_dir = 'AP';
 end
+if(~exist('sum_averages_flag','var'))
+    sum_averages_flag = 1;
+end
 %clear ParList_asc
 
 
@@ -135,6 +139,11 @@ for ADC_MeasNo = 1:Averages*total_k_points*total_channel_no
     image_complex = complex(image_real,image_imag); 
     image_kspace(channel_no,:,k_line,k_slice,Avg) = image_complex;   % AsymmetricEcho...: If due to asymmetric echo
                                                                                                 % the array had to be zerofilled in fredir
+end
+
+if(sum_averages_flag)
+    image_kspace = sum(image_kspace,5)/Averages;
+    Averages = 1;
 end
 
 clear chak_header k_slice k_line channel_no Avg chak_data image_real image_imag image_complex
@@ -199,7 +208,7 @@ if(strcmpi(interpol_method,'ZeroFilling'))
         % Define kSpace Center
         kSpaceCenter_phadir_mdh = floor(phadir_measured/2) + 1;
         % save part of measured k-space in whole desired k-space
-        image_kspace = image_kspace(:,:,kSpaceCenter_phadir_mdh - DesiredSize(2)/2 : kSpaceCenter_phadir_mdh + DesiredSize(2)/2 - 1,:,:);
+        image_kspace = image_kspace(:,:,kSpaceCenter_phadir_mdh - floor(DesiredSize(2)/2) : kSpaceCenter_phadir_mdh + ceil(DesiredSize(2)/2) - 1,:,:);
         clear kSpaceCenter_phadir_mdh
         
     end 
@@ -222,7 +231,7 @@ if(strcmpi(interpol_method,'ZeroFilling'))
         % Define kSpace Center
         kSpaceCenter_fredir_mdh = floor(fredir_measured/2) + 1;
         % save part of measured k-space in whole desired k-space
-        image_kspace = image_kspace(:,kSpaceCenter_fredir_mdh - DesiredSize(1)*OversamplingFactor/2 : kSpaceCenter_fredir_mdh + DesiredSize(1)*OversamplingFactor/2 - 1,:,:,:);
+        image_kspace = image_kspace(:,kSpaceCenter_fredir_mdh - floor(DesiredSize(1)*OversamplingFactor/2) : kSpaceCenter_fredir_mdh + ceil(DesiredSize(1)*OversamplingFactor/2) - 1,:,:,:);
         clear kSpaceCenter_fredir_mdh
         
     end  
