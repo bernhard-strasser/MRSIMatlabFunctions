@@ -1,4 +1,4 @@
-function [image,image_kspace] = read_image_dat_2_2(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image,image_kspace] = read_image_dat_2_3(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -119,7 +119,7 @@ raw_image_fid = fopen(sprintf('%s', image_path),'r');
 headersize = fread(raw_image_fid,1, 'int32');
 fseek(raw_image_fid, headersize,'bof');
 
-image_kspace = zeros(total_channel_no,fredir_ReallyMeasured,phadir_measured,SLC,Averages,'single');
+image_kspace = zeros(total_channel_no,fredir_ReallyMeasured,phadir_measured,SLC,Averages);
 
 for ADC_MeasNo = 1:Averages*total_k_points*total_channel_no
     
@@ -274,6 +274,9 @@ end
 
 
 
+
+
+
 %% 10. Remove oversampling in image domain
 
 if(OversamplingFactor ~= 1)
@@ -281,7 +284,7 @@ if(OversamplingFactor ~= 1)
     image_center = floor(size(image,2) / 2) + 1;
     left_border = image_center - size(image,2) / (OversamplingFactor*2);                      % = image center of oversampled data - half the size after Oversampling-removal
     right_border = image_center + size(image,2) / (OversamplingFactor*2) - 1;                 % = same but + half of the size after Oversampling-removal - 1 (-1 because of image center)
-    image = reshape(image(:,left_border:right_border,:,:,:), [total_channel_no DesiredSize(1) DesiredSize(2), SLC, Averages]);  % truncate left and right borders
+    image = reshape(image(:,left_border:right_border,:,:,:), [total_channel_no, right_border-left_border+1, size(image,3), SLC, Averages]);  % truncate left and right borders
     clear image_center left_border right_border
     
 end
