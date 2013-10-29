@@ -1,4 +1,4 @@
-function [image, image_kspace] = read_image_1_3(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir, sum_averages_flag)
+function [image, image_kspace] = read_image_1_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize,NoiseCorrMat,phase_encod_dir, sum_averages_flag)
 %
 % read_image_x_x Read in csi-data
 %
@@ -24,6 +24,8 @@ function [image, image_kspace] = read_image_1_3(image_path,DesiredSize,interpol_
 %                                               Set fredir_shift = 0 for no correction
 % -         Hamming_flag                ...     If 1, apply Hamming filter in k-space
 % -         EllipticalFilterSize        ...     If >0, cut out an circle in k-space with radius EllipticalFilterSize
+% -         NoiseCorrMat                ...     If size(NoiseCorrMat) = [cha cha]: the k-space Data gets decorrelated with this matrix. 
+%                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
 % -         phase_encod_dir             ...     If the phase encoding direction is in right-left direction, the image is rotated by 90°.
 % -         sum_averages_flag           ...     If = 1, the averages will be summed                                      If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
 %
@@ -80,6 +82,9 @@ end
 if(~exist('EllipticalFilterSize','var'))
     EllipticalFilterSize = 0;
 end
+if(~exist('NoiseCorrMat','var'))
+    NoiseCorrMat = 0;
+end
 if(~exist('phase_encod_dir','var'))
     phase_encod_dir = 'AP';
 end
@@ -94,17 +99,17 @@ end
 if(numel(strfind(image_path, '.dat')) > 0)
     
     if(nargout > 1)
-        [image,image_kspace] = read_image_dat_2_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag);
+        [image,image_kspace] = read_image_dat(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, NoiseCorrMat, phase_encod_dir,sum_averages_flag);
     else
-        image = read_image_dat_2_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag);        
+        image = read_image_dat(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, NoiseCorrMat, phase_encod_dir,sum_averages_flag);        
     end
     
 else
     
     if(nargout > 1)
-        [image, image_kspace] = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);
+        [image, image_kspace] = read_image_dicom(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);
     else
-        image = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);        
+        image = read_image_dicom(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);        
     end
         
         
