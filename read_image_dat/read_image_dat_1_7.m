@@ -2,11 +2,11 @@
 %%%%%%%%%%%%%%%%%%%%%    FUNCTION TO READ IN THE .dat IMAGING FILES    %%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% fredir = frequency encoding direction; phadir = phase encoding direction
+% fredir = frequency encoding direction = normally ROW/x direction; phadir = phase encoding direction = normally COL/y direction
 
 
 
-function [image_dat,image_dat_kspace] = read_image_dat_1_6(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir,flip)
+function [image_dat,image_dat_kspace] = read_image_dat_1_7(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir,flip)
 
 
 
@@ -59,9 +59,9 @@ fredir_right_border_kspace = (fredir_os_nextpow2+fredir_desired*oversampling_fre
 
  
 % NUMBER OF TRUNCATION VOXELS IN FREQ ENCOD DIR, LEFT/RIGHT BORDERS
-truncate_fredir_voxels = fredir_desired*(oversampling_fredir-1);        
+truncate_fredir_voxels = phadir_measured*(oversampling_fredir-1);        
 fredir_left_border_xspace = truncate_fredir_voxels/2 + 1;
-fredir_right_border_xspace =  fredir_desired*oversampling_fredir - truncate_fredir_voxels/2;
+fredir_right_border_xspace =  phadir_measured*oversampling_fredir - truncate_fredir_voxels/2;
 
 
 %% 1. READ DATA
@@ -178,16 +178,22 @@ end                                                                             
 
 
 % TRUNCATE IN KSPACE TO [fredir_desired*oversampling_fredir, phadir_desired], FFT TO DIRECT SPACE
-image_dat_kspace2 = image_dat_kspace(:,fredir_left_border_kspace:fredir_right_border_kspace,k_center(2)-phadir_desired/2:k_center(2)-1+phadir_desired/2,:);
-image_dat = ifftshift(ifftshift(image_dat_kspace2,2),3);
+image_dat = ifftshift(ifftshift(image_dat_kspace,2),3);
 image_dat = fft(fft(image_dat,[],2),[],3);
 image_dat = fftshift(fftshift(image_dat,2),3);
 
 
 % TRUNCATE IN XSPACE FROM [fredir_desired*oversampling_fredir, phadir_desired] TO [fredir_desired, phadir_desired]
-image_dat = reshape(image_dat(:,fredir_left_border_xspace:fredir_right_border_xspace,:), [total_channel_no fredir_desired phadir_desired, 1]);    %truncate left and right borders
+image_dat = reshape(image_dat(:,fredir_left_border_xspace:fredir_right_border_xspace,:), [total_channel_no phadir_measured phadir_measured, 1]);    %truncate left and right borders
 
 
+% interpolate data
+
+image_dat_resized = zeros(total_channel_no,fredir_desired,phadir_desired);
+for channel = 1:total_channel_no
+    image_dat_resized(channel,:,:) = imresize(squeeze(image_dat(channel,:,:)),[fredir_desired, phadir_desired],'bicubic');
+end
+image_dat = image_dat_resized;
 
 %% 4. ROTATE IF IMAGE IS FLIPPED BECAUSE OF REVERSED ENCODING DIRECTIONS; FLIP BECAUSE LEFT RIGHT PHYSICIAN MIX UP
 
@@ -215,4 +221,11 @@ end
 
 
 % image_dat = circshift(image_dat, [0 1 0 0]);
+
+
+
+
+
+
+
 pause off
