@@ -1,4 +1,4 @@
-function [image,image_kspace] = read_image_dat_2_4(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag)
+function [image,image_kspace] = read_image_dat_2_5(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, NoiseCorrMat, phase_encod_dir,sum_averages_flag)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -23,6 +23,8 @@ function [image,image_kspace] = read_image_dat_2_4(image_path, DesiredSize,inter
 %                                               Set fredir_shift = 0 for no correction
 % -         Hamming_flag                ...     If 1, apply Hamming filter in k-space
 % -         EllipticalFilterSize        ...     If >0, cut out an circle in k-space with radius EllipticalFilterSize
+% -         NoiseCorrMat                ...     If size(NoiseCorrMat) = [cha cha]: the k-space Data gets decorrelated with this matrix. 
+%                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
 % -         phase_encod_dir             ...     If the phase encoding direction is in right-left direction, the image is rotated by 90°.
 %                                               If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
 % -         sum_averages_flag           ...     If = 1, the averages will be summed
@@ -84,6 +86,9 @@ if(~exist('Hamming_flag','var'))
 end
 if(~exist('EllipticalFilterSize','var'))
     EllipticalFilterSize = 0;
+end
+if(~exist('NoiseCorrMat','var'))
+    NoiseCorrMat = 0;
 end
 if(~exist('phase_encod_dir','var'))
     phase_encod_dir = 'AP';
@@ -152,7 +157,19 @@ fclose(raw_image_fid);
 
 
 
-%% 2. Perform zerofilling in case of Asymmetric Echo
+
+%% 2. Noise Decorrelation
+
+    
+if(numel(NoiseCorrMat) > 1)
+    fprintf('\nPerforming Noise Decorrelation.')    
+    image_kspace = reshape(chol(NoiseCorrMat/2,'lower') \ reshape(image_kspace, [size(image_kspace,1) numel(image_kspace)/size(image_kspace,1)]), size(image_kspace));    % Matrix multiplication
+end
+
+
+
+
+%% 3. Perform zerofilling in case of Asymmetric Echo
 % If asymmetric echo is allowed, the fredir size is probably 212 and the real k-space center is not in the center of the matrix --> zerofill array
 % To correct for that
 
@@ -164,7 +181,7 @@ clear AsymmetricEchoZeros
 
 
 
-%% 3. Unflip flipped image in k-space
+%% 4. Unflip flipped image in k-space
 
 if(flip == 1)
    image_kspace = flipdim(flipdim(image_kspace,2),3);
@@ -175,7 +192,7 @@ end
 
 
 
-%% 4. Correct phase due to shift in freq encoding direction
+%% 5. Correct phase due to shift in freq encoding direction
 % Strange phenomenon for images: if you shift them in frequency encoding direction, the phase of the image changes. This undoes the phase change.
 
 
@@ -187,7 +204,7 @@ end
 
 
 
-%% 5. Zerofill/Truncate kSpace to size [DesiredSize(1)*oversampling, DesiredSize(2)]
+%% 6. Zerofill/Truncate kSpace to size [DesiredSize(1)*oversampling, DesiredSize(2)]
 
 if(strcmpi(interpol_method,'ZeroFilling'))
 
@@ -242,7 +259,7 @@ end
 
 
 
-%% 6. Reorder Multislice Data if Necessary
+%% 7. Reorder Multislice Data if Necessary
 
 if(SLC > 1 && ParList_asc.InterleavedAcquisition)
     image_kspace = reorder_multislice_image_1_0(image_kspace,4);
@@ -250,7 +267,7 @@ end
 
 
 
-%% 7. Apply Elliptical Filter
+%% 8. Apply Elliptical Filter
 
 if(EllipticalFilterSize > 0)
     image_kspace = EllipticalFilter_1_1(image_kspace,[2 3],[OversamplingFactor 1 1 EllipticalFilterSize],1);               % Apply Elliptical Filter in directions 2,3 
@@ -259,7 +276,7 @@ end
 
 
 
-%% 8. Apply Hamming Filter
+%% 9. Apply Hamming Filter
 
 if(Hamming_flag)
     image_kspace = HammingFilter_1_3(image_kspace,[2 3],1);
@@ -269,7 +286,7 @@ end
 
 
 
-%% 9. FFT FROM K-SPACE TO DIRECT SPACE
+%% 10. FFT FROM K-SPACE TO DIRECT SPACE
 
 image = ifftshift(ifftshift(image_kspace,2),3);
 image = fft(fft(image,[],2),[],3);
@@ -286,7 +303,7 @@ end
 
 
 
-%% 10. Remove oversampling in image domain
+%% 11. Remove oversampling in image domain
 
 if(OversamplingFactor ~= 1)
     
@@ -302,7 +319,7 @@ end
 
 
 
-%% 11. Interpolate data in image domain
+%% 12. Interpolate data in image domain
 
 if(~strcmpi(interpol_method,'ZeroFilling'))
     
@@ -323,7 +340,7 @@ end
 
 
 
-%% 12. PHASE ENCODING RL CORRECTION, FLIP LEFT & RIGHT (Physicians...)
+%% 13. PHASE ENCODING RL CORRECTION, FLIP LEFT & RIGHT (Physicians...)
 
 if(strcmp(phase_encod_dir,'RL')) % If the phase encoding is set to RL, the image is rotated --> rotate back
    
@@ -346,7 +363,7 @@ end
 
 
 
-%% 13. Postparations
+%% 14. Postparations
 
 memused_after = memused_linux_1_0(1); 
 display([char(10) 'The function used ' num2str(memused_after-memused_before) '% of the total memory.'])
