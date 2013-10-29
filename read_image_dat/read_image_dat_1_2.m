@@ -1,6 +1,17 @@
-function [image_dat,image_dat_kspace] = read_image_dat_1_1(image_dat_file,total_channel_no, ROW, ROW_oversampling,COL,x_shift,y_shift,ROW_zf_factor)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%    FUNCTION TO READ IN THE .dat IMAGING FILES    %%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+function [image_dat,image_dat_kspace] = read_image_dat_1_2(image_dat_file,total_channel_no, ROW, ROW_oversampling,COL,x_shift,y_shift,ROW_zf_factor)
 %% 0. Preparations
 SLC = 1;
+
+
+if(~exist('ROW_zf_factor','var'))
+    ROW_zf_factor = 1;
+end
 
 ROW_os_nextpow2 = 2^nextpow2(ROW_oversampling);     % the data is sometimes oversampled from 128 to 212 and sometimes to 256 etc. So in general the data gets zerofilled if that is the case
 %ROW_zf_factor = 32;                                 % defines the zerofilling factor, with which the hybridspace (in x_direction x_space in y_direction kspace),
@@ -31,7 +42,6 @@ image_dat_kspace = zeros(total_channel_no,ROW_os_nextpow2,COL,1);
 
 for k_line = 1:COL
     for channel_no = 1:total_channel_no
-
         chak_header = fread(raw_image_fid, 64, 'int16');
         chak_data = fread(raw_image_fid, ROW_oversampling*2, 'float32');
         image_real = chak_data(1:2:end);
@@ -54,17 +64,77 @@ fclose(raw_image_fid);
 % % DEBUG MODE END
 
 
+%% CORRECTION 2.1: SET K_SPACE POINTS THAT ARE MUCH TOO HIGH (NOT IN CENTER!) TO VALUE OF NEIGHBOURING K-POINTS
+
+size_k_middle = 0.04;
+replace_sensitivity = 0.9;   % higher values --> less points get changed
+averaging_dist_to_kcenter = 1;
+
+change_k_points = zeros(total_channel_no, ROW_os_nextpow2, COL);
+
+mean_of_kspace_middlepoints = mean(mean(abs(image_dat_kspace(:,ROW_os_nextpow2/2-averaging_dist_to_kcenter:ROW_os_nextpow2/2+averaging_dist_to_kcenter,COL/2-averaging_dist_to_kcenter:COL/2-averaging_dist_to_kcenter)),2),3);
+change_k_points(abs(image_dat_kspace) > repmat(replace_sensitivity*mean_of_kspace_middlepoints, [1 ROW_os_nextpow2 COL])) = 1;
+
+%change_k_points(abs(image_dat_kspace) > repmat(replace_sensitivity*abs(image_dat_kspace(:,ROW_os_nextpow2/2+1,COL/2+1)), [1 ROW_os_nextpow2 COL])) = 1;
+
+change_k_points(:,floor(ROW_os_nextpow2/2+1-size_k_middle*ROW_os_nextpow2):ceil(ROW_os_nextpow2/2+1+size_k_middle*ROW_os_nextpow2),floor(COL/2+1-size_k_middle*COL):ceil(COL/2+1+size_k_middle*COL)) = 0;
+
+
+% %DEBUG MODE: WHICH K_SPACE POINTS GET CHANGED, WHICH NOT?
+% 
+% dont_change = zeros(total_channel_no, ROW_os_nextpow2, COL);
+% dont_change(:,floor(ROW_os_nextpow2/2+1-size_k_middle*ROW_os_nextpow2):ceil(ROW_os_nextpow2/2+1+size_k_middle*ROW_os_nextpow2),floor(COL/2+1-size_k_middle*COL):ceil(COL/2+1+size_k_middle*COL)) = 1;
+% 
+% image_dat_kspace_changed_points = image_dat_kspace;
+% image_dat_kspace_changed_points(logical(change_k_points)) = 10;
+% 
+% image_dat_kspace_dont_change_points = image_dat_kspace;
+% image_dat_kspace_dont_change_points(logical(dont_change)) = 10;
+% 
+% 
+% % for channel_no = 1:total_channel_no
+%     figure
+%     imagesc(abs(squeeze(image_dat_kspace_changed_points(1,:,:))), [0 4E-3])
+%     title('kspace and changed points')
+% 
+%     figure
+%     imagesc(abs(squeeze(image_dat_kspace_dont_change_points(1,:,:))), [0 4E-3])
+%     title('kspace middle dont change points')
+% 
+%     figure
+%     imagesc(squeeze(change_k_points(1,:,:)))
+%     title('kspace only changed points')
+%     pause
+% %     close all
+% % end
+% 
+% % DEBUG MODE END
+
+
+% FIND OUT THE INDICES OF THE K_POINTS TO CHANGE
+% linear_index = find(change_k_points == 1);
+% [change_k_channel, change_k_row, change_k_col] = ind2sub(size(change_k_points),linear_index); 
+
+
+
+image_dat_kspace(logical(change_k_points)) = 0;
+
+% figure
+% imagesc(abs(squeeze(image_dat_kspace(2,:,:))))
+
+
+
 %% CORRECTION: 2.1. DO X_SHIFT IN K-SPACE
 
 if(exist('x_shift','var') && ne(x_shift,0))
     image_dat_kspace = repmat(exp(1i*x_shift*2*pi/ROW_os_nextpow2*(1:ROW_os_nextpow2)),[total_channel_no,1,COL,SLC]) .* image_dat_kspace;   % shift 1 256 voxels instead of 1 128 voxel; The resolut.
-    image_dat_kspace = image_dat_kspace * exp(-1i*deg2rad(x_shift*180));                                                                    % does not increase, there is just crap on the borders
+    image_dat_kspace = image_dat_kspace * exp(1i*deg2rad(x_shift*(0*180+1*360/ROW_os_nextpow2)));                                                                    % does not increase, there is just crap on the borders
 end                                                                                                                                         % so you still have to shift 1 voxel.
 
 
 if(exist('y_shift','var') && ne(y_shift,0))   
-    image_dat_kspace = repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,ROW_os_nextpow2,1,SLC]) .* image_dat_kspace;
-    image_dat_kspace = image_dat_kspace * exp(-1i*deg2rad(y_shift*(180 + 360/COL)));                                                        %shift results in offset in phase, this corrects that
+    %image_dat_kspace = repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,ROW_os_nextpow2,1,SLC]) .* image_dat_kspace;
+    image_dat_kspace = image_dat_kspace * exp(1i*deg2rad(y_shift*(0*180 + 1*360/COL)));                                                        %shift results in offset in phase, this corrects that
 end
 
 
@@ -105,6 +175,9 @@ if(ROW_zf_factor > 1)
 %% CORRECTION 2.3: SHIFT KSPACE
     %shift kspace because center of kspace is not point with highest abs value otherwise
 
+    
+    image_dat_kspace = zeros(total_channel_no,ROW_os_nextpow2*ROW_zf_factor,COL);
+    
     for channel_no = 1:total_channel_no
 
         abs_kspace = abs(squeeze(image_dat_kspace_zf(channel_no,:,:)));
@@ -117,7 +190,8 @@ if(ROW_zf_factor > 1)
         kspace_shift = [0 (kspace_center - [max_ROW_index, max_COL_index])];        % difference of the k_space_centre to the position of the highest k_space_value: this is the value with which the kspace should be shifted
         % CONSIDER THAT THE KSPACE IS 256x128, K-SPACE CENTER = [129,65]; THE GREATEST MAGNITUDE VALUE IN KSPACE IS AT [127,64]; THE DISTANCE IS [129-127,65-64]=[2,1]. SO WE HAVE TO CIRCSHIFT THE MATRIX 2 ROWS DOWN AND 1 COL 
         % TO THE LEFT; THAT MEANS: CIRCSHIFT(MATRIX,[2,1])
-        image_dat_kspace(channel_no,:,:) = circshift(image_dat_kspace_zf, kspace_shift);
+        
+        image_dat_kspace(channel_no,:,:) = circshift(image_dat_kspace_zf(channel_no,:,:), kspace_shift);
 
 
     % DEBUG MODE
