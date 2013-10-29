@@ -6,7 +6,7 @@
 
 
 
-function [image_dat,image_dat_kspace] = read_image_dat_1_5(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir)
+function [image_dat,image_dat_kspace] = read_image_dat_1_6(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir,flip)
 
 
 
@@ -40,7 +40,11 @@ end
     
 if(~exist('phadir_desired','var'))
     phadir_desired = phadir_measured;
-end  
+end
+
+if(~exist('flip','var'))
+    flip = 0;
+end
 
 
 
@@ -68,10 +72,8 @@ image_dat_kspace = zeros(total_channel_no,fredir_os_nextpow2,phadir_measured,1);
 for k_line = 1:phadir_measured
     for channel_no = 1:total_channel_no
         fseek(raw_image_fid,128,'cof');
-        %chak_header = fread(raw_image_fid, 64, 'uint16');
         chak_data = fread(raw_image_fid, fredir_measured*2, 'float32');
         image_real = chak_data(1:2:end);
-        
         image_imag = chak_data(2:2:end);
         image_complex = complex(image_real,image_imag); 
         image_dat_kspace(channel_no,fredir_os_nextpow2/2-(k_fredir_center-1)+1:end,k_line,1) = image_complex; 
@@ -79,6 +81,12 @@ for k_line = 1:phadir_measured
 end
 
 fclose(raw_image_fid);
+
+if(flip == 1)
+   image_dat_kspace = flipdim(flipdim(image_dat_kspace,2),3);
+   image_dat_kspace = circshift(image_dat_kspace, [0 1 1]);
+end
+
 
 
 % % DEBUG MODE
@@ -182,6 +190,14 @@ image_dat = reshape(image_dat(:,fredir_left_border_xspace:fredir_right_border_xs
 
 
 %% 4. ROTATE IF IMAGE IS FLIPPED BECAUSE OF REVERSED ENCODING DIRECTIONS; FLIP BECAUSE LEFT RIGHT PHYSICIAN MIX UP
+
+
+% if(flip == 1)
+%     image_dat = flipdim(flipdim(image_dat,2),3);
+%     image_dat = circshift(image_dat, [0 -1 1]);
+% end
+
+
 if(exist('phase_encod_dir','var') && strcmp(phase_encod_dir,'RL'))
    
     for channel_no = 1:total_channel_no
@@ -191,6 +207,11 @@ if(exist('phase_encod_dir','var') && strcmp(phase_encod_dir,'RL'))
 else
     image_dat = flipdim(image_dat,2);
 end
+
+% if(flip == 1)
+%     image_dat = flipdim(flipdim(image_dat,2),3);
+%     image_dat = circshift(image_dat, [0 -1 1]);
+% end
 
 
 % image_dat = circshift(image_dat, [0 1 0 0]);
