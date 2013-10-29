@@ -1,4 +1,4 @@
-function [image_dicom, image_dicom_kspace] = read_image_dicom_1_1(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image_dicom, image_dicom_kspace] = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -50,11 +50,22 @@ function [image_dicom, image_dicom_kspace] = read_image_dicom_1_1(image_path,Des
 
 %% 0. Preparations
 
+
+
+
+% Split Input file in magnitude and phase file
+Image_MagPha_file = regexp(image_path,' ','split');
+%Image_MagPha_file = regexp(Image_MagPha_file,'\t','split');
+%Image_MagPha_file = regexp(Image_MagPha_file,',','split')
 % Read ascconv header
-ParList_asc = read_ascconv_1_3(image_path);
+
+
+ParList_asc = read_ascconv_1_3(Image_MagPha_file{1});
 %RemoveOversampling = ParList_asc.RemoveOversampling;
-BaseResolution = ParList_asc.ROW_raw;
+ROW = ParList_asc.ROW_raw;
+COL = ParList_asc.COL_raw;
 SLC = ParList_asc.SLC;
+total_channel_no = ParList_asc.total_channel_no;
 
 % Assign standard values to variables if nothing is passed to function.
 if(~exist('DesiredSize','var'))
@@ -85,11 +96,6 @@ end
 clear ParList_asc
 
 
-
-% Split Input file in magnitude and phase file
-Image_MagPha_file = regexp(image_path,'\t','split');
-Image_MagPha_file = regexp(Image_MagPha_file,' ','split');
-Image_MagPha_file = regexp(Image_MagPha_file,',','split');
 
 
 
@@ -153,9 +159,9 @@ image_dicom = reshape(circshift(squeeze(image_dicom), [-1 0]), [1, ROW, COL, SLC
 %% 2. Resample image if necessary
 
 
-image_dicom_resized = zeros(total_channel_no,fredir_desired,phadir_desired);
+image_dicom_resized = zeros(total_channel_no,DesiredSize(1),DesiredSize(2));
 for channel = 1:total_channel_no
-    image_dicom_resized(channel,:,:) = imresize(squeeze(image_dicom(channel,:,:)),[fredir_desired, phadir_desired],'bicubic');
+    image_dicom_resized(channel,:,:) = imresize(squeeze(image_dicom(channel,:,:)),[DesiredSize(1), DesiredSize(2)],'bicubic');
 end
 
 image_dicom = image_dicom_resized;
