@@ -1,4 +1,4 @@
-function [image_mat_complex_dat] = read_image_dat_1_0(image_dat_file,total_channel_no, ROW, ROW_oversampling,COL,x_shift,y_shift)
+function [image_mat_complex_dat] = read_image_dat_1_1(image_dat_file,total_channel_no, ROW,COL, freq_encod_os, phase_encoding_dir, x_shift,y_shift)
 %% 0. Preparations
 SLC = 1;
 
@@ -39,23 +39,30 @@ for k_line = 1:COL
     end
 end
 
-%image_mat_complex_dat_kspace = circshift(image_mat_complex_dat_kspace, [0,-1,0]);
-
 fclose(raw_image_fid);
 
 
 %% 2. SHIFT IN K-SPACE, FFT, FLIP LEFT AND RIGHT
 
+%shift to the left and then down
 
-if(exist('x_shift','var') && ne(x_shift,0))
-    image_mat_complex_dat_kspace = repmat(exp(1i*x_shift*2*pi/(oversampling*ROW)*(1:(oversampling*ROW))),[total_channel_no,1,COL,SLC]) .* image_mat_complex_dat_kspace;   %shift 1 256 voxels instead of 1 128 voxel; The resolut.
-    image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(-1i*deg2rad(x_shift*180));                                          %does not increase, there is just crap on the borders
-    %image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(1i*deg2rad(x_shift*(180 + 360/(ROW*oversampling))));
-    %image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(1i*deg2rad(x_shift*(360/(ROW*oversampling))));
-end                                                                                                                                                                       % so you still have to shift 1 voxel.
+% total_channel_no = 4;
+% xxx = real(repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,oversampling*ROW,1,SLC]));
+% 
+% size(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]))
+% size(repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,oversampling*ROW,1,SLC]))
+% size(reshape(repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,oversampling*ROW,1,SLC]), [total_channel_no,oversampling*ROW,COL,SLC]))
+% squeeze(xxx(1:4,1,50:54,1))
+% squeeze(xxx(1,4:8,30:34,1))
 
+if(exist('x_shift','var'))
+    image_mat_complex_dat_kspace = repmat(exp(1i*x_shift*2*pi/ROW*(1:oversampling*ROW)),[total_channel_no,1,COL,SLC]) .* image_mat_complex_dat_kspace;         %shift 2 256 voxels instead of 1 128 voxel; oversampling 
+    %image_mat_complex_dat_kspace = repmat(exp(-1i*x_shift*2/2*pi/ROW*(1:oversampling*ROW)),[total_channel_no,1,COL,SLC]) .* image_mat_complex_dat_kspace;         %shift 2 256 voxels instead of 1 128 voxel; oversampling 
+    %image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(-1i*deg2rad(x_shift*oversampling*(180 + 360/(ROW*oversampling))));                       %cancels in x_shift*os/(ROW*os)
+    image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(-1i*deg2rad(x_shift*1.5*oversampling*(180 + 360/(ROW*oversampling))));                       %cancels in x_shift*os/(ROW*os)
+end
 
-if(exist('y_shift','var') && ne(y_shift,0))   
+if(exist('y_shift','var'))   
     image_mat_complex_dat_kspace = repmat(reshape(exp(1i*y_shift*2*pi/COL*(1:COL)), [1,1,COL,SLC]),[total_channel_no,oversampling*ROW,1,SLC]) .* image_mat_complex_dat_kspace;
     image_mat_complex_dat_kspace = image_mat_complex_dat_kspace * exp(-1i*deg2rad(y_shift*(180 + 360/COL))); %shift results in offset in phase, this corrects that
 end
