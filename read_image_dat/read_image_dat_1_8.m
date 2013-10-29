@@ -2,11 +2,11 @@
 %%%%%%%%%%%%%%%%%%%%%    FUNCTION TO READ IN THE .dat IMAGING FILES    %%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% fredir = frequency encoding direction = normally ROW/x direction; phadir = phase encoding direction = normally COL/y direction
+% fredir = frequency encoding direction; phadir = phase encoding direction
 
 
 
-function [image_dat,image_dat_kspace] = read_image_dat_1_7(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir,flip)
+function [image_dat,image_dat_kspace] = read_image_dat_1_8(image_dat_file, fredir_desired, phadir_desired,kspace_corr_flag,fredir_shift,phase_encod_dir,flip)
 
 
 
@@ -19,29 +19,23 @@ function [image_dat,image_dat_kspace] = read_image_dat_1_7(image_dat_file, fredi
 pause on
 
 
-% READ SIZE OF HEADER
-
-[headersize,k_fredir_center,fredir_measured,phadir_measured,total_channel_no] = read_image_dat_meas_header_1_0(image_dat_file);
-
+% READ MDH INFORMATION, OPEN FILE FOR READ IN
+[headersize,total_channel_no,fredir_measured,phadir_measured,SLC,total_k_points,k_fredir_center] = read_image_dat_meas_header_1_1(image_dat_file);
 raw_image_fid = fopen(sprintf('%s', image_dat_file),'r');
 
 
-% SLC, FREQUENCY ENCOD DIR OVERSAMPLING, OVERSAMPLING IN FREQ ENCOD DIR, PAUSE
-%SLC = 1;
+% COMPUTE MATRIX SIZE IN FREQUENCY ENCODING DIRECTION AFTER ZEROFILLING TO ACHIEVE A SIZE OF 2^n; COMPUTE OVERSAMPLING FACTOR
 fredir_os_nextpow2 = 2^nextpow2(fredir_measured);   % the data is sometimes oversampled from 128 to 212 and sometimes to 256 etc. So in general the data gets zerofilled if that is the case
 oversampling_fredir = (fredir_os_nextpow2-phadir_measured)/phadir_measured+1;
 
 
-% if user didn't parse fredir_desired and phadir_desired
-
+% if user didn't pass over fredir_desired and phadir_desired
 if(~exist('fredir_desired','var'))
     fredir_desired = phadir_measured;
-end
-    
+end 
 if(~exist('phadir_desired','var'))
     phadir_desired = phadir_measured;
 end
-
 if(~exist('flip','var'))
     flip = 0;
 end
@@ -67,24 +61,50 @@ fredir_right_border_xspace =  phadir_measured*oversampling_fredir - truncate_fre
 %% 1. READ DATA
 
 fseek(raw_image_fid, headersize,'bof');             %go back to beginning of dataheader/data for readin
-image_dat_kspace = zeros(total_channel_no,fredir_os_nextpow2,phadir_measured,1);
+image_dat_kspace = zeros(total_channel_no,fredir_os_nextpow2,phadir_measured,SLC);
 
-for k_line = 1:phadir_measured
-    for channel_no = 1:total_channel_no
-        fseek(raw_image_fid,128,'cof');
-        chak_data = fread(raw_image_fid, fredir_measured*2, 'float32');
-        image_real = chak_data(1:2:end);
-        image_imag = chak_data(2:2:end);
-        image_complex = complex(image_real,image_imag); 
-        image_dat_kspace(channel_no,fredir_os_nextpow2/2-(k_fredir_center-1)+1:end,k_line,1) = image_complex; 
-    end
+
+for k_point = 1:total_k_points*total_channel_no
+    chak_header = fread(raw_image_fid, 64, 'int16');
+    %fseek(raw_image_fid,128,'cof');
+    k_slice = chak_header(19) + 1;                            
+    k_line = chak_header(17) + 1;
+    channel_no = chak_header(63) + 1;
+    chak_data = fread(raw_image_fid, fredir_measured*2, 'float32');
+    image_real = chak_data(1:2:end);
+    image_imag = chak_data(2:2:end);
+    image_complex = complex(image_real,image_imag); 
+    image_dat_kspace(channel_no,fredir_os_nextpow2/2-(k_fredir_center-1)+1:end,k_line,k_slice) = image_complex; 
+    
+%     if(k_point > total_k_points*total_channel_no)
+%         k_point
+%         %chak_header
+%         figure
+%         plot(image_real)
+%         waitforbuttonpress
+%     end
 end
+
+
+% for k_line = 1:phadir_measured
+%     
+% 	for slice_index = 1:4
+%         for channel_no = 1:total_channel_no
+%             fseek(raw_image_fid,128,'cof');
+%             chak_data = fread(raw_image_fid, fredir_measured*2, 'float32');
+%             image_real = chak_data(1:2:end);
+%             image_imag = chak_data(2:2:end);
+%             image_complex = complex(image_real,image_imag); 
+%             image_dat_kspace(channel_no,fredir_os_nextpow2/2-(k_fredir_center-1)+1:end,k_line,slice_index) = image_complex; 
+%         end
+% 	end
+% end
 
 fclose(raw_image_fid);
 
 if(flip == 1)
    image_dat_kspace = flipdim(flipdim(image_dat_kspace,2),3);
-   image_dat_kspace = circshift(image_dat_kspace, [0 1 1]);
+   image_dat_kspace = circshift(image_dat_kspace, [0 1 1 0]);
 end
 
 
@@ -184,14 +204,16 @@ image_dat = fftshift(fftshift(image_dat,2),3);
 
 
 % TRUNCATE IN XSPACE FROM [fredir_desired*oversampling_fredir, phadir_desired] TO [fredir_desired, phadir_desired]
-image_dat = reshape(image_dat(:,fredir_left_border_xspace:fredir_right_border_xspace,:), [total_channel_no phadir_measured phadir_measured, 1]);    %truncate left and right borders
+image_dat = reshape(image_dat(:,fredir_left_border_xspace:fredir_right_border_xspace,:,:), [total_channel_no phadir_measured phadir_measured, SLC]);    %truncate left and right borders
 
 
 % interpolate data
 
-image_dat_resized = zeros(total_channel_no,fredir_desired,phadir_desired);
-for channel = 1:total_channel_no
-    image_dat_resized(channel,:,:) = imresize(squeeze(image_dat(channel,:,:)),[fredir_desired, phadir_desired],'bicubic');
+image_dat_resized = zeros(total_channel_no,fredir_desired,phadir_desired,SLC);
+for slice_index = 1:SLC
+    for channel = 1:total_channel_no
+        image_dat_resized(channel,:,:,slice_index) = imresize(squeeze(image_dat(channel,:,:,slice_index)),[fredir_desired, phadir_desired],'bicubic');
+    end
 end
 image_dat = image_dat_resized;
 
