@@ -1,4 +1,4 @@
-function [image,image_kspace] = read_image_dat_2_1(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image,image_kspace] = read_image_dat_2_2(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -27,8 +27,8 @@ function [image,image_kspace] = read_image_dat_2_1(image_path, DesiredSize,inter
 %                                               If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
 %
 % Output:
-% -         image                         ...     Output data in image domain. size: channel x ROW x COL x SLC
-% -         image_kspace                  ...     Output data in k-space.      size: channel x ROW * OverSampling x COL x SLC
+% -         image                         ...     Output data in image domain. size: channel x ROW x COL x SLC x Averages
+% -         image_kspace                  ...     Output data in k-space.      size: channel x ROW * OverSampling x COL x SLC x Averages
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -46,6 +46,7 @@ function [image,image_kspace] = read_image_dat_2_1(image_path, DesiredSize,inter
 
 
 % fredir = frequency encoding direction; phadir = phase encoding direction
+tic
 
 % Find out memory used by MATLAB
 memused_before = memused_linux_1_0(1); 
@@ -61,7 +62,7 @@ BaseResolution = ParList_asc.ROW_raw;
 SLC = ParList_asc.SLC;
 
 % Assign standard values to variables if nothing is passed to function.
-if(~exist('DesiredSize','var'))
+if(~exist('DesiredSize','var') || DesiredSize(1) == 0)
     DesiredSize(1) = ParList_asc.ROW_raw;           % There is some problem with the read_ascconv function. For image files, the FinalMatrixSize
     DesiredSize(2) = ParList_asc.COL_raw;           % Is written where for CSI files the raw-sizes are written...
 end
@@ -86,12 +87,12 @@ end
 if(~exist('phase_encod_dir','var'))
     phase_encod_dir = 'AP';
 end
-clear ParList_asc
+%clear ParList_asc
 
 
 
 % READ MDH INFORMATION
-ParList = Analyze_image_mdh_1_2(image_path);
+ParList = Analyze_image_mdh_1_3(image_path);
 phadir_measured = ParList.phadir_measured;
 if(AsymmetricEcho)
     fredir_measured = 2^nextpow2(ParList.fredir_measured);  % When Gradient echo image with asymmetric echo is acquired, the k-space has to be either 
@@ -120,16 +121,14 @@ fseek(raw_image_fid, headersize,'bof');
 
 image_kspace = zeros(total_channel_no,fredir_ReallyMeasured,phadir_measured,SLC,Averages,'single');
 
-
 for ADC_MeasNo = 1:Averages*total_k_points*total_channel_no
     
     chak_header = fread(raw_image_fid, 64, 'int16');
     k_slice = chak_header(19) + 1;                                   % What about 3d-data sets?                      
     k_line = chak_header(17) + 1;
     channel_no = chak_header(63) + 1;
-    Avg = chak_header(24) + 1;                                       % Averages
+    Avg = chak_header(18) + 1;                                       % Averages
 
-    
     chak_data = fread(raw_image_fid, fredir_ReallyMeasured*2, 'float32');
     image_real = chak_data(1:2:end);
     image_imag = chak_data(2:2:end);
@@ -140,7 +139,6 @@ end
 
 clear chak_header k_slice k_line channel_no Avg chak_data image_real image_imag image_complex
 fclose(raw_image_fid);
-
 
 
 
@@ -161,7 +159,7 @@ clear AsymmetricEchoZeros
 
 if(flip == 1)
    image_kspace = flipdim(flipdim(image_kspace,2),3);
-   image_kspace = circshift(image_kspace, [0 1 1 0]);
+   image_kspace = circshift(image_kspace, [0 1 1 0 0]);
 end
 
 
@@ -235,8 +233,15 @@ end
 
 
 
+%% 6. Reorder Multislice Data if Necessary
 
-%% 6. Apply Elliptical Filter
+if(SLC > 1 && ParList_asc.InterleavedAcquisition)
+    image_kspace = reorder_multislice_image_1_0(image_kspace,4);
+end
+
+
+
+%% 7. Apply Elliptical Filter
 
 if(EllipticalFilterSize > 0)
     image_kspace = EllipticalFilter_1_1(image_kspace,[2 3],[OversamplingFactor 1 1 EllipticalFilterSize],1);               % Apply Elliptical Filter in directions 2,3 
@@ -245,7 +250,7 @@ end
 
 
 
-%% 7. Apply Hamming Filter
+%% 8. Apply Hamming Filter
 
 if(Hamming_flag)
     image_kspace = HammingFilter_1_3(image_kspace,[2 3],1);
@@ -255,7 +260,7 @@ end
 
 
 
-%% 8. FFT FROM K-SPACE TO DIRECT SPACE
+%% 9. FFT FROM K-SPACE TO DIRECT SPACE
 
 image = ifftshift(ifftshift(image_kspace,2),3);
 image = fft(fft(image,[],2),[],3);
@@ -269,14 +274,14 @@ end
 
 
 
-%% 9. Remove oversampling in image domain
+%% 10. Remove oversampling in image domain
 
 if(OversamplingFactor ~= 1)
     
     image_center = floor(size(image,2) / 2) + 1;
     left_border = image_center - size(image,2) / (OversamplingFactor*2);                      % = image center of oversampled data - half the size after Oversampling-removal
     right_border = image_center + size(image,2) / (OversamplingFactor*2) - 1;                 % = same but + half of the size after Oversampling-removal - 1 (-1 because of image center)
-    image = reshape(image(:,left_border:right_border,:,:), [total_channel_no DesiredSize(1) DesiredSize(2), SLC]);  % truncate left and right borders
+    image = reshape(image(:,left_border:right_border,:,:,:), [total_channel_no DesiredSize(1) DesiredSize(2), SLC, Averages]);  % truncate left and right borders
     clear image_center left_border right_border
     
 end
@@ -285,7 +290,7 @@ end
 
 
 
-%% 10. Interpolate data in image domain
+%% 11. Interpolate data in image domain
 
 if(~strcmpi(interpol_method,'ZeroFilling'))
     
@@ -293,25 +298,28 @@ if(~strcmpi(interpol_method,'ZeroFilling'))
     image_resized = zeros(total_channel_no,DesiredSize(1),DesiredSize(2),SLC);
     for slice_index = 1:SLC
         for channel = 1:total_channel_no
-            image_resized(channel,:,:,slice_index) = imresize(squeeze(image(channel,:,:,slice_index)),[DesiredSize(1), DesiredSize(2)],'bicubic');
+            for Avg = 1:Averages
+                image_resized(channel,:,:,slice_index,Avg) = imresize(squeeze(image(channel,:,:,slice_index,Avg)),[DesiredSize(1), DesiredSize(2)],'bicubic');
+            end
         end
     end
     image = image_resized;
+    clear image_resized
     
 end
 
 
 
 
-
-
-%% 11. PHASE ENCODING RL CORRECTION, FLIP LEFT & RIGHT (Physicians...)
+%% 12. PHASE ENCODING RL CORRECTION, FLIP LEFT & RIGHT (Physicians...)
 
 if(strcmp(phase_encod_dir,'RL')) % If the phase encoding is set to RL, the image is rotated --> rotate back
    
     for slice_index = 1:SLC
         for channel_no = 1:total_channel_no
-            image(channel_no,:,:,slice_index) = flipdim(rot90(squeeze(image(channel_no,:,:)),-1),2);
+            for Avg = 1:Averages
+                image(channel_no,:,:,slice_index,Avg) = flipdim(rot90(squeeze(image(channel_no,:,:,slice_index,Avg)),-1),2);
+            end
         end
     end
     
@@ -326,10 +334,11 @@ end
 
 
 
-%% 12. Postparations
+%% 13. Postparations
 
 memused_after = memused_linux_1_0(1); 
 display([char(10) 'The function used ' num2str(memused_after-memused_before) '% of the total memory.'])
 
+fprintf('\nExecution of the function took %10.6f seconds.\n',toc) 
 
 
