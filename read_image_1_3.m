@@ -1,4 +1,4 @@
-function [image, image_kspace] = read_image_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image, image_kspace] = read_image_1_3(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir, sum_averages_flag)
 %
 % read_image_x_x Read in csi-data
 %
@@ -25,7 +25,7 @@ function [image, image_kspace] = read_image_1_2(image_path,DesiredSize,interpol_
 % -         Hamming_flag                ...     If 1, apply Hamming filter in k-space
 % -         EllipticalFilterSize        ...     If >0, cut out an circle in k-space with radius EllipticalFilterSize
 % -         phase_encod_dir             ...     If the phase encoding direction is in right-left direction, the image is rotated by 90°.
-%                                               If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
+% -         sum_averages_flag           ...     If = 1, the averages will be summed                                      If you want to undo this rotation, set phase_encod_dir = 'RL', otherwise set it to anything else.
 %
 % Output:
 % -         image                         ...     Output data in image domain. size: channel x ROW x COL x SLC
@@ -48,9 +48,11 @@ function [image, image_kspace] = read_image_1_2(image_path,DesiredSize,interpol_
 %% 0. Assign standard values
 
 
+% Split Input file in magnitude and phase file
+Image_MagPha_file = regexp(image_path,' ','split');
 
 % Read ascconv header
-ParList_asc = read_ascconv_1_3(image_path);
+ParList_asc = read_ascconv_1_3(Image_MagPha_file{1});
 
 % Assign standard values to variables if nothing is passed to function.
 if(~exist('DesiredSize','var') || DesiredSize(1) == 0)
@@ -81,7 +83,9 @@ end
 if(~exist('phase_encod_dir','var'))
     phase_encod_dir = 'AP';
 end
-    
+if(~exist('sum_averages_flag','var'))
+    sum_averages_flag = 1;
+end    
     
     
     
@@ -90,17 +94,17 @@ end
 if(numel(strfind(image_path, '.dat')) > 0)
     
     if(nargout > 1)
-        [image,image_kspace] = read_image_dat_2_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);
+        [image,image_kspace] = read_image_dat_2_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag);
     else
-        image = read_image_dat_2_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);        
+        image = read_image_dat_2_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir,sum_averages_flag);        
     end
     
 else
     
     if(nargout > 1)
-        [image, image_kspace] = read_image_dicom_1_0(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);
+        [image, image_kspace] = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);
     else
-        image = read_image_dicom_1_0(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);        
+        image = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir);        
     end
         
         
