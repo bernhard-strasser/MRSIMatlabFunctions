@@ -1,8 +1,8 @@
-function ParList = read_csi_dicom_ascconv_1_0(csi_dicom_file)
+function [ParList,ascconv] = read_csi_dicom_ascconv_1_1(csi_dicom_file)
 %% 0. Preparations
 
 % Search for these entries in the ascconv header part
-ParList_Search = {'MaximumNofRxReceiverChannels', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'FinalMatrixSizeSlice', 'VectorSize'};
+ParList_Search = {'lRxChannelConnected', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'FinalMatrixSizeSlice', 'VectorSize'};
 % Name the structure entries of ParList like this
 ParList_Assign = {'total_channel_no',             'ROW',                  'COL',                 'SLC',                  'vecSize'};
 
@@ -93,6 +93,8 @@ end
 % There is a bug with Slice number: It says 8, even if only 1 slice was measured. Correct that here.
 ParList.SLC = 1;
 
+% Total channel no correction
+ParList.total_channel_no = max(ParList.total_channel_no);
 
 
 
