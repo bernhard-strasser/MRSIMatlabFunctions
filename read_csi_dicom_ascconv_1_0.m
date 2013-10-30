@@ -1,10 +1,10 @@
-function ParList = read_csi_dicom_ascconv_0_3(csi_dicom_file)
+function ParList = read_csi_dicom_ascconv_1_0(csi_dicom_file)
 %% 0. Preparations
 
 % Search for these entries in the ascconv header part
-ParList_Search = {'VectorSize', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'FinalMatrixSizeSlice', 'MaximumNofRxReceiverChannels'};
+ParList_Search = {'MaximumNofRxReceiverChannels', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'FinalMatrixSizeSlice', 'VectorSize'};
 % Name the structure entries of ParList like this
-ParList_Assign = {'VectorSize', 'ROW',                  'COL',                 'SLC',                  'total_channel_no'};
+ParList_Assign = {'total_channel_no',             'ROW',                  'COL',                 'SLC',                  'vecSize'};
 
 % Initialize ParList
 for Par_no = 1:numel(ParList_Search)
