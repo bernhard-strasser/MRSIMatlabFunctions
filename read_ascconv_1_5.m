@@ -1,4 +1,4 @@
-function [ParList,ascconv] = read_ascconv_1_4(file_path)
+function [ParList,ascconv] = read_ascconv_1_5(file_path)
 %
 % read_ascconv_x_x Read ascconv header part of DICOM and Siemens raw data
 %
@@ -44,16 +44,29 @@ function [ParList,ascconv] = read_ascconv_1_4(file_path)
 
 % Define for which entries the ascconv should be searched for
 % Search for these entries in the ascconv header part:
-ParList_Search =  {'lRxChannelConnected','BaseResolution', 'PhaseEncodingLines', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'sSliceArray.lSize', 'VectorSize', 'RemoveOversampling', 'AsymmetricEchoAllowed', 'sKSpace.ucMultiSliceMode'};
+ParList_Search =  { ...
+'lRxChannelConnected','BaseResolution', 'PhaseEncodingLines', 'FinalMatrixSizePhase', 'FinalMatrixSizeRead', 'sSliceArray.lSize', 'VectorSize', 'RemoveOversampling', 'AsymmetricEchoAllowed', ...
+'sKSpace.ucMultiSliceMode', 'sSliceArray.asSlice[0].dPhaseFOV', 'sSliceArray.asSlice[0].dReadoutFOV', 'sSliceArray.asSlice[0].sPosition.dSag', 'sSliceArray.asSlice[0].sPosition.dCor', ...
+'sSliceArray.asSlice[0].sPosition.dTra'};
+
+
 % Name the structure entries of ParList like this:
-ParList_Assign =  {'total_channel_no'   ,'ROW_raw'       , 'COL_raw'           , 'ROW'                 , 'COL'                , 'SLC'              , 'vecSize'   , 'RemoveOversampling', 'AsymmetricEcho'       , 'InterleavedAcquisition' };
+ParList_Assign =  { ...
+'total_channel_no'   ,'ROW_raw'       , 'COL_raw'           , 'ROW'                 , 'COL'                , 'SLC'              , 'vecSize'   , 'RemoveOversampling', 'AsymmetricEcho'       , ...
+'InterleavedAcquisition'  , 'FoV_Phase'                       , 'FoV_Read'                          , 'Pos_Sag'                              , 'Pos_Cor'                              , ...
+'Pos_Tra'};
+
+
 % Tells function to which format it should convert the found string in the ascconv (remember: all values in the ascconv are strings):
-ParList_Convert = {'str2double'         ,'str2double'    , 'str2double'        , 'str2double'          , 'str2double'         , 'str2double'       , 'str2double', 'char'              , 'char'                 , 'char'};
+ParList_Convert = { ...
+'str2double'         ,'str2double'    , 'str2double'        , 'str2double'          , 'str2double'         , 'str2double'       , 'str2double', 'char'              , 'char'                 , ...
+'char'                    , 'str2double'                      , 'str2double'                        , '-str2double'                           , 'str2double'                           , ...
+'str2double'};
 
 
 % Initialize ParList
 for Par_no = 1:numel(ParList_Search)
-    eval([ 'ParList.' ParList_Assign{Par_no} ' = NaN;' ]);
+    eval([ 'ParList.' ParList_Assign{Par_no} ' = 0;' ]);
 end
 
 % open file
