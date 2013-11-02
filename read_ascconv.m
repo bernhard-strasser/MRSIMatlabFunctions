@@ -1,4 +1,4 @@
-function [ParList,ascconv] = read_ascconv_1_8(file_path)
+function [ParList,ascconv] = read_ascconv(file_path)
 %
 % read_ascconv_x_x Read ascconv header part of DICOM and Siemens raw data
 %
@@ -359,6 +359,34 @@ end
 
 % FoV in Partition Direction
 ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
+
+
+
+
+
+
+
+
+
+
+
+
+
+% Consistency Checkings
+
+% Check if All Vectors for Multislice Data have same size.
+% It could happen that some are initialized by zeros with dimension [1 1],
+% and not set because not available in the header,
+% but 4 slices were measured, and some other values have dimension [1 4]. 
+% This could lead to problems, e.g. the following:
+% SliceNormalVector_x = 0; SliceNormalVector_y = [0.12 0.12]; SliceNormalVector_z = [0.9 0.9];
+
+MaxSizeSliceNormalVecs = max(cat(1,numel(ParList.SliceNormalVector_x),numel(ParList.SliceNormalVector_y),numel(ParList.SliceNormalVector_z)));
+%ParList.SliceNormalVector_x = repmat(ParList.SliceNormalVector_x, [1 1+MaxSizeSliceNormalVecs-numel(ParList.SliceNormalVector_x)]);
+
+for Dim = {'x','y','z'}
+    eval([ 'ParList.SliceNormalVector_' Dim{1} ' = repmat(ParList.SliceNormalVector_' Dim{1} ', [1+MaxSizeSliceNormalVecs-numel(ParList.SliceNormalVector_' Dim{1} ') 1]);' ]);
+end
 
 
 
