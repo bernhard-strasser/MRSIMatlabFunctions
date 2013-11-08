@@ -1,4 +1,4 @@
-function [BestPatterns,BestXPercPatterns,no_Patterns,QualityMeasure, AllPatterns] = FindBestCaipPattern(cell_size, no_measured_points)
+function [BestPatterns,BestXPercPatterns,no_Patterns,QualityMeasure, AllPatterns] = FindBestCaipPattern(cell_size, no_measured_points, no_WantedPatterns)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -49,7 +49,9 @@ if(nargin < 2)
     display([ char(10) 'Gimme more input, Ma''am!' char(10) ])
     return;
 end 
-
+if(~exist('no_WantedPatterns','var'))
+    no_WantedPatterns = 0;
+end
 
 
 
@@ -68,12 +70,16 @@ else
     fprintf('\n')    
 end
 
-if(no_Patterns < 70)
-    PercentageBestPatterns = 0.51;
-elseif(no_Patterns < 2000)
-    PercentageBestPatterns = 0.1;
+if(no_WantedPatterns <= 0)
+    if(no_Patterns < 70)
+        PercentageBestPatterns = 0.51;
+    elseif(no_Patterns < 2000)
+        PercentageBestPatterns = 0.1;
+    else
+        PercentageBestPatterns = 200/no_Patterns;
+    end
 else
-    PercentageBestPatterns = 200/no_Patterns;
+    PercentageBestPatterns = no_WantedPatterns/no_Patterns;
 end
 fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*100)    
 
