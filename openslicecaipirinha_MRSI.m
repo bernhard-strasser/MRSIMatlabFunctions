@@ -64,17 +64,6 @@ if(~exist('ACS_or_weights','var'))
     return
 end
 
-% Assign nSlice_ACS
-if(iscell(ACS_or_weights))
-    if(exist('FoV_shifts','var'))
-        nSlice_ACS = size(FoV_shifts,2);
-    elseif(exist('AliasedSlices','var'))
-        nSlice_ACS = numel(AliasedSlices);
-    else
-        display([char(10) 'I need either FoV-Shifts or AliasedSlices! Aborting . . .'])
-        return
-    end
-end
 
 
 % Initialize kernelsize
@@ -87,17 +76,7 @@ elseif(numel(kernelsize) < 4)
     kernelsize = [floor(kernelsize(1)/2) floor(kernelsize(1)/2) floor(kernelsize(2)/2) floor(kernelsize(2)/2)];
 end
 
-% Initialize AliasedSlices
-if(~exist('AliasedSlices','var'))                           % Produce patterns like [1 3; 2 4; 1 3; 2 4] or [1 4; 2 5; 3 6; 1 4; 2 5; 3 6].
-    R_Slice = nSlice_ACS/size(InData,4);
-    nSlice = size(InData,4);    
-    AliasedSlices = zeros([nSlice R_Slice]);
-    for dummy = 1:nSlice
-       AliasedSlices(dummy,:) = dummy:nSlice:nSlice_ACS;
-    end 
-    %AliasedSlices = repmat(AliasedSlices,[R_Slice 1]);
-    clear R_Slice nSlice dummy
-end
+
 
 
 
@@ -113,6 +92,16 @@ kernelsize_y = sum(kernelsize(3:4))+1;
 
 if(iscell(ACS_or_weights))
     weights = ACS_or_weights; clear ACS_or_weights
+    
+    if(exist('FoV_shifts','var'))
+        nSlice_ACS = size(FoV_shifts,2);
+    elseif(exist('AliasedSlices','var'))
+        nSlice_ACS = numel(AliasedSlices);
+    else
+        display([char(10) 'I need either FoV-Shifts or AliasedSlices! Aborting . . .'])
+        return
+    end    
+    
 else
     
     ACS = ACS_or_weights; clear ACS_or_weights
@@ -136,8 +125,21 @@ if(nSlice == nSlice_ACS)
     return;
 end
 
+% Initialize FoV-shifts
 if(~exist('FoV_shifts','var'))
     FoV_shifts = zeros([nSlice_ACS 2]);
+end
+
+% Initialize AliasedSlices
+if(~exist('AliasedSlices','var'))                           % Produce patterns like [1 3; 2 4; 1 3; 2 4] or [1 4; 2 5; 3 6; 1 4; 2 5; 3 6].
+    R_Slice = nSlice_ACS/size(InData,4);
+    nSlice = size(InData,4);    
+    AliasedSlices = zeros([nSlice R_Slice]);
+    for dummy = 1:nSlice
+       AliasedSlices(dummy,:) = dummy:nSlice:nSlice_ACS;
+    end 
+    %AliasedSlices = repmat(AliasedSlices,[R_Slice 1]);
+    clear R_Slice dummy
 end
 
 
