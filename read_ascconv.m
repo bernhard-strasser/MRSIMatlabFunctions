@@ -76,10 +76,11 @@ function [ParList,ascconv] = read_ascconv(file_path)
     'sSliceArray\.asSlice\[\d+\]\.sNormal\.dCor',                   ...     % 29    y-component
     'sSliceArray\.asSlice\[\d+\]\.sNormal\.dTra',                   ...     % 30    z-component
     'sSliceArray.asSlice\[0].dInPlaneRot',                          ...     % 31    The InPlane (InSlice) rotation, so the rotation around the normal vector given by the upper three components
-    'sGroupArray\.asGroup\[0\]\.dDistFact'                          ...     % 21
-    'ucUncombImages'                                                ...     % 26 
-    'sRXSPEC.lGain'                                                 ...     % 32 
-    'sSpecPara\.lPhaseEncodingType'                                 ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
+    'sGroupArray\.asGroup\[0\]\.dDistFact',                         ...     % 21
+    'ucUncombImages',                                               ...     % 26 
+    'sRXSPEC.lGain',                                                ...     % 32 
+    'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
+    'alTE\[\d+\]'                                                   ...     % 35
     };
 % else
 %     ParList_Search = { ...
@@ -137,9 +138,10 @@ ParList_Assign = { ...
 'SliceNormalVector_z',                                              ...     % 30
 'InPlaneRotation',                                                  ...     % 31
 'SliceGap',                                                         ...     % 21
-'SaveUncombined_flag'                                               ...     % 26
-'HighGain_flag'                                                     ...     % 32
-'Full_ElliptWeighted_Or_Weighted_Acq'                               ...     % 33    1,2 oder 3, ob ihr wirklich...
+'SaveUncombined_flag',                                              ...     % 26
+'HighGain_flag',                                                    ...     % 32
+'Full_ElliptWeighted_Or_Weighted_Acq',                              ...     % 33    1,2 oder 3, ob ihr wirklich...
+'TEs'                                                               ...     % 35
 };
 
 
@@ -179,6 +181,7 @@ ParList_Convert = { ...
 'char'                                                              ...     % 26
 'str2double',                                                       ...     % 32
 'str2double',                                                       ...     % 33
+'str2double',                                                       ...     % 35  
 };
 
 
