@@ -1,14 +1,15 @@
-function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, kernelsize, weights) 
+function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, AliasedSlices, kernelsize) 
 % 
 % openslicegrappa_MRSI Reconstruct the Slices of MRSI and MRI Data Ehen Only the Sum of Those Slices Was Measured.
 % 
-%  [OutData,weights] = openslicegrappa_MRSI(InData,ACS,kernelsize);
+%  [OutData,weights] = openslicegrappa_MRSI(InData, ACS_or_weights, FoV_shifts, AliasedSlices, kernelsize);
 %       
 %   Input:      
 % -     InData             Undersampled Data            (size: [#coils, nx, ny, nSlice, nTime]) (nTime = 1 for MRI)
 %                          nSlice must be nSlice = nSlice_ACS/R_Slice, where R_Slice is the acceleration factor in slice direction.
-% -     ACS                AutoCalibration Signal       (size: [#coils, nx_ACS, ny_ACS, nSlice_ACS])  
+% -     ACS_or_weights     AutoCalibration Signal       (size: [#coils, nx_ACS, ny_ACS, nSlice_ACS])  
 %                          Must have as many slices as the OutData should have. Use similar sequence parameters as for the InData.
+%                          If ACS_or_weights is a cell, ACS_or_weights are treated as weights, and the weights are not computed then.
 % -     FoV_shifts         The multiples of the FoV with which each slice was shifted 
 %                          (against the original slice position) in x- and y direction.
 %                          For each slice and for both directions (x and y) this must be given.
@@ -25,7 +26,6 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, ker
 %                          E.g.: [1 3 5; 2 4 6]. This tells the program:
 %                          AliasedSlices(1,:) = 1 3 5 --> Slice 1 of InData contains the aliased Slices of 1,3 and 5
 %                          AliasedSlices(2,:) = 2 4 6 --> Slice 2 of Indata contains the aliased Slices of 2,4 and 6
-% -     weights            See Output. If the weights are already known, they are not computed from the ACS data.
 % 
 %   Output:
 % -     OutData            Reconstructed Output Data    (size: [#coils, nx, ny, nSlice_ACS, nTime]) (nTime = 1 for MRI)
@@ -49,7 +49,7 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS, FoV_shifts, ker
 %% 0. Preparation
 
 % Fancy Text Message
-fprintf('\nLet the lemon-slice-caipirinha party start!')
+fprintf('\n\nLet the lemon-slice-caipirinha party start!')
 
 
 % Assign standard values to variables if nothing is passed to function.
@@ -59,15 +59,25 @@ if(~exist('InData','var'))
     return
 end
 
-if(~exist('ACS','var'))
+if(~exist('ACS_or_weights','var'))
     display([char(10) 'I need Glasses ( = Auto Calibration Signal (ACS)) for preparing CAIPIRINHA! Aborting . . .'])
     return
 end
-if(~exist('FoV_shifts','var'))
-    FoV_shifts = zeros([size(ACS,4) 2]);
+
+% Assign nSlice_ACS
+if(iscell(ACS_or_weights))
+    if(exist('FoV_shifts','var'))
+        nSlice_ACS = size(FoV_shifts,2);
+    elseif(exist('AliasedSlices','var'))
+        nSlice_ACS = numel(AliasedSlices);
+    else
+        display([char(10) 'I need either FoV-Shifts or AliasedSlices! Aborting . . .'])
+        return
+    end
 end
 
 
+% Initialize kernelsize
 if(~exist('kernelsize','var'))
     kernelsize = [2 2 2 2];
 end
@@ -77,12 +87,13 @@ elseif(numel(kernelsize) < 4)
     kernelsize = [floor(kernelsize(1)/2) floor(kernelsize(1)/2) floor(kernelsize(2)/2) floor(kernelsize(2)/2)];
 end
 
+% Initialize AliasedSlices
 if(~exist('AliasedSlices','var'))                           % Produce patterns like [1 3; 2 4; 1 3; 2 4] or [1 4; 2 5; 3 6; 1 4; 2 5; 3 6].
-    R_Slice = size(ACS,4)/size(InData,4);
+    R_Slice = nSlice_ACS/size(InData,4);
     nSlice = size(InData,4);    
     AliasedSlices = zeros([nSlice R_Slice]);
     for dummy = 1:nSlice
-       AliasedSlices(dummy,:) = dummy:nSlice:size(ACS,4);
+       AliasedSlices(dummy,:) = dummy:nSlice:nSlice_ACS;
     end 
     %AliasedSlices = repmat(AliasedSlices,[R_Slice 1]);
     clear R_Slice nSlice dummy
@@ -99,15 +110,25 @@ kernelsize_y = sum(kernelsize(3:4))+1;
 
 % Get the size of both the input data and the autocalibration data
 [nChannel,nx,ny, nSlice, nTime] = size(InData);
-[nChannel_ACS,nx_ACS,ny_ACS, nSlice_ACS]=size(ACS);
 
-% Check for dimension size
-if(nChannel_ACS~=nChannel)
-    disp([char(10) 'Error! The number of coils has to be the same for both inputs! Aborting . . .'])
-    OutData = InData;
-    weights = 0;
-    return;
+if(iscell(ACS_or_weights))
+    weights = ACS_or_weights; clear ACS_or_weights
+else
+    
+    ACS = ACS_or_weights; clear ACS_or_weights
+    [nChannel_ACS,nx_ACS,ny_ACS, nSlice_ACS]=size(ACS);
+
+    % Check for dimension size
+    if(nChannel_ACS~=nChannel)
+        disp([char(10) 'Error! The number of coils has to be the same for both inputs! Aborting . . .'])
+        OutData = InData;
+        weights = 0;
+        return;
+    end
+
 end
+
+
 if(nSlice == nSlice_ACS)
     disp([char(10) 'Nothing to do, since the InData has the same amount of slices as the ACS data . . .'])
     OutData = InData;
@@ -115,10 +136,9 @@ if(nSlice == nSlice_ACS)
     return;
 end
 
-
-
-
-
+if(~exist('FoV_shifts','var'))
+    FoV_shifts = zeros([nSlice_ACS 2]);
+end
 
 
 
