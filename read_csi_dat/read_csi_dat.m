@@ -239,7 +239,7 @@ if(Hadamard_flag == 1 && SLC>1 && ~ThreeD_flag)
         fprintf('\nHadamard decoding channel %02d\t...', channel_no)
         tic
 
-        csi_kspace(channel_no,:,:,:,:,:) = hadamard_decoding_9(csi_kspace(channel_no,:,:,:,:,:));            
+        csi_kspace(channel_no,:,:,:,:,:) = hadamard_decoding(csi_kspace(channel_no,:,:,:,:,:));            
      
         fprintf('\ttook\t%10.6f seconds', toc)              
         

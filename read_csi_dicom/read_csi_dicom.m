@@ -67,8 +67,10 @@ else
     SLC = ParList.nPartEnc;
 end
 
-
-SLC = ParList.nSLC * SLC;
+if(ParList.nPartEnc == 1)
+    SLC = 1;
+end
+%SLC = ParList.nSLC * SLC;  % Only correct for multislice data with nPartitions > 1 (never occurring!)
 vecSize = ParList.vecSize;
 clear ParList
 
@@ -130,8 +132,10 @@ if(ne(zerofilling_fact,1))
     
     % Go to k-space
     csi_kspace = ifftshift(ifftshift(csi,2),3);
+    %csi_kspace = conj(csi_kspace);
     csi_kspace = ifft(ifft(csi_kspace,[],2),[],3);
     csi_kspace = fftshift(fftshift(csi_kspace,2),3);
+
     
     % Initialize zerofilled matrix
     csi_kspace_zf = zeros([total_channel_no ROW*zerofilling_fact COL*zerofilling_fact SLC vecSize]);
@@ -147,7 +151,8 @@ if(ne(zerofilling_fact,1))
     
     % Go back to image space
     csi = ifftshift(ifftshift(csi_kspace,2),3);
-    csi = ifft(ifft(csi,[],2),[],3);
+    csi = fft(fft(csi,[],2),[],3);
+    %csi = conj(csi);
     csi = fftshift(fftshift(csi,2),3);    
     
     
@@ -163,10 +168,10 @@ if(nargout > 1 && not(exist('csi_kspace','var')))
     
     tic
     
-	csi_kspace = ifftshift(ifftshift(csi,2),3);
+    csi_kspace = ifftshift(ifftshift(csi,2),3);
+    csi_kspace = conj(csi_kspace);
     csi_kspace = ifft(ifft(csi_kspace,[],2),[],3);
     csi_kspace = fftshift(fftshift(csi_kspace,2),3);
-    csi_kspace = conj(csi_kspace);
     
     display([ 'IFFT took    ... ' num2str(toc) ' seconds' ])
 
