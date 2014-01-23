@@ -1,4 +1,4 @@
-function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
+function [iSpace,Noise,kSpace] = read_csi(csi_file,PreProcessingInfo)
 %
 % read_csi Read in csi-data
 %
@@ -39,50 +39,148 @@ function [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to
 
 %% 0. PREPARATIONS
 
-% Assign standard values to variables if nothing is passed to function.
-if(~exist('zerofill_to_nextpow2_flag','var'))
-    zerofill_to_nextpow2_flag = 1;
-end 
-if(~exist('zerofilling_fact','var'))
-    zerofilling_fact = 1;
-end
-if(~exist('Hadamard_flag','var'))
-    Hadamard_flag = 0;
-end
-if(~exist('x_shift','var'))
-    x_shift = 0;
-end    
-if(~exist('y_shift','var'))
-    y_shift = 0;
-end 
-if(~exist('NoFFT_flag','var'))
-    NoFFT_flag = false;
-end
-if(~exist('NoiseCorrMat','var'))
-    NoiseCorrMat = false;
+% % Assign standard values to variables if nothing is passed to function.
+
+% If nothing is passed to function
+if(nargin < 1)
+    display('Please feed me with a file to read in.')
+    iSpace = 0;
+    kSpace = 0;
+    return;
 end
 
-%% 1. Decide whether input file is DICOM or DAT; Call then appropriate function
+% Define Standard PreProcessingInfo
+PreProcessingInfo_Standard.Flags.zerofill_to_nextpow2 = true;
+PreProcessingInfo_Standard.Flags.Hadamard = true;
+PreProcessingInfo_Standard.Flags.NoFFT = false;
+PreProcessingInfo_Standard.Values.zerofilling_fact = 1;
+PreProcessingInfo_Standard.Values.x_shift = 0;
+PreProcessingInfo_Standard.Values.y_shift = 0;
+PreProcessingInfo_Standard.Values.NoiseCorrMat = 0;
+
+
+
+
+% If PreProcessingInfo is not passed over
+if(nargin < 2)
+    PreProcessingInfo = PreProcessingInfo_Standard;
+    SkipRest = true;
+end
+
+% If PreProcessingInfo does not contain all necessary fields
+if(~SkipRest)
+    PreProcessingFields = {'Flags','Values'};
+    for i = transpose(PreProcessingFields)
+        if(~isfield(PreProcessingInfo,i{:}))
+            PreProcessingInfo.(i{:}) = PreProcessingInfo_Standard.(i{:});
+        end
+    end
+    clear PreProcessingFields i;
+end
+
+% Assign all flags to Standard values if not existant
+if(~SkipRest)
+    PossibleFlags = {'zerofill_to_nextpow2','Hadamard','NoFFT'};
+    for i = transpose(PossibleFlags)
+        if(~isfield(PreProcessingInfo.Flags,i{:}))
+            PreProcessingInfo.Flags.(i{:}) = PreProcessingInfo_Standard.Flags.(i{:});
+        end
+    end
+    clear PossibleFlags i;
+end
+
+% Assign all Values if not existant
+if(~SkipRest)
+    PossibleValues = {'zerofilling_fact','x_shift','y_shift','NoiseCorrMat'};
+    for i = transpose(PossibleValues)
+        if(~isfield(PreProcessingInfo.Values,i{:}))
+            PreProcessingInfo.Values.(i{:}) = PreProcessingInfo_Standard.Values.(i{:});
+        end
+    end
+    clear PossibleValues i;
+end
+
+clear PreProcessingInf_Standard;
+
+
+
+% Test if any PreProcessingInfo should be done
+fields = transpose(PreProcessingInfo.Flags);
+for i = fields
+    DoAnyPreProcessing = PreProcessingInfo.Flags.(fields{i});
+    if(DoAnyPreProcessing)
+        break
+    end
+end
+clear fields i;
+
+
+
+
+%% 1. Read In Data
+
 
 if(numel(strfind(csi_file, '.dat')) > 0)
-    % Avoid memory problems. If only image space data is needed, pass over only this.    
-    if(nargout < 3)
-        [csi,NoiseCorrMat,Noise_mat] = read_csi_dat(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,false,NoiseCorrMat);
-    else
-        [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi_dat(csi_file, zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat);        
-    end
     
-else
+    % Read Raw Data
+    kSpace = read_csi_dat(csi_file);
+    iSpace = 0;
+      
     
-    if(nargout < 4)
-        csi = read_csi_dicom(csi_file,zerofilling_fact, x_shift,y_shift);        
+else   
+   
+    if(nargout == 3 || DoAnyPreProcessing)
+        [iSpace,kSpace] = read_csi_dicom(csi_file);
     else
-        [csi, csi_kspace] = read_csi_dicom(csi_file,zerofilling_fact, x_shift,y_shift);
+        iSpace = read_csi_dicom(csi_file);        
     end
-    NoiseCorrMat = 0;
-    Noise_mat = 0;
+    Noise.CorrMat = 0;
+    Noise.Mat = 0;
     
 end
+
+
+
+
+
+%% 2. PreProcess Data
+
+
+% PreProcess Data
+if(DoAnyPreProcessing)
+    if(nargout == 3)
+        [iSpace,kSpace] = PreProcessMRIData(kSpace,iSpace,PreProcessingInfo);
+    else
+        iSpace = PreProcessMRIData(kSpace,iSpace,PreProcessingInfo);
+    end
+end
+
+
+
+
+
+%% 3. Postparations
+
+if(isfield(kSpace,'Noise'))
+    if(PreProcessingInfo.Values.NoiseCorrMat == 1)
+        Noise.Mat = kSpace.Noise;
+    end
+    kSpace = rmfield(kSpace,'Noise');
+end
+if(isfield(kSpace,'NoiseCorrMat'))
+    if(PreProcessingInfo.Values.NoiseCorrMat == 1)
+        Noise.CorrMat = kSpace.NoiseCorrMat;
+    end
+    kSpace = rmfield(kSpace,'NoiseCorrMat');
+end
+
+if(isfield(PreProcessingInfo.Values,'NoiseCorrMat'))
+    if(numel(PreProcessingInfo.Values.NoiseCorrMat) > 1)
+        Noise.CorrMat = PreProcessingInfo.Values.NoiseCorrMat;
+    end
+end
+
+
 
 
 
