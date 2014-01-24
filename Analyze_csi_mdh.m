@@ -1,6 +1,10 @@
-function ParList = Analyze_csi_mdh_1_3(csi_path,AnalyzeWholekSpace_flag)
+function ParList = Analyze_csi_mdh_1_4(csi_path,AnalyzeWholekSpace_flag)
+%
 % Analyze_csi_mdh_x_x Analyze measurement data header of Siemens csi raw data
+%
 % This function was written by Bernhard Strasser, July 2012.
+%
+%
 % The function analyzes the mdh of Siemens raw csi data to find out the Parameters listed under Output
 %
 %
@@ -16,6 +20,7 @@ function ParList = Analyze_csi_mdh_1_3(csi_path,AnalyzeWholekSpace_flag)
 %           -- ParList.total_channel_no             - number of receive-channels
 %           -- ParList.total_k_points               - obvious
 %           -- ParList.SLC                          - Number of Slices
+%           -- ParList.Averages                     - Number of acquired averages.
 % if AnalyzeWholekSpace_flag = true
 %           ++ ParList.ROW_measured                 - Number of measured rows (lines), these gives the number of the REALLY measured lines
 %           ++ ParList.COL_measured                 - Number of measured columns (phase_encoding)
@@ -65,16 +70,18 @@ ParList.total_channel_no = chak_header(16);
 %% 2. READ FROM END OF FILE
 
 fseek(raw_csi_fid, -256,'eof');
-chak_header = fread(raw_csi_fid, 23, 'uint16');
+chak_header = fread(raw_csi_fid, 24, 'uint16');
 
 % total measured k-space points & Number of Slices
-ParList.total_k_points = chak_header(5)-1;
+
 if(chak_header(19) > 0)
     ParList.SLC = chak_header(19)+1;
 else
     ParList.SLC = 1;
 end
-
+ParList.Averages = chak_header(24) + 1;
+ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;
+ParList.total_ADC_meas = chak_header(5)-1;
 
 
 
@@ -86,30 +93,29 @@ if(AnalyzeWholekSpace_flag)
     fseek(raw_csi_fid,headersize,'bof');
     kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
 
-    for i = 1:ParList.total_k_points
+    for i = 1:ParList.total_k_points*ParList.Averages
             chak_header = fread(raw_csi_fid, 64, 'uint16');
             if(chak_header(17) > kline_max)
-                kline_max = chak_header(17) + 1;
+                kline_max = chak_header(17);
             end
             if(chak_header(17) < kline_min)
-                kline_min = chak_header(17) + 1;
+                kline_min = chak_header(17);
             end        
 
             if(chak_header(22) > kphase_max)
-                kphase_max = chak_header(22) + 1;
+                kphase_max = chak_header(22);
             end
             if(chak_header(22) < kphase_min)
-                kphase_min = chak_header(22) + 1;
+                kphase_min = chak_header(22);
             end        
             fseek(raw_csi_fid,ParList.vecSize*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
     end
-
     ParList.ROW_measured = kline_max - kline_min + 1;
     ParList.COL_measured = kphase_max - kphase_min + 1;
-    ParList.kline_min = kline_min;
-    ParList.kline_max = kline_max;
-    ParList.kphase_min = kphase_min;
-    ParList.kphase_max = kphase_max;
+    ParList.kline_min = kline_min + 1;
+    ParList.kline_max = kline_max + 1;
+    ParList.kphase_min = kphase_min + 1;
+    ParList.kphase_max = kphase_max + 1;
     
 end
 
