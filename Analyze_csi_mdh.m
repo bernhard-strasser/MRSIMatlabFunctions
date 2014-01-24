@@ -1,8 +1,48 @@
-function [headersize,total_channel_no,ROW,COL,SLC,vecSize,total_k_points,kline_min,kphase_min] = read_csi_dat_meas_header_1_2(csi_dat_file)
+function ParList = Analyze_csi_mdh_1_3(csi_path,AnalyzeWholekSpace_flag)
+% Analyze_csi_mdh_x_x Analyze measurement data header of Siemens csi raw data
+% This function was written by Bernhard Strasser, July 2012.
+% The function analyzes the mdh of Siemens raw csi data to find out the Parameters listed under Output
+%
+%
+% ParList = read_Analyze_csi_mdh_1_3(csi_path, AnalyzeWholekSpace_flag)
+%
+% Input: 
+% -         csi_path                        ...     Path of MRS(I) file.
+% -         AnalyzeWholekSpace_flag         ...     Determines if over whole k-space is looped to find out the matrix sizes ROW and COL.
+%
+% Output:
+% -         ParList                         ...     Structure giving all the Parameters. It contains:
+%           -- ParList.vecSize                      - VectorSize in spectroscopic dimension
+%           -- ParList.total_channel_no             - number of receive-channels
+%           -- ParList.total_k_points               - obvious
+%           -- ParList.SLC                          - Number of Slices
+% if AnalyzeWholekSpace_flag = true
+%           ++ ParList.ROW_measured                 - Number of measured rows (lines), these gives the number of the REALLY measured lines
+%           ++ ParList.COL_measured                 - Number of measured columns (phase_encoding)
+%           ++ ParList.kline_min                    - Minimum value of k-point in ROW-direction. All values start from 1, not from 0 like in C!
+%           ++ ParList.kline_max                    - Maximum value of k-point in ROW-direction.
+%           ++ ParList.kphase_min                   - obvious
+%           ++ ParList.kphase_max                   - obvious
+%
+%
+% Feel free to change/reuse/copy the function. 
+% If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
+% Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
+% File dependancy: None
+
+
+
+
+
 %% 0. Preparations
 
+% Assign standard values to variables if nothing is passed to function.
+if(~exist('AnalyzeWholekSpace_flag','var'))
+    AnalyzeWholekSpace_flag = true;
+end
 
-raw_csi_fid = fopen(sprintf('%s', csi_dat_file),'r');
+% Open file
+raw_csi_fid = fopen(sprintf('%s', csi_path),'r');
 
 % READ HEADERSIZE
 headersize = fread(raw_csi_fid,1, 'uint32');
@@ -10,61 +50,70 @@ headersize = fread(raw_csi_fid,1, 'uint32');
 
 
 
-%% 1. READ VECSIZE, TOTAL CHANNELS FROM FIRST DATA-HEADER
+%% 1. READ FROM FIRST DATA-HEADER
 
 fseek(raw_csi_fid,headersize,'bof'); 
 chak_header = fread(raw_csi_fid, 64, 'uint16');
 
-vecSize = chak_header(15);
+% VectorSize & Total Channel Number
+ParList.vecSize = chak_header(15);
+ParList.total_channel_no = chak_header(16);
 
-total_channel_no = chak_header(16);
 
 
 
-%% 2. READ TOTAL k-points AND NUMBER OF SLICES FROM END OF FILE
+%% 2. READ FROM END OF FILE
+
 fseek(raw_csi_fid, -256,'eof');
 chak_header = fread(raw_csi_fid, 23, 'uint16');
 
-total_k_points = chak_header(5)-1;
-
+% total measured k-space points & Number of Slices
+ParList.total_k_points = chak_header(5)-1;
 if(chak_header(19) > 0)
-    SLC = chak_header(19)+1;
+    ParList.SLC = chak_header(19)+1;
 else
-    SLC = 1;
+    ParList.SLC = 1;
 end
+
+
+
 
 
 %% 3. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
-fseek(raw_csi_fid,headersize,'bof');
-kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
 
-for i = 1:total_k_points
-        chak_header = fread(raw_csi_fid, 64, 'uint16');
-        if(chak_header(17) > kline_max)
-            kline_max = chak_header(17);
-        end
-        if(chak_header(17) < kline_min)
-            kline_min = chak_header(17);
-        end        
-        
-        if(chak_header(22) > kphase_max)
-            kphase_max = chak_header(22);
-        end
-        if(chak_header(22) < kphase_min)
-            kphase_min = chak_header(22);
-        end        
-        fseek(raw_csi_fid,vecSize*2*4*total_channel_no + (total_channel_no-1)*128,'cof');
+if(AnalyzeWholekSpace_flag)
+    
+    fseek(raw_csi_fid,headersize,'bof');
+    kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
+
+    for i = 1:ParList.total_k_points
+            chak_header = fread(raw_csi_fid, 64, 'uint16');
+            if(chak_header(17) > kline_max)
+                kline_max = chak_header(17) + 1;
+            end
+            if(chak_header(17) < kline_min)
+                kline_min = chak_header(17) + 1;
+            end        
+
+            if(chak_header(22) > kphase_max)
+                kphase_max = chak_header(22) + 1;
+            end
+            if(chak_header(22) < kphase_min)
+                kphase_min = chak_header(22) + 1;
+            end        
+            fseek(raw_csi_fid,ParList.vecSize*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
+    end
+
+    ParList.ROW_measured = kline_max - kline_min + 1;
+    ParList.COL_measured = kphase_max - kphase_min + 1;
+    ParList.kline_min = kline_min;
+    ParList.kline_max = kline_max;
+    ParList.kphase_min = kphase_min;
+    ParList.kphase_max = kphase_max;
+    
 end
 
-ROW = kline_max - kline_min + 1;
-COL = kphase_max - kphase_min + 1;
 
-if(ROW > 1 && ~isa(log2(ROW),'integer'))
-    ROW = ROW + 1;
-end
-if(COL > 1 && ~isa(log2(COL),'integer'))
-    COL = COL + 1;
-end
 
 
 
