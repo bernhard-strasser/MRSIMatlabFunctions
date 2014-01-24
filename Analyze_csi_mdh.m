@@ -1,4 +1,4 @@
-function [ROW,COL,SLC,vecSize,total_channel_no,total_k_points,headersize] = read_csi_dat_meas_header_1_0(csi_dat_file)
+function [ROW,COL,SLC,vecSize,total_channel_no,total_k_points,headersize] = read_csi_dat_meas_header_1_1(csi_dat_file)
 %% 0. Preparations
 
 
@@ -27,8 +27,8 @@ chak_header = fread(raw_csi_fid, 23, 'uint16');
 
 total_k_points = chak_header(5)-1;
 
-if(chak_header(23) > 0)
-    SLC = chak_header(23);
+if(chak_header(19) > 0)
+    SLC = chak_header(19)+1;
 else
     SLC = 1;
 end
