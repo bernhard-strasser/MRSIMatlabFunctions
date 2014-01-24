@@ -1,4 +1,4 @@
-function [ROW,COL,SLC,vecSize,total_channel_no,total_k_points,headersize] = read_csi_dat_meas_header_1_1(csi_dat_file)
+function [headersize,total_channel_no,ROW,COL,SLC,vecSize,total_k_points,kline_min,kphase_min] = read_csi_dat_meas_header_1_2(csi_dat_file)
 %% 0. Preparations
 
 
@@ -36,22 +36,38 @@ end
 
 %% 3. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
 fseek(raw_csi_fid,headersize,'bof');
-ROW = 1;
-COL = 1;
+kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
+
 for i = 1:total_k_points
-
         chak_header = fread(raw_csi_fid, 64, 'uint16');
-        if(chak_header(17) > ROW)
-            ROW = chak_header(17);
+        if(chak_header(17) > kline_max)
+            kline_max = chak_header(17);
         end
-        if(chak_header(22) > COL)
-            COL = chak_header(22);
+        if(chak_header(17) < kline_min)
+            kline_min = chak_header(17);
+        end        
+        
+        if(chak_header(22) > kphase_max)
+            kphase_max = chak_header(22);
         end
+        if(chak_header(22) < kphase_min)
+            kphase_min = chak_header(22);
+        end        
         fseek(raw_csi_fid,vecSize*2*4*total_channel_no + (total_channel_no-1)*128,'cof');
-
 end
 
-ROW = ROW + 1;
-COL = COL + 1;
+ROW = kline_max - kline_min + 1;
+COL = kphase_max - kphase_min + 1;
+
+if(ROW > 1 && ~isa(log2(ROW),'integer'))
+    ROW = ROW + 1;
+end
+if(COL > 1 && ~isa(log2(COL),'integer'))
+    COL = COL + 1;
+end
+
+
+
+%% 4. POSTPARATIONS
 
 fclose(raw_csi_fid);
