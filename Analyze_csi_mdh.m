@@ -1,4 +1,4 @@
-function ParList = Analyze_csi_mdh_1_4(csi_path,AnalyzeWholekSpace_flag)
+function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholekSpace_flag)
 %
 % Analyze_csi_mdh_x_x Analyze measurement data header of Siemens csi raw data
 %
@@ -62,7 +62,6 @@ chak_header = fread(raw_csi_fid, 64, 'uint16');
 
 % VectorSize & Total Channel Number
 ParList.vecSize = chak_header(15);
-ParList.total_channel_no = chak_header(16);
 
 
 
@@ -70,7 +69,7 @@ ParList.total_channel_no = chak_header(16);
 %% 2. READ FROM END OF FILE
 
 fseek(raw_csi_fid, -256,'eof');
-chak_header = fread(raw_csi_fid, 24, 'uint16');
+chak_header = fread(raw_csi_fid, 64, 'uint16');
 
 % total measured k-space points & Number of Slices
 
@@ -80,8 +79,9 @@ else
     ParList.SLC = 1;
 end
 ParList.Averages = chak_header(24) + 1;
-ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;
+ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;			% This is wrong! If there are more ADCs in the file (e.g. from Prescans) the kPoints cannot be computed like that!
 ParList.total_ADC_meas = chak_header(5)-1;
+ParList.total_channel_no = chak_header(16);
 
 
 
