@@ -58,8 +58,9 @@ PreProcessingInfo_Standard.Values.x_shift = 0;
 PreProcessingInfo_Standard.Values.y_shift = 0;
 PreProcessingInfo_Standard.Values.NoiseCorrMat = 0;
 
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% One PreProcessingInfo for Noise,GRE,CSI ?!?!?!
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % If PreProcessingInfo is not passed over
 if(nargin < 2)
@@ -104,15 +105,11 @@ clear PreProcessingInf_Standard;
 
 
 
-% Test if any PreProcessingInfo should be done
-fields = transpose(PreProcessingInfo.Flags);
-for i = fields
-    DoAnyPreProcessing = PreProcessingInfo.Flags.(fields{i});
-    if(DoAnyPreProcessing)
-        break
-    end
+% Test if any PreProcessingInfo should be done with CSI
+if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo, 'CSI'))
+	DoAnyPreProcessing = true;
 end
-clear fields i;
+
 
 
 
