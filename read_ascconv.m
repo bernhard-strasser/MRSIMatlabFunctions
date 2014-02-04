@@ -44,65 +44,46 @@ function [ParList,ascconv] = read_ascconv(file_path)
 
 % Define for which entries the ascconv should be searched for
 % Search for these entries in the ascconv header part:
-%if(numel(strfind(file_path, '.dat')) > 0)
-    ParList_Search =  { ...
-    'asCoilSelectMeas\[0\]\.asList\[\d+\]\.lRxChannelConnected',	...     % 1
-    'Coil_Dumms',                                                   ...     % 27    Just a Dummy to have the parameter in the right place  
-    'sRXSPEC\.alDwellTime\[\d+\]',                                  ...     % 18
-    'sTXSPEC\.asNucleusInfo\[0\]\.lFrequency',                      ...     % 19	Only take the first one [0], why should there be more?
-    'sKSpace\.ucDimension',                                         ...     % 8     Is this the Parameter that is different for 3D vs. 2D acquisitions????? 
-    'sKSpace\.ucAsymmetricEchoAllowed',                             ...     % 11
-    'sKSpace\.ucMultiSliceMode',                                    ...     % 12   
-    'sKSpace\.lBaseResolution',                                     ...     % 2
-    'sKSpace\.lPhaseEncodingLines',                                 ...     % 3
-    'sKSpace\.lPartitions',                                         ...     % 6  
-    'sSpecPara\.lFinalMatrixSizeRead',                              ...     % 4  
-    'sSpecPara\.lFinalMatrixSizePhase',                             ...     % 5
-    'sSpecPara\.lFinalMatrixSizeSlice',                             ...     % 34    
-    'sSpecPara\.lVectorSize',                                       ...     % 9
-    'sSpecPara\.ucRemoveOversampling',                              ...     % 10
-    'sSpecPara.sVoI\.dPhaseFOV',                                    ...     % 23
-    'sSpecPara.sVoI\.dReadoutFOV',                                  ...     % 24
-    'sSpecPara.sVoI\.dThickness',                                   ...     % 25    
-    'sSliceArray\.lSize',                                           ...     % 7  
-    'sSliceArray.asSlice\[\d+\].dThickness',                        ...     % 20 
-    'sSliceArray\.asSlice\[\d+\]\.dPhaseFOV',                       ...     % 13
-    'sSliceArray\.asSlice\[\d+\]\.dReadoutFOV',                     ...     % 14
-    'FOV_Partition_dumms',                                          ...     % 22	Just a Dummy to have the parameter in the right place
-    'sSliceArray\.asSlice\[\d+\]\.sPosition\.dSag',                 ...     % 15    Sagittal = forehead-backhead direction = "Read"-direction (normally)
-    'sSliceArray\.asSlice\[\d+\]\.sPosition\.dCor',                 ...     % 16    Coronal = left-right directions = "Phase"-direction (normally)
-    'sSliceArray\.asSlice\[\d+\]\.sPosition\.dTra',                 ...     % 17    Transversal = up-down direction = "Partition or Slice"-direction (normally)
-    'sSliceArray\.asSlice\[\d+\]\.sNormal\.dSag',                   ...     % 28    The x-component of the normal vector of the measured slice
-    'sSliceArray\.asSlice\[\d+\]\.sNormal\.dCor',                   ...     % 29    y-component
-    'sSliceArray\.asSlice\[\d+\]\.sNormal\.dTra',                   ...     % 30    z-component
-    'sSliceArray.asSlice\[0].dInPlaneRot',                          ...     % 31    The InPlane (InSlice) rotation, so the rotation around the normal vector given by the upper three components
-    'sGroupArray\.asGroup\[0\]\.dDistFact',                         ...     % 21
-    'ucUncombImages',                                               ...     % 26 
-    'sRXSPEC.lGain',                                                ...     % 32 
-    'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
-    'alTE\[\d+\]'                                                   ...     % 35
-    };
-% else
-%     ParList_Search = { ...
-%     'asCoilSelectMeas\[0\]\.asList\[\d+\]\.lRxChannelConnected',	...     % 1
-%     'sRXSPEC.alDwellTime[0]',                                       ...     % 18
-%     'sKSpace\.ucDimension',                                         ...     % 8	Is this the Parameter that is different for 3D cs. 2D acquisitions????? 
-%     'sKSpace\.ucAsymmetricEchoAllowed',                             ...     % 11
-%     'sKSpace\.ucMultiSliceMode',                                    ...     % 12   
-%     'sKSpace\.lBaseResolution',                                     ...     % 2
-%     'sKSpace\.lPhaseEncodingLines',                                 ...     % 3
-%     'sKSpace\.lPartitions',                                         ...     % 6  
-%     'sSpecPara\.lFinalMatrixSizeRead',                              ...     % 4  
-%     'sSpecPara\.lFinalMatrixSizePhase',                             ...     % 5
-%     'sSpecPara\.lVectorSize',                                       ...     % 9
-%     'sSpecPara\.ucRemoveOversampling',                              ...     % 10
-%     'sSliceArray\.lSize',                                           ...     % 7        
-%     'sSliceArray\.asSlice\[0\]\.dPhaseFOV',                         ...     % 13
-%     'sSliceArray\.asSlice\[0\]\.dReadoutFOV',                       ...     % 14
-%     'sSliceArray\.asSlice\[0\]\.sPosition\.dSag',                   ...     % 15
-%     'sSliceArray\.asSlice\[0\]\.sPosition\.dCor',                   ...     % 16
-%     'sSliceArray\.asSlice\[0\]\.sPosition\.dTra'};                          % 17
-% end
+ParList_Search =  { ...
+'asCoilSelectMeas\[0\]\.asList\[\d+\]\.lRxChannelConnected',	...     % 1
+'Coil_Dumms',                                                   ...     % 27    Just a Dummy to have the parameter in the right place  
+'sRXSPEC\.alDwellTime\[\d+\]',                                  ...     % 18
+'sTXSPEC\.asNucleusInfo\[0\]\.lFrequency',                      ...     % 19	Only take the first one [0], why should there be more?
+'sKSpace\.ucDimension',                                         ...     % 8     Is this the Parameter that is different for 3D vs. 2D acquisitions????? 
+'sKSpace\.ucAsymmetricEchoAllowed',                             ...     % 11
+'sKSpace\.ucMultiSliceMode',                                    ...     % 12   
+'sKSpace\.lBaseResolution',                                     ...     % 2
+'sKSpace\.lPhaseEncodingLines',                                 ...     % 3
+'sKSpace\.lPartitions',                                         ...     % 6  
+'sSpecPara\.lFinalMatrixSizeRead',                              ...     % 4  
+'sSpecPara\.lFinalMatrixSizePhase',                             ...     % 5
+'sSpecPara\.lFinalMatrixSizeSlice',                             ...     % 34    
+'sSpecPara\.lVectorSize',                                       ...     % 9
+'sSpecPara\.ucRemoveOversampling',                              ...     % 10
+'sSpecPara.sVoI\.dPhaseFOV',                                    ...     % 23
+'sSpecPara.sVoI\.dReadoutFOV',                                  ...     % 24
+'sSpecPara.sVoI\.dThickness',                                   ...     % 25    
+'sSliceArray\.lSize',                                           ...     % 7  
+'sSliceArray.asSlice\[\d+\].dThickness',                        ...     % 20 
+'sSliceArray\.asSlice\[\d+\]\.dPhaseFOV',                       ...     % 13
+'sSliceArray\.asSlice\[\d+\]\.dReadoutFOV',                     ...     % 14
+'FOV_Partition_dumms',                                          ...     % 22	Just a Dummy to have the parameter in the right place
+'sSliceArray\.asSlice\[\d+\]\.sPosition\.dSag',                 ...     % 15    Sagittal = forehead-backhead direction = "Read"-direction (normally)
+'sSliceArray\.asSlice\[\d+\]\.sPosition\.dCor',                 ...     % 16    Coronal = left-right directions = "Phase"-direction (normally)
+'sSliceArray\.asSlice\[\d+\]\.sPosition\.dTra',                 ...     % 17    Transversal = up-down direction = "Partition or Slice"-direction (normally)
+'sSliceArray\.asSlice\[\d+\]\.sNormal\.dSag',                   ...     % 28    The x-component of the normal vector of the measured slice
+'sSliceArray\.asSlice\[\d+\]\.sNormal\.dCor',                   ...     % 29    y-component
+'sSliceArray\.asSlice\[\d+\]\.sNormal\.dTra',                   ...     % 30    z-component
+'sSliceArray.asSlice\[0].dInPlaneRot',                          ...     % 31    The InPlane (InSlice) rotation, so the rotation around the normal vector given by the upper three components
+'sGroupArray\.asGroup\[0\]\.dDistFact',                         ...     % 21
+'ucUncombImages',                                               ...     % 26 
+'sRXSPEC.lGain',                                                ...     % 32 
+'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
+'alTE\[\d+\]',                                                  ...     % 35
+'tFree',														...		% 36
+'lAverages'														...		% 37
+};
+
 
 
 % Name the structure entries of ParList like this:
@@ -141,7 +122,9 @@ ParList_Assign = { ...
 'SaveUncombined_flag',                                              ...     % 26
 'HighGain_flag',                                                    ...     % 32
 'Full_ElliptWeighted_Or_Weighted_Acq',                              ...     % 33    1,2 oder 3, ob ihr wirklich...
-'TEs'                                                               ...     % 35
+'TEs',                                                              ...     % 35
+'wipMemBlock_tFree',												...		% 36
+'nAverages',														...		% 37
 };
 
 
@@ -178,10 +161,12 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 30
 'str2double',                                                       ...     % 31
 'str2double',                                                       ...     % 21
-'char'                                                              ...     % 26
+'char',                                                             ...     % 26
 'str2double',                                                       ...     % 32
 'str2double',                                                       ...     % 33
-'str2double',                                                       ...     % 35  
+'str2double',                                                       ...     % 35
+'char',																...		% 36
+'str2double'														...		% 37
 };
 
 
