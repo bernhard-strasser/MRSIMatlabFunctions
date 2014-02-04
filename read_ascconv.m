@@ -81,7 +81,8 @@ ParList_Search =  { ...
 'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
 'alTE\[\d+\]',                                                  ...     % 35
 'tFree',														...		% 36
-'lAverages'														...		% 37
+'lAverages',													...		% 37
+'sWiPMemBlock\.alFree\[5\d\]'									...		% 38	Our sequence: Prescan Pars nFreqEnc, nPhasEnc, nPartEnc, nSLC, nAverages (all Prescans_GRE) and lNumberofADCs
 };
 
 
@@ -125,6 +126,7 @@ ParList_Assign = { ...
 'TEs',                                                              ...     % 35
 'wipMemBlock_tFree',												...		% 36
 'nAverages',														...		% 37
+'wipMemBlock_alFree'												...		% 38
 };
 
 
@@ -166,7 +168,8 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 33
 'str2double',                                                       ...     % 35
 'char',																...		% 36
-'str2double'														...		% 37
+'str2double',														...		% 37
+'str2double'														...		% 38
 };
 
 
