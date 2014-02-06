@@ -47,7 +47,7 @@ function Noise_mat = GatherNoiseFromCSI(InData,Full_ElliptWeighted_Or_Weighted_A
 
 if(nargin < 1)
 	fprintf('\nProblem: Cannot gather noise if no CSI or NoiseCorrMat is provided.')
-	Noise = 0;
+	Noise_mat = 0;
 	return;
 end
 if(~exist('Full_ElliptWeighted_Or_Weighted_Acq','var'))
