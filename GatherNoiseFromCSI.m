@@ -1,4 +1,4 @@
-function OutData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
+function Noise_mat = GatherNoiseFromCSI(InData,Full_ElliptWeighted_Or_Weighted_Acq,nFIDendpoints,TakeNPointsOutOfEnd)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -9,7 +9,7 @@ function OutData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,kSpace.CSI] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+% [csi,NoiseCorrMat,Noise_mat,InData] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
 % Input: 
 % -         csi_path                    ...     Path of MRS(I) file.
@@ -27,7 +27,7 @@ function OutData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
 % -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
 % -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
 % -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
-% -         kSpace.CSI                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
+% -         InData                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -45,55 +45,48 @@ function OutData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
 %% 0. Preparations
 
 
-if(nargin < 2)
-	fprintf('\nProblem: Cannot Noise-Decorrelate if no Input Data or NoiseCorrMat is provided.')
+if(nargin < 1)
+	fprintf('\nProblem: Cannot gather noise if no CSI or NoiseCorrMat is provided.')
+	Noise = 0;
+	return;
+end
+if(~exist('Full_ElliptWeighted_Or_Weighted_Acq','var'))
+	Full_ElliptWeighted_Or_Weighted_Acq = 2;	% = Elliptical
+end
+if(~exist('nFIDendpoints','var'))
+	nFIDendpoints = 400;
+end
+if(~exist('TakeNPointsOutOfEnd','var'))
+	TakeNPointsOutOfEnd = 200;	% = Elliptical
 end
 
 
-%% 1. Decorrelate
-
-[dummy, memfree] = memused_linux_1_1;
-
-NoiseCorrMat_Chol = chol(NoiseCorrMat/2,'lower');
+%% 1. Gather Noise
 
 
-if(numel(InData)*8*2*2/2^20 > memfree)			% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 3 times in memory, once it is already there
-												% and two more times it should fit in). /2^20 to get from bytes to MB.
-	
-	OutData = zeros(size(InData));
-	% Perform Noise Decorrelation Slice by Slice and Part by Part to avoid extensive memory usage 
-	for SlcLoopy = 1:size(InData,4)
-		for PartLoopy = 1:size(InData,5)
+% Gather "Noise" of the CSI data (end of FIDs in the outermost acquired circle of k-space points). Only working for 2D and Multislice
+randy = randperm(nFIDendpoints); randy = randy(1:TakeNPointsOutOfEnd); % Take 'em randomly
 
-			TempData = InData(:,:,:,SlcLoopy,PartLoopy,:,:);
-			size_TempData = size(TempData);
-			TempData = reshape(TempData, [size(TempData,1) numel(TempData)/size(TempData),1]);
-			fprintf('\nFirst Reshape')
-			TempData = NoiseCorrMat_Chol \ TempData;
-			fprintf('\nDivision')
-			OutData(:,:,:,SlcLoopy,PartLoopy,:,:) = reshape(TempData,size_TempData);
-			fprintf('\nSecond Reshape')
+% Take random points at end of FID
+Noise_csi = InData(:,:,:,:,:,end - (nFIDendpoints - 1) : end); Noise_csi = Noise_csi(:,:,:,:,:,randy);
 
-		end
-	end
-		
-else	
-				
-	size_kSpace = size(InData);
-	OutData = reshape(InData, [size(InData,1) numel(InData)/size(InData,1)]);
-	fprintf('\nFirst Reshape')
-	OutData = NoiseCorrMat_Chol \ OutData;
-	fprintf('\nDivision')
-	OutData = reshape(OutData,size_kSpace);
-	fprintf('\nSecond Reshape')
-
-
-% 	InData = reshape(chol(PreProcessingInfo.(CurDataSetString).NoiseCorrMat/2,'lower') \ ...
-% 	reshape(InData, [size(InData,1) numel(InData)/size(InData,1)]), size(InData));    % Matrix multiplication
-
-
-
+% Take only csi-points which are farest away from k-space center (so a circle with radius 31 k-space points)
+if(Full_ElliptWeighted_Or_Weighted_Acq == 2)
+	[Elliptical_dummy,OuterkSpace_mask1] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
+	[Elliptical_dummy,OuterkSpace_mask2] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
+	OuterkSpace_mask = OuterkSpace_mask1 - OuterkSpace_mask2;
+else
+	OuterkSpace_mask = zeros([size(InData,2), size(InData,3)]);
+	OuterkSpace_mask(1:end,1) = 1; OuterkSpace_mask(1,1:end) = 1; OuterkSpace_mask(end,1:end) = 1; OuterkSpace_mask(1:end,end) = 1;
 end
+PI_mask = abs(squeeze(InData(1,:,:,1,1,1))); PI_mask(PI_mask > 0) = 1;
+csi_mask = OuterkSpace_mask .* PI_mask;
+csi_mask = repmat(logical(csi_mask), [1 1 size(InData,1)*size(InData,4)*TakeNPointsOutOfEnd]);
+csi_mask = reshape(csi_mask, [size(InData,2) size(InData,3) size(InData,1) size(InData,4) TakeNPointsOutOfEnd]);
+csi_mask = permute(csi_mask, [3 1 2 4 5]);
+
+Noise_mat = Noise_csi(csi_mask);
+Noise_mat = reshape(Noise_mat, [size(InData,1) numel(Noise_mat)/size(InData,1)]);  
 
 
 
