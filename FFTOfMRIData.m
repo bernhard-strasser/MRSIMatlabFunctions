@@ -1,4 +1,4 @@
-function Noise_mat = FFTOfMRIData(InData,Full_ElliptWeighted_Or_Weighted_Acq,nFIDendpoints,TakeNPointsOutOfEnd)
+function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -46,47 +46,98 @@ function Noise_mat = FFTOfMRIData(InData,Full_ElliptWeighted_Or_Weighted_Acq,nFI
 
 
 if(nargin < 1)
-	fprintf('\nProblem: Cannot gather noise if no CSI or NoiseCorrMat is provided.')
-	Noise_mat = 0;
+	fprintf('\nProblem: Cannot fft non-existant data. Provide some data.')
+	InData = 0;
 	return;
 end
-if(~exist('Full_ElliptWeighted_Or_Weighted_Acq','var'))
-	Full_ElliptWeighted_Or_Weighted_Acq = 2;	% = Elliptical
+if(nargin < 2)
+	ConjFlag = false;
 end
-if(~exist('nFIDendpoints','var'))
-	nFIDendpoints = 400;
-end
-if(~exist('TakeNPointsOutOfEnd','var'))
-	TakeNPointsOutOfEnd = 200;	% = Elliptical
+if(nargin < 3)
+	ApplyAlongDims = [2 3 4];
 end
 
 
-%% 1. Gather Noise
+if(size(InData,2) == 1 && size(InData,3) == 1 && size(InData,4) == 1)
+	InData = conj(InData);
+	return;
+end
 
 
-% Gather "Noise" of the CSI data (end of FIDs in the outermost acquired circle of k-space points). Only working for 2D and Multislice
-randy = randperm(nFIDendpoints); randy = randy(1:TakeNPointsOutOfEnd); % Take 'em randomly
 
-% Take random points at end of FID
-Noise_csi = InData(:,:,:,:,:,end - (nFIDendpoints - 1) : end); Noise_csi = Noise_csi(:,:,:,:,:,randy);
 
-% Take only csi-points which are farest away from k-space center (so a circle with radius 31 k-space points)
-if(Full_ElliptWeighted_Or_Weighted_Acq == 2)
-	[Elliptical_dummy,OuterkSpace_mask1] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
-	[Elliptical_dummy,OuterkSpace_mask2] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
-	OuterkSpace_mask = OuterkSpace_mask1 - OuterkSpace_mask2;
+
+
+%% 1. Memory Considerations - Find best Looping
+
+size_InData = size(InData);
+
+[dummy, MemFree] = memused_linux_1_1(1);
+MemNecessary = numel(InData)*8*2*2/2^20;							% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 2 times in memory,
+																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
+if(numel(InData)*8*2*2/2^20 > MemFree)
+	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(1:end));	% Because the 1st index is the coil. We can never loop over the coils.
+	LoopOverIndex(LoopOverIndex < 1) = NaN;
+	LoopOverIndex(ApplyAlongDims) = NaN;
+	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
+	AccessString = [repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_InData)-LoopOverIndex])];
+	AccessString(end) = [];
+end
+
+
+
+
+%% 2. FFT
+
+
+tic_overall = tic;		
+
+% Perform Noise Decorrelation by looping to avoid extensive memory usage 
+if(numel(InData)*8*2*2/2^20 > MemFree)	
+	
+	
+	for LoopIndex = 1:size(InData,LoopOverIndex)
+		tic_loop = tic;
+		fprintf('\nFouriertransforming Part %02d\t...\tof %02d', LoopIndex, size(InData,LoopOverIndex))
+
+		TempData = eval(['InData(' AccessString ');']);	
+		for Dimli = ApplyAlongDims
+			TempData = fft(ifftshift(TempData,Dimli),[],Dimli);
+		end
+		if(ConjFlag)
+			TempData = conj(TempData);
+		end
+		for Dimli = ApplyAlongDims
+			TempData = fftshift(TempData,Dimli);
+		end		
+		eval(['InData(' AccessString ') = TempData;']);
+		
+		fprintf('\ttook\t%10.6f seconds', toc(tic_loop))       
+	end
+	clear TempData;
+
+
+% Perform fft at once if enough memory is available
 else
-	OuterkSpace_mask = zeros([size(InData,2), size(InData,3)]);
-	OuterkSpace_mask(1:end,1) = 1; OuterkSpace_mask(1,1:end) = 1; OuterkSpace_mask(end,1:end) = 1; OuterkSpace_mask(1:end,end) = 1;
+	for Dimli = ApplyAlongDims
+		InData = fft(ifftshift(InData,Dimli),[],Dimli);
+	end
+	if(ConjFlag)
+		InData = conj(InData);
+	end
+	for Dimli = ApplyAlongDims
+		InData = fftshift(InData,Dimli);
+	end
 end
-PI_mask = abs(squeeze(InData(1,:,:,1,1,1))); PI_mask(PI_mask > 0) = 1;
-csi_mask = OuterkSpace_mask .* PI_mask;
-csi_mask = repmat(logical(csi_mask), [1 1 size(InData,1)*size(InData,4)*TakeNPointsOutOfEnd]);
-csi_mask = reshape(csi_mask, [size(InData,2) size(InData,3) size(InData,1) size(InData,4) TakeNPointsOutOfEnd]);
-csi_mask = permute(csi_mask, [3 1 2 4 5]);
+		
+	
 
-Noise_mat = Noise_csi(csi_mask);
-Noise_mat = reshape(Noise_mat, [size(InData,1) numel(Noise_mat)/size(InData,1)]);  
+if(sum(ApplyAlongDims == 2) == 1)	% Only if the second dimension is to be applied
+	InData = flipdim(InData,2);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
+end
+fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))
+
 
 
 
