@@ -1,4 +1,4 @@
-function OutArray = hadamard_decoding(InArray,ApplyAlongDim)
+function InArray = hadamard_decoding(InArray,ApplyAlongDim)
 %
 % hadamard_decoding Perform Hadamard decoding
 %
@@ -58,49 +58,94 @@ if(numel(InArray)*8*2*2/2^20 > MemFree)
 	LoopOverIndex(ApplyAlongDim) = NaN;
 	LoopOverIndex = find(nanmin(LoopOverIndex));
 	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
-	
-	Mini = min([LoopOverIndex,ApplyAlongDim]);
-	Diffi = abs(LoopOverIndex - ApplyAlongDim);
-	First = {'i','LoopIndex'}; Second = First{(Mini == LoopOverIndex) + 1}; First(strcmpi(First,Second)) = []; First = First{:};
-	AccessString = [	repmat(':,',[1 Mini-1]) First repmat(':,',[1 Diffi]) Second repmat(':,',[1 numel(size_InArray)-(Mini-1)-(Diffi-1)-2])	];
-	AccessString(end) = [];
-	
-else
-	AccessString = [repmat(':,',[1 ApplyAlongDim-1]) 'i,' repmat(':,',[1 numel(size_InArray)-ApplyAlongDim])];
+	AccessString = [	repmat(':,',[1 LoopOverIndex-1]) First repmat(':,',[1 numel(size_InArray)-LoopOverIndex])	];
 	AccessString(end) = [];
 end
-
-AccessString_j = regexprep(AccessString,'i','j');
-
 
 
 
 
 %% 2. Apply Hadamard Matrix
 
-HadamardMatrix = hadamard(size(InArray,ApplyAlongDim));
-OutArray = zeros(size_InArray);
+HadamardMatrix = hadamard(size_InArray(ApplyAlongDim));
 
-for i = 1:size(HadamardMatrix,1)
-	TempData = 0;
-	for j = 1:size(HadamardMatrix,2)
-		
-		if(numel(InArray)*8*2*2/2^20 > MemFree)
-			for LoopIndex = 1:size_InData(LoopOverIndex)
-				TempData = TempData + HadamardMatrix(i,j) * eval(['InArray(' AccessString_j ')']);
-			end
-		else
-			TempData = TempData + HadamardMatrix(i,j) * eval(['InArray(' AccessString_j ')']);
-		end
-		
+if(numel(InArray)*8*2*2/2^20 > MemFree)
+	
+	
+	for LoopIndex = 1:size_InData(LoopOverIndex)
+
+		TempData = eval(['InArray(' AccessString ')']);
+
+		% 2.1. Shift the Hadamard-Dimension to Position 1 & Reshape
+
+		% Shift the dimensions of InArray so that the SLC-Dimension is its first. E.g.: size(InArray) = [channel ROW COL SLC vecSize] -->
+		% size(ShiftedInArray) = [SLC vecSize channel ROW COL]
+		TempData = shiftdim(TempData,ApplyAlongDim-1);
+
+		% Reshape the InArray from [SLC vecSize channel ROW COL] to [SLC vecSize*channel*ROW*COL]
+		ShiftedSize = size(TempData);
+		TempData = reshape(TempData,[ShiftedSize(1) prod(ShiftedSize(2:end))]);
+
+		TempData = HadamardMatrix * TempData;                       % Real Matrix Multiplication!
+
+		% 2.3. Reshape & Shift Dimensions Back & Reshape
+		% Reshape InArray from [SLC vecSize*channel*ROW*COL] to [SLC vecSize channel ROW COL]
+		TempData = reshape(TempData, ShiftedSize);
+
+		% Shift the dimensions of InArray so that size(InArray) = size_InArray. 
+		TempData = shiftdim(TempData,numel(size_InArray) - (ApplyAlongDim - 1)); %#ok
+
+		% To restore singleton dimensions, reshape again
+		eval(['InArray(' AccessString ') = reshape(TempData, size_InArray);']);
+
+
+
 	end
-	eval(['OutArray(' AccessString ') = TempData;']);
+
+	
+else
+	
+		% 2.1. Shift the Hadamard-Dimension to Position 1 & Reshape
+
+		% Shift the dimensions of InArray so that the SLC-Dimension is its first. E.g.: size(InArray) = [channel ROW COL SLC vecSize] -->
+		% size(ShiftedInArray) = [SLC vecSize channel ROW COL]
+		InArray = shiftdim(InArray,ApplyAlongDim-1);
+
+		% Reshape the InArray from [SLC vecSize channel ROW COL] to [SLC vecSize*channel*ROW*COL]
+		ShiftedSize = size(InArray);
+		InArray = reshape(InArray,[ShiftedSize(1) prod(ShiftedSize(2:end))]);
+
+		InArray = HadamardMatrix * InArray;                       % Real Matrix Multiplication!
+
+		% 2.3. Reshape & Shift Dimensions Back & Reshape
+		% Reshape InArray from [SLC vecSize*channel*ROW*COL] to [SLC vecSize channel ROW COL]
+		InArray = reshape(InArray, ShiftedSize);
+
+		% Shift the dimensions of InArray so that size(InArray) = size_InArray. 
+		InArray = shiftdim(InArray,numel(size_InArray) - (ApplyAlongDim - 1));
+	
+
 end
 
 
-
-
-
-
 %% 3. Postparations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
