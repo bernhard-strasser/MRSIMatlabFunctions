@@ -1,6 +1,6 @@
-function kSpace = read_csi_dat(csi_path, DesiredSize)
+function [kSpace, Info] = read_csi_dat(file, DesiredSize)
 %
-% read_csi_dat Read in csi-data from Siemens raw file format
+% read_csi_dat Read in raw data from Siemens
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
@@ -9,10 +9,10 @@ function kSpace = read_csi_dat(csi_path, DesiredSize)
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,kSpace] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+% [kSpace, Info] = read_dat(file, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
 %
 % Input: 
-% -         csi_path                    ...     Path of MRS(I) file.
+% -         file                    ...     Path of MRS(I) file.
 % -         zerofill_to_nextpow2_flag   ...     Flag, if the MRSI data should be zerofilled to the next power of 2 in k-space (e.g. 42x42 sampled --> zf to 64x64?)
 % -         zerofilling_fact            ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
 % -         Hadamard_flag               ...     If data is multislice hadamard encoded, perform hadamard-decoding function
@@ -24,9 +24,6 @@ function kSpace = read_csi_dat(csi_path, DesiredSize)
 %                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
 %
 % Output:
-% -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
-% -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
-% -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
 % -         kSpace                      ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x Samples x Averages
 %
 %
@@ -51,7 +48,7 @@ memused_before = memused_linux_1_0(1);
 
 
 if(exist('DesiredSize','var') && ~isstruct(DesiredSize))
-	DesiredSize2 = DesiredSize; clear DesiredSize; DesiredSize.CSI = DesiredSize2; clear DesiredSize2;
+	DesiredSize2 = DesiredSize; clear DesiredSize; DesiredSize.ONLINE = DesiredSize2; clear DesiredSize2;
 end
 
 
@@ -59,10 +56,22 @@ end
 
 
 
-%% Gather information about sizes
+%% 1. Gather information from header
 
 
-ParList = read_ascconv(csi_path);
+
+ParList = read_ascconv(file);
+Info.General.Ascconv = ParList;
+
+% Dwelltimes
+if(numel(ParList.wipMemBlock_alFree) > 8)
+	Info.NOISEADJSCAN.Dwelltime = ParList.wipMemBlock_alFree(7);
+	Info.PATREFANDIMASCAN.Dwelltime = ParList.wipMemBlock_alFree(8);
+	Info.ONLINE.Dwelltime = ParList.wipMemBlock_alFree(9);
+end
+
+
+% Info about sizes
 % First try: Get info from wipMemBlock_tfree
 if(ParList.wipMemBlock_tFree ~= 0)
 	% Only evaluate the tFree string if it is proper MATLAB CODE (doesnt throw any errors)
@@ -78,16 +87,16 @@ if(ParList.wipMemBlock_tFree ~= 0)
 	end
 end
 
-% Second try: Try to get Prescans Info from wipMemBlock and CSI Info from normal ascconv header and mdh.
+% Second try: Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
 % Prescan Info
-if(ParList.wipMemBlock_alFree ~= 0)
+if(numel(ParList.wipMemBlock_alFree) > 5)
 	try
-		Info.GRE.nReadEnc = ParList.wipMemBlock_alFree(1);
-		Info.GRE.nPhasEnc = ParList.wipMemBlock_alFree(2);
-		Info.GRE.nPartEnc = ParList.wipMemBlock_alFree(3);
-		Info.GRE.nSLC = ParList.wipMemBlock_alFree(4);
-		Info.GRE.nAverages = ParList.wipMemBlock_alFree(5);
-		Info.NOISE.nReadEnc = ParList.wipMemBlock_alFree(6);
+		Info.PATREFANDIMASCAN.nReadEnc = ParList.wipMemBlock_alFree(1);
+		Info.PATREFANDIMASCAN.nPhasEnc = ParList.wipMemBlock_alFree(2);
+		Info.PATREFANDIMASCAN.nPartEnc = ParList.wipMemBlock_alFree(3);
+		Info.PATREFANDIMASCAN.nSLC = ParList.wipMemBlock_alFree(4);
+		Info.PATREFANDIMASCAN.nAverages = ParList.wipMemBlock_alFree(5);
+		Info.NOISEADJSCAN.nReadEnc = ParList.wipMemBlock_alFree(6);
 	catch errie %#ok
 		if(exist('errie','var'))
 			fprintf(['\nIs there something different than infos about the Prescans in wipMemBlock.alFree[50-55] ?\n' ...
@@ -98,23 +107,26 @@ if(ParList.wipMemBlock_alFree ~= 0)
 	end
 end
 	
-% CSI Info
+% ONLINE Info
 if(ParList.wipMemBlock_tFree == 0)
 	if(ParList.wipMemBlock_alFree == 0)
 		fprintf(['\nNo wipMemBlock.tFree and wipMemBlock.alFree[50-55] entries found. If you have several datasets\n(like Prescans) in your raw data, consider writing the info about\n' ...
 		'the sizes of those scans in the wipMemBlock.tFree!\n\n'])
 	end
-	Info.CSI.nReadEnc = ParList.nFreqEnc;
-	Info.CSI.nPhasEnc = ParList.nPhasEnc;
-	Info.CSI.nPartEnc = ParList.nPartEnc;
-	Info.CSI.nSLC = ParList.nSLC;
-	Info.CSI.nAverages = ParList.nAverages;
+	Info.ONLINE.nReadEnc = ParList.nFreqEnc;
+	Info.ONLINE.nPhasEnc = ParList.nPhasEnc;
+	Info.ONLINE.nPartEnc = ParList.nPartEnc;
+	Info.ONLINE.nReadEncReallyMeas = ParList.nFreqEnc;
+	Info.ONLINE.nPhasEncReallyMeas = ParList.nPhasEnc;
+	Info.ONLINE.nPartEncReallyMeas = ParList.nPartEnc;
+	Info.ONLINE.nSLC = ParList.nSLC;
+	Info.ONLINE.nAverages = ParList.nAverages;
 end
 
 
 % Analyze mdh.
-ParList = Analyze_csi_mdh(csi_path,0);
-%Info.CSI.total_channel_no = ParList.total_channel_no;
+ParList = Analyze_csi_mdh(file,0);
+%Info.ONLINE.total_channel_no = ParList.total_channel_no;
 Info.General.total_ADCs = ParList.total_ADC_meas;
 clear ParList;
 
@@ -129,12 +141,12 @@ clear ParList;
 tic
 fprintf('\nReading data\t\t\t...')
         
-csi_fid = fopen(sprintf('%s', csi_path),'r');
-headersize = fread(csi_fid,1, 'uint32');
-fseek(csi_fid, headersize,'bof'); 
+file_fid = fopen(sprintf('%s', file),'r');
+headersize = fread(file_fid,1, 'uint32');
+fseek(file_fid, headersize,'bof'); 
 
 chak_header = zeros([1 64]);
-kSpace = struct('CSI',NaN);
+kSpace = struct('ONLINE',NaN);
 ACQEND_flag = false;
 
 
@@ -144,10 +156,10 @@ ACQEND_flag = false;
 while(~ACQEND_flag)
 
     % Read first mdh
-    chak_header(1:5) = fread(csi_fid, 5, 'uint32');
-    chak_header(6:7) = fread(csi_fid, 2, 'uint32');
-    chak_header(8:64-7) = fread(csi_fid, 64-14, 'int16');
-    fseek(csi_fid, -128,'cof');
+    chak_header(1:5) = fread(file_fid, 5, 'uint32');
+    chak_header(6:7) = fread(file_fid, 2, 'uint32');
+    chak_header(8:64-7) = fread(file_fid, 64-14, 'int16');
+    fseek(file_fid, -128,'cof');
     EvalInfoMask = Interpret_EvalInfoMask(chak_header(6:7));
     
     % Stop if ACQEND was found
@@ -158,6 +170,7 @@ while(~ACQEND_flag)
     
     % Set CurrentMeasSet
 	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
+	fprintf('\nRead in %s data.\nChange ''Interpret_EvalInfoMask.m'' function to rename measurement.', CurrentMeasSet)
 	
 	
 	% Initialize Current Info
@@ -189,7 +202,7 @@ while(~ACQEND_flag)
 	Info.(CurrentMeasSet).total_channel_no = chak_header(9);
 	Info.(CurrentMeasSet).Samples = chak_header(8);
 	
-	if( strcmpi(CurrentMeasSet,'CSI') || strcmpi(CurrentMeasSet,'NOISE') )
+	if( strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN') )
 		vecSize = Info.(CurrentMeasSet).Samples;
 	else
 		vecSize = 1;
@@ -219,24 +232,24 @@ while(~ACQEND_flag)
 		for channel_no = 1:Info.(CurrentMeasSet).total_channel_no
 			
 			% Read again EvalInfoMask.
-            chak_header(1:7) = fread(csi_fid, 7, 'uint32');
+            chak_header(1:7) = fread(file_fid, 7, 'uint32');
 			
 			% If the EvalInfoMask has changed within the loop, break out of loops.
 			EvalInfoMask_loop = Interpret_EvalInfoMask(chak_header(6:7));
 			CurrentMeasSet_loop = Associate_EvalInfoMask(EvalInfoMask_loop);
 			if(~strcmpi(CurrentMeasSet,CurrentMeasSet_loop))
-				fseek(csi_fid,-7*4,'cof');
+				fseek(file_fid,-7*4,'cof');
 				BreakOutOfPrison = true;
 				break;
 			end
 			
 			% Read rest of the mdh
-			chak_header(8:64-7) = fread(csi_fid, 64-14, 'int16');
-            k_x = chak_header(17-7) + 1 - kSpaceShift.(CurrentMeasSet)(1);                     
-            k_y = chak_header(22-7) + 1 - kSpaceShift.(CurrentMeasSet)(2);  
-			k_z = chak_header(20-7) + 1 - kSpaceShift.(CurrentMeasSet)(3);
-            slice = chak_header(19-7) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
-			Avg = chak_header(24-7) + 1;									% Averages
+			chak_header(8:57) = fread(file_fid, 50, 'int16');
+            k_x = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);                     
+            k_y = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);  
+			k_z = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);
+            slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
+			Avg = chak_header(17) + 1;									% Averages
             %channel_no = chak_header(63-7) + 1;							% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
             
 			% Check if the k-points are alright
@@ -244,32 +257,32 @@ while(~ACQEND_flag)
 				if(k_x < 1)
 					fprintf('\nProblem: Detected mdh with kx < 1. Ignoring this ADC.')
 				end
-                fseek(csi_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');
+                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');
                 continue;
 			end
 			if(k_y < 1 || k_y > DesiredSize.(CurrentMeasSet)(2))
 				if(k_y < 1)
 					fprintf('\nProblem: Detected mdh with ky < 1. Ignoring this ADC.')
 				end
-                fseek(csi_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
+                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
                 continue;
 			end
 			if(k_z < 1 || k_z > DesiredSize.(CurrentMeasSet)(3))
 				if(k_z < 1)
 					fprintf('\nProblem: Detected mdh with kz < 1. Ignoring this ADC.')
 				end
-                fseek(csi_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
+                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
                 continue;
 			end
 			if(slice < 1)
                 fprintf('\nProblem: Detected mdh with kz < 1. Setting kz = 1.')
-                slice = 1;															% some distinction between multislice/hadamard and real 3d-CSI necessary!
+                slice = 1;															% some distinction between multislice/hadamard and real 3d necessary!
 			end
 			
 			
 			% Read & Assign Data
-            chak_data = fread(csi_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-			if( strcmpi(CurrentMeasSet,'CSI') || strcmpi(CurrentMeasSet,'NOISE') )
+            chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
+			if( strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN') )
                 kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg) = complex(chak_data(1:2:end),chak_data(2:2:end));
             else
                 kSpace.(CurrentMeasSet)(channel_no,:,k_x,k_z,slice,1,Avg) = complex(chak_data(1:2:end),chak_data(2:2:end));
@@ -289,7 +302,7 @@ while(~ACQEND_flag)
 end
     
     
-fclose(csi_fid);
+fclose(file_fid);
 
 fprintf('\ttook\t%10.6f seconds',toc)       
 

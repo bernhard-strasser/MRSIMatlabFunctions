@@ -1,4 +1,4 @@
-function [iSpace,Noise,kSpace] = read_csi(csi_file,PreProcessingInfo)
+function [iSpace,Noise,kSpace,PreProcessingInfo,ReadInInfo] = read_csi(file,PreProcessingInfo)
 %
 % read_csi Read in csi-data
 %
@@ -9,10 +9,10 @@ function [iSpace,Noise,kSpace] = read_csi(csi_file,PreProcessingInfo)
 % functions. Refer to these for more info
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(csi_file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
+% [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
 % Input: 
-% -         csi_file                    ...     Path of MRS(I) file.
+% -         file                    ...     Path of MRS(I) file.
 % -         zerofill_to_nextpow2_flag   ...     Flag, if the MRSI data should be zerofilled to the next power of 2 in k-space (e.g. 42x42 sampled --> zf to 64x64?)
 % -         zerofilling_fact            ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
 % -         Hadamard_flag               ...     If data is multislice hadamard encoded, perform hadamard-decoding function
@@ -49,18 +49,70 @@ if(nargin < 1)
     return;
 end
 
-% Define Standard PreProcessingInfo
-PreProcessingInfo_Standard.Flags.zerofill_to_nextpow2 = true;
-PreProcessingInfo_Standard.Flags.Hadamard = true;
-PreProcessingInfo_Standard.Flags.NoFFT = false;
-PreProcessingInfo_Standard.Values.zerofilling_fact = 1;
-PreProcessingInfo_Standard.Values.x_shift = 0;
-PreProcessingInfo_Standard.Values.y_shift = 0;
-PreProcessingInfo_Standard.Values.NoiseCorrMat = 0;
+% Test if any kSpace Preprocessing should be done with ONLINE
+if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE'))
+	ONLINEkSpaceNecessary = ne(PreProcessingInfo.ONLINE.fredir_shift,0) && PreProcessingInfo.ONLINE.Hamming_flag;
+else
+	ONLINEkSpaceNecessary = false;
+end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% One PreProcessingInfo for Noise,GRE,CSI ?!?!?!
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%% 1. Read In Data
+
+
+if(numel(strfind(file, '.dat')) > 0)
+    
+    % Read Raw Data
+    [kSpace,ReadInInfo] = read_csi_dat(file);
+	
+	
+      
+    
+else   
+   
+    if(nargout == 3 || ONLINEkSpaceNecessary)
+        [iSpace.ONLINE,kSpace.ONLINE] = read_csi_dicom(file);
+    else
+        kSpace.ONLINE = read_csi_dicom(file);      	% This is in fact iSpace, but to make it work with PreProcessMRIData_Wrapper it is just renamed wrongly
+		PreProcessingInfo.ONLINE.NoFFT_flag = true;
+    end
+    Noise.CorrMat = 0;
+    Noise.Mat = 0;
+	ReadInInfo = 0;
+    
+end
+
+
+
+
+
+
+
+%% 2. PreProcesing Preps
+
+
+% Define Standard PreProcessingInfo
+PreProcessingInfo_Standard.ONLINE.NoiseCorrMat = 1;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.NoiseCorrMat = 1;
+PreProcessingInfo_Standard.ONLINE.Hadamard_flag = true;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.Hadamard_flag = true;
+PreProcessingInfo_Standard.ONLINE.NoFFT_flag = false;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.NoFFT_flag = false;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceAlong = 2;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceWhileAccessing = ':,:,:,:,:,:,2';
+PreProcessingInfo_Standard.ONLINE.fredir_shift = 0;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
+PreProcessingInfo_Standard.ONLINE.SaveUnfilteredkSpace = false;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.SaveUnfilteredkSpace = true;
+PreProcessingInfo_Standard.ONLINE.Hamming_flag = true;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = true;
+
+
+if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc'))
+	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
+end
+
 
 % If PreProcessingInfo is not passed over
 if(nargin < 2)
@@ -70,87 +122,44 @@ end
 
 % If PreProcessingInfo does not contain all necessary fields
 if(~SkipRest)
-    PreProcessingFields = {'Flags','Values'};
+    PreProcessingFields = {'ONLINE','PATREFANDIMASCAN'};
     for i = transpose(PreProcessingFields)
-        if(~isfield(PreProcessingInfo,i{:}))
+		if(~isfield(PreProcessingInfo,i{:}))
             PreProcessingInfo.(i{:}) = PreProcessingInfo_Standard.(i{:});
-        end
+		end
+		
+		for j = transpose(fields(PreProcessingInfo_Standard.(i{:})))
+			if(~isfield(PreProcesingInfo.(i{:}),j{:}))
+				PreProcessingInfo.(i{:}).(j{:}) = PreProcessingInfo_Standard.(i{:}).(j{:});
+			end
+		end
     end
-    clear PreProcessingFields i;
+    clear PreProcessingFields i j;
 end
-
-% Assign all flags to Standard values if not existant
-if(~SkipRest)
-    PossibleFlags = {'zerofill_to_nextpow2','Hadamard','NoFFT'};
-    for i = transpose(PossibleFlags)
-        if(~isfield(PreProcessingInfo.Flags,i{:}))
-            PreProcessingInfo.Flags.(i{:}) = PreProcessingInfo_Standard.Flags.(i{:});
-        end
-    end
-    clear PossibleFlags i;
-end
-
-% Assign all Values if not existant
-if(~SkipRest)
-    PossibleValues = {'zerofilling_fact','x_shift','y_shift','NoiseCorrMat'};
-    for i = transpose(PossibleValues)
-        if(~isfield(PreProcessingInfo.Values,i{:}))
-            PreProcessingInfo.Values.(i{:}) = PreProcessingInfo_Standard.Values.(i{:});
-        end
-    end
-    clear PossibleValues i;
-end
-
-clear PreProcessingInf_Standard;
-
-
-
-% Test if any PreProcessingInfo should be done with CSI
-if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo, 'CSI'))
-	DoAnyPreProcessing = true;
-end
+clear PreProcessingInfo_Standard;
 
 
 
 
 
-%% 1. Read In Data
 
 
-if(numel(strfind(csi_file, '.dat')) > 0)
-    
-    % Read Raw Data
-    kSpace = read_csi_dat(csi_file);
-    iSpace = 0;
-      
-    
-else   
-   
-    if(nargout == 3 || DoAnyPreProcessing)
-        [iSpace,kSpace] = read_csi_dicom(csi_file);
-    else
-        iSpace = read_csi_dicom(csi_file);        
-    end
-    Noise.CorrMat = 0;
-    Noise.Mat = 0;
-    
-end
-
-
-
-
-
-%% 2. PreProcess Data
+%% 3. PreProcess Data
 
 
 % PreProcess Data
-if(DoAnyPreProcessing)
-    if(nargout == 3)
-        [iSpace,kSpace] = PreProcessMRIData(kSpace,iSpace,PreProcessingInfo);
-    else
-        iSpace = PreProcessMRIData(kSpace,iSpace,PreProcessingInfo);
-    end
+if(nargout >= 4)
+	[iSpace,Noise,kSpace,PreProcessingInfo] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+elseif(nargout == 3)
+	[iSpace,Noise,kSpace] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+elseif(nargout == 2)
+	[iSpace,Noise] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+	clear kSpace;
+else
+	iSpace = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+	clear kSpace;
 end
+
 
 
 
@@ -158,24 +167,24 @@ end
 
 %% 3. Postparations
 
-if(isfield(kSpace,'Noise'))
-    if(PreProcessingInfo.Values.NoiseCorrMat == 1)
-        Noise.Mat = kSpace.Noise;
-    end
-    kSpace = rmfield(kSpace,'Noise');
-end
-if(isfield(kSpace,'NoiseCorrMat'))
-    if(PreProcessingInfo.Values.NoiseCorrMat == 1)
-        Noise.CorrMat = kSpace.NoiseCorrMat;
-    end
-    kSpace = rmfield(kSpace,'NoiseCorrMat');
-end
-
-if(isfield(PreProcessingInfo.Values,'NoiseCorrMat'))
-    if(numel(PreProcessingInfo.Values.NoiseCorrMat) > 1)
-        Noise.CorrMat = PreProcessingInfo.Values.NoiseCorrMat;
-    end
-end
+% if(isfield(kSpace,'Noise'))
+%     if(PreProcessingInfo.Values.NoiseCorrMat == 1)
+%         Noise.Mat = kSpace.Noise;
+%     end
+%     kSpace = rmfield(kSpace,'Noise');
+% end
+% if(isfield(kSpace,'NoiseCorrMat'))
+%     if(PreProcessingInfo.Values.NoiseCorrMat == 1)
+%         Noise.CorrMat = kSpace.NoiseCorrMat;
+%     end
+%     kSpace = rmfield(kSpace,'NoiseCorrMat');
+% end
+% 
+% if(isfield(PreProcessingInfo.Values,'NoiseCorrMat'))
+%     if(numel(PreProcessingInfo.Values.NoiseCorrMat) > 1)
+%         Noise.CorrMat = PreProcessingInfo.Values.NoiseCorrMat;
+%     end
+% end
 
 
 
