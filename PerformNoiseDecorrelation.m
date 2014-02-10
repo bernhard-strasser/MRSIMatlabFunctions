@@ -1,4 +1,4 @@
-function OutData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
+function InData = PerformNoiseDecorrelation(InData,NoiseCorrMat)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -50,48 +50,48 @@ if(nargin < 2)
 end
 
 
-%% 1. Decorrelate
+%% 1. Memory Considerations - Find best Looping
 
-[dummy, memfree] = memused_linux_1_1;
+size_InData = size(InData);
+
+[dummy, MemFree] = memused_linux_1_1(1);
+MemNecessary = numel(InData)*8*2*2/2^20;						% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 2 times in memory,
+																% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
+if(numel(InData)*8*2*2/2^20 > MemFree)
+	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(2:end));	% Because the 1st index is the coil. We can never loop over the coils.
+	LoopOverIndex(LoopOverIndex < 1) = NaN;
+	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = LoopOverIndex(1)+1;								% Only take the 1st if several are the minimum. Add 1 because the channel index (first) is not considered
+	AccessString = [repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_InData)-LoopOverIndex])];
+	AccessString(end) = [];
+end
+
+
+
+%% 1. Decorrelate
 
 NoiseCorrMat_Chol = chol(NoiseCorrMat/2,'lower');
 
-
-if(numel(InData)*8*2*2/2^20 > memfree)			% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 3 times in memory, once it is already there
-												% and two more times it should fit in). /2^20 to get from bytes to MB.
+% Decorrelate within Loop due to memory usage
+if(numel(InData)*8*2*2/2^20 > MemFree)			
 	
-	OutData = zeros(size(InData));
+	%InData = zeros(size_InData);
 	% Perform Noise Decorrelation Slice by Slice and Part by Part to avoid extensive memory usage 
-	for SlcLoopy = 1:size(InData,4)
-		for PartLoopy = 1:size(InData,5)
+	for LoopIndex = 1:size(InData,LoopOverIndex)
 
-			TempData = InData(:,:,:,SlcLoopy,PartLoopy,:,:);
-			size_TempData = size(TempData);
-			TempData = reshape(TempData, [size(TempData,1) numel(TempData)/size(TempData),1]);
-			fprintf('\nFirst Reshape')
-			TempData = NoiseCorrMat_Chol \ TempData;
-			fprintf('\nDivision')
-			OutData(:,:,:,SlcLoopy,PartLoopy,:,:) = reshape(TempData,size_TempData);
-			fprintf('\nSecond Reshape')
+		TempData = eval(['InData(' AccessString ');']);
+		size_TempData = size(TempData);
+		TempData = reshape(TempData, [size(TempData,1) numel(TempData)/size(TempData,1)]);
+		TempData = NoiseCorrMat_Chol \ TempData;
+		eval(['InData(' AccessString ') = reshape(TempData,size_TempData);']);
 
-		end
 	end
 		
-else	
-				
-	size_kSpace = size(InData);
-	OutData = reshape(InData, [size(InData,1) numel(InData)/size(InData,1)]);
-	fprintf('\nFirst Reshape')
-	OutData = NoiseCorrMat_Chol \ OutData;
-	fprintf('\nDivision')
-	OutData = reshape(OutData,size_kSpace);
-	fprintf('\nSecond Reshape')
-
-
-% 	InData = reshape(chol(PreProcessingInfo.(CurDataSetString).NoiseCorrMat/2,'lower') \ ...
-% 	reshape(InData, [size(InData,1) numel(InData)/size(InData,1)]), size(InData));    % Matrix multiplication
-
-
+% Decorrelate everything at once.
+else			
+	InData = reshape(InData, [size_InData(1) numel(InData)/size_InData(1)]);
+	InData = NoiseCorrMat_Chol \ InData;
+	InData = reshape(InData,size_InData);
 
 end
 
