@@ -1,4 +1,4 @@
-function OutArray = hadamard_decoding_9(InArray,ApplyAlongDim)
+function OutArray = hadamard_decoding(InArray,ApplyAlongDim)
 %
 % hadamard_decoding Perform Hadamard decoding
 %
@@ -8,14 +8,14 @@ function OutArray = hadamard_decoding_9(InArray,ApplyAlongDim)
 % This function decodes hadamard-encoded data, so that you get the desired slices.
 %
 %
-% OutArray = hadamard_decoding_x(InArray,ApplyAlongDim)
+% InArray = hadamard_decoding_x(InArray,ApplyAlongDim)
 %
 % Input: 
 % -     InArray                  ...    Input Array
 % -     ApplyAlongDim            ...    Along which dimension should the hadamard decoding be applied?
 %
 % Output:
-% -     OutArray                 ...    Output Array
+% -     InArray                 ...    Output Array
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -42,23 +42,35 @@ end
 
 
 % 0.3 Definitions
-    
-OutArray = InArray;
+size_InArray = size(InArray);
+  
 
 
+%% 1. Memory Considerations - Find best Looping
 
 
+[dummy, MemFree] = memused_linux_1_1(1);
+MemNecessary = numel(InArray)*8*2*2/2^20;							% every entry of InArray is double --> 8 bytes. *2 because complex. *2 as safety measure (so InArray fits 2 times in memory,
+																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
+if(numel(InArray)*8*2*2/2^20 > MemFree)
+	LoopOverIndex = MemFree ./ (MemNecessary./size_InArray(1:end));	% Because the 1st index is the coil. We can never loop over the coils.
+	LoopOverIndex(LoopOverIndex < 1) = NaN;
+	LoopOverIndex(ApplyAlongDim) = NaN;
+	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
+	
+	Mini = min([LoopOverIndex,ApplyAlongDim]);
+	Diffi = abs(LoopOverIndex - ApplyAlongDim);
+	First = {'i','LoopIndex'}; Second = First{(Mini == LoopOverIndex) + 1}; First(strcmpi(First,Second)) = []; First = First{:};
+	AccessString = [	repmat(':,',[1 Mini-1]) First repmat(':,',[1 Diffi]) Second repmat(':,',[1 numel(size_InArray)-(Mini-1)-(Diffi-1)-2])	];
+	AccessString(end) = [];
+	
+else
+	AccessString = [repmat(':,',[1 ApplyAlongDim-1]) 'i,' repmat(':,',[1 numel(size_InArray)-ApplyAlongDim])];
+	AccessString(end) = [];
+end
 
-
-%% 1. Shift the Hadamard-Dimension to Position 1 & Reshape
-
-% Shift the dimensions of InArray so that the SLC-Dimension is its first. E.g.: size(InArray) = [channel ROW COL SLC vecSize] -->
-% size(ShiftedInArray) = [SLC vecSize channel ROW COL]
-OutArray = shiftdim(OutArray,ApplyAlongDim-1);
-
-% Reshape the OutArray from [SLC vecSize channel ROW COL] to [SLC vecSize*channel*ROW*COL]
-ShiftedOutArray_Size = size(OutArray);
-OutArray = reshape(OutArray,[ShiftedOutArray_Size(1) prod(ShiftedOutArray_Size(2:end))]);
+AccessString_j = regexprep(AccessString,'i','j');
 
 
 
@@ -67,28 +79,28 @@ OutArray = reshape(OutArray,[ShiftedOutArray_Size(1) prod(ShiftedOutArray_Size(2
 %% 2. Apply Hadamard Matrix
 
 HadamardMatrix = hadamard(size(InArray,ApplyAlongDim));
-OutArray = HadamardMatrix * OutArray;                       % Real Matrix Multiplication!
+OutArray = zeros(size_InArray);
+
+for i = 1:size(HadamardMatrix,1)
+	TempData = 0;
+	for j = 1:size(HadamardMatrix,2)
+		
+		if(numel(InArray)*8*2*2/2^20 > MemFree)
+			for LoopIndex = 1:size_InData(LoopOverIndex)
+				TempData = TempData + HadamardMatrix(i,j) * eval(['InArray(' AccessString_j ')']);
+			end
+		else
+			TempData = TempData + HadamardMatrix(i,j) * eval(['InArray(' AccessString_j ')']);
+		end
+		
+	end
+	eval(['OutArray(' AccessString ') = TempData;']);
+end
 
 
 
 
 
 
-%% 4. Reshape & Shift Dimensions Back & Reshape
-
-% Reshape OutArray from [SLC vecSize*channel*ROW*COL] to [SLC vecSize channel ROW COL]
-OutArray = reshape(OutArray, ShiftedOutArray_Size);
-
-% Shift the dimensions of OutArray so that size(OutArray) = size(InArray). 
-OutArray = shiftdim(OutArray,numel(size(InArray)) - (ApplyAlongDim - 1));
-
-% To restore singleton dimensions, reshape again
-OutArray = reshape(OutArray, size(InArray));
-
-
-
-
-
-
-%% 5. Postparations
+%% 3. Postparations
 
