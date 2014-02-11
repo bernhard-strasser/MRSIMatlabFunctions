@@ -32,6 +32,8 @@ function InArray = hadamard_decoding(InArray,ApplyAlongDim)
 
 
 % 0.1 Preparations
+fprintf('\nHadamard decoding\t...')
+tic
 
 if(~exist('ApplyAlongDim','var'))
    ApplyAlongDim = 4; 
@@ -131,6 +133,7 @@ end
 %% 3. Postparations
 
 
+fprintf('\ttook\t%10.6f seconds', toc)              
 
 
 
