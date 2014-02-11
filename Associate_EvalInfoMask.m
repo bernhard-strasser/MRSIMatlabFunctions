@@ -47,11 +47,11 @@ function Association = Associate_EvalInfoMask(EvalInfoMask_logical)
 
     % Set CurrentMeasSet
 	if(EvalInfoMask_logical(4))             % ONLINE
-		Association = 'CSI';
+		Association = 'ONLINE';
 	elseif(EvalInfoMask_logical(21))        % PATREFANDIMASCAN
-		Association = 'GRE';
+		Association = 'PATREFANDIMASCAN';
 	elseif(EvalInfoMask_logical(23))        % NOISEADJSCAN
-		Association = 'NOISE';
+		Association = 'NOISEADJSCAN';
 	else
 		Association = 'Other';
 	end
