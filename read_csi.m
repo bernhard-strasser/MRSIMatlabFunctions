@@ -109,7 +109,7 @@ PreProcessingInfo_Standard.ONLINE.Hamming_flag = true;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = true;
 
 
-if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc'))
+if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) )
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end
 
@@ -117,25 +117,23 @@ end
 % If PreProcessingInfo is not passed over
 if(nargin < 2)
     PreProcessingInfo = PreProcessingInfo_Standard;
-    SkipRest = true;
 end
 
 % If PreProcessingInfo does not contain all necessary fields
-if(~SkipRest)
-    PreProcessingFields = {'ONLINE','PATREFANDIMASCAN'};
-    for i = transpose(PreProcessingFields)
-		if(~isfield(PreProcessingInfo,i{:}))
-            PreProcessingInfo.(i{:}) = PreProcessingInfo_Standard.(i{:});
+PreProcessingFields = transpose(fields(kSpace)); PreProcessingFields(strcmpi(PreProcessingFields,'NOISEADJSCAN')) = [];
+for i = PreProcessingFields
+	if(~isfield(PreProcessingInfo,i{:}))
+		PreProcessingInfo.(i{:}) = PreProcessingInfo_Standard.(i{:});
+	end
+
+	for j = transpose(fields(PreProcessingInfo_Standard.(i{:})))
+		if(~isfield(PreProcessingInfo.(i{:}),j{:}))
+			PreProcessingInfo.(i{:}).(j{:}) = PreProcessingInfo_Standard.(i{:}).(j{:});
 		end
-		
-		for j = transpose(fields(PreProcessingInfo_Standard.(i{:})))
-			if(~isfield(PreProcesingInfo.(i{:}),j{:}))
-				PreProcessingInfo.(i{:}).(j{:}) = PreProcessingInfo_Standard.(i{:}).(j{:});
-			end
-		end
-    end
-    clear PreProcessingFields i j;
+	end
 end
+clear PreProcessingFields i j;
+
 clear PreProcessingInfo_Standard;
 
 
