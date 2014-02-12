@@ -1,4 +1,4 @@
-function [iSpace,Noise,kSpace,PreProcessingInfo,ReadInInfo] = read_csi(file,PreProcessingInfo)
+function [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreProcessingInfo)
 %
 % read_csi Read in csi-data
 %
@@ -12,28 +12,23 @@ function [iSpace,Noise,kSpace,PreProcessingInfo,ReadInInfo] = read_csi(file,PreP
 % [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
 %
 % Input: 
-% -         file                    ...     Path of MRS(I) file.
-% -         zerofill_to_nextpow2_flag   ...     Flag, if the MRSI data should be zerofilled to the next power of 2 in k-space (e.g. 42x42 sampled --> zf to 64x64?)
-% -         zerofilling_fact            ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
-% -         Hadamard_flag               ...     If data is multislice hadamard encoded, perform hadamard-decoding function
-% -         x_shift                     ...     Shift the MRSI data in the left-right direction ( = row direction of matrix) by x_shift voxels
-% -         y_shift                     ...     Shift the MRSI data in anterior-posterior direction ( = column direction of matrix) by y_shift voxels
-% -         NoFFT_flag                  ...     If true, no fft is performed when reading dat-files.
-% -         NoiseCorrMat                ...     If size(NoiseCorrMat) = [cha cha]: the k-space Data gets decorrelated with this matrix. 
-%                                               If NoiseCorrMat = 1: the end of the FIDs of the outermost k-space/image points are used for noise decorrelation.
-%                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
+% -         file                        ...     Path of MR(S)(I) file.
+% -         PreProcessingInfo           ...     Info about how the read in data should be pre-processed. See help PreProcessMRIData_Wrapper.
 %
 % Output:
-% -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
-% -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
-% -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
-% -         csi_kspace                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
+% -         iSpace                      ...     Structure of data in image domain. Its fieldnames are according to the EvalInfoMask information (e.g. 'ONLINE', 'PATREFANDIMASCAN', etc.)
+%                                               size of each field: channel x nFreqEnc x nPhasEnc x nPartEnc x nSlc x SpectroVecSize x Averages.
+% -         Noise                       ...     Structure of Noise gathered from the Prescan or CSI data. Noise = 0, if not gathered. It is scaled individually for each measurement set.
+% -         kSpace                      ...     Structure of data in k-space.
+%                                               size of each field: channel x nFreqEnc x nPhasEnc x nPartEnc x nSlc x SpectroVecSize x Averages.
 %
 %
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: read_csi_dat_1_10, Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m, read_csi_dicom_1_1
+% File dependancy: read_csi_dat, read_csi_dicom, PreProcessMRIData_Wrapper, and many more (???)
+%
+% See also read_csi_dat, read_csi_dicom, PreProcessMRIData_Wrapper.
 
 
 
@@ -50,7 +45,7 @@ if(nargin < 1)
 end
 
 % Test if any kSpace Preprocessing should be done with ONLINE
-if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE'))
+if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE') && (isfield(PreProcessingInfo.ONLINE,'fredir_shift') || isfield(PreProcessingInfo.ONLINE,'Hamming_flag') ))
 	ONLINEkSpaceNecessary = ne(PreProcessingInfo.ONLINE.fredir_shift,0) && PreProcessingInfo.ONLINE.Hamming_flag;
 else
 	ONLINEkSpaceNecessary = false;
@@ -71,7 +66,7 @@ if(numel(strfind(file, '.dat')) > 0)
     
 else   
    
-    if(nargout == 3 || ONLINEkSpaceNecessary)
+    if(nargout == 5 || ONLINEkSpaceNecessary)
         [iSpace.ONLINE,kSpace.ONLINE] = read_csi_dicom(file);
     else
         kSpace.ONLINE = read_csi_dicom(file);      	% This is in fact iSpace, but to make it work with PreProcessMRIData_Wrapper it is just renamed wrongly
@@ -95,8 +90,8 @@ end
 % Define Standard PreProcessingInfo
 PreProcessingInfo_Standard.ONLINE.NoiseCorrMat = 1;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.NoiseCorrMat = 1;
-PreProcessingInfo_Standard.ONLINE.Hadamard_flag = true;
-PreProcessingInfo_Standard.PATREFANDIMASCAN.Hadamard_flag = true;
+PreProcessingInfo_Standard.ONLINE.Hadamard_flag = true;				% If this flag is set to true, hadamard decoding is performed, if several slices were measure. If set to false, 
+PreProcessingInfo_Standard.PATREFANDIMASCAN.Hadamard_flag = true;	% Hadamard decoding is never performed.
 PreProcessingInfo_Standard.ONLINE.NoFFT_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.NoFFT_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceAlong = 2;
@@ -105,8 +100,8 @@ PreProcessingInfo_Standard.ONLINE.fredir_shift = 0;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
 PreProcessingInfo_Standard.ONLINE.SaveUnfilteredkSpace = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.SaveUnfilteredkSpace = true;
-PreProcessingInfo_Standard.ONLINE.Hamming_flag = true;
-PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = true;
+PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
 
 if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) )
@@ -132,9 +127,7 @@ for i = PreProcessingFields
 		end
 	end
 end
-clear PreProcessingFields i j;
-
-clear PreProcessingInfo_Standard;
+clear PreProcessingFields i j PreProcessingInfo_Standard;
 
 
 
@@ -146,10 +139,10 @@ clear PreProcessingInfo_Standard;
 
 
 % PreProcess Data
-if(nargout >= 4)
-	[iSpace,Noise,kSpace,PreProcessingInfo] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
-elseif(nargout == 3)
-	[iSpace,Noise,kSpace] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+if(nargout >= 5)
+	[iSpace,Noise,PreProcessingInfo,kSpace] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
+elseif(nargout >= 3)
+	[iSpace,Noise,PreProcessingInfo] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
 elseif(nargout == 2)
 	[iSpace,Noise] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo);
 	clear kSpace;
