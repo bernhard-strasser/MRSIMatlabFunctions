@@ -1,4 +1,4 @@
-function [iSpace,Noise, kSpace, PreProcessingInfo] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo)
+function [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -83,6 +83,11 @@ memused_before = memused_linux_1_0(1);
 DataSetNames = transpose(fields(PreProcessingInfo));
 for CurDataSet = DataSetNames
 
+	if(~isfield(kSpace,CurDataSet{:}))
+		continue;
+	end
+	
+	
 	% 1.0 InLoopPreps
 	% Make String out of Cell
 	CurDataSetString = CurDataSet{:};
