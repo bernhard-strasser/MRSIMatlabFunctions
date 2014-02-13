@@ -125,7 +125,7 @@ else
 
 		% Shift the dimensions of InArray so that size(InArray) = size_InArray. 
 		InArray = shiftdim(InArray,numel(size_InArray) - (ApplyAlongDim - 1));
-	
+		InArray = reshape(InArray,size_InArray);
 
 end
 
