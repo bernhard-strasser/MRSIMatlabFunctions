@@ -1,4 +1,4 @@
-function [OutArray,mask] = Zerofilling_1_0(InArray,Zerofill_To,InputIskSpace_flag)
+function OutArray = Zerofilling(OutArray,Zerofill_To,PerformFFT_flag)
 %
 % EllipticalFilter_x_y Apply an elliptical filter to k-space data
 %
@@ -11,15 +11,15 @@ function [OutArray,mask] = Zerofilling_1_0(InArray,Zerofill_To,InputIskSpace_fla
 % a, b, c, and R can be chosen by the user.
 %
 %
-% [OutArray,mask] = EllipticalFilter_x_y(InArray,ApplyAlongDims,EllipsoidCoefficients,InputIskSpace_flag)
+% [OutArray,mask] = EllipticalFilter_x_y(OutArray,ApplyAlongDims,EllipsoidCoefficients,PerformFFT_flag)
 %
 % Input: 
-% -     InArray                     ...    Input array to which the filter should be applied
+% -     OutArray                     ...    Input array to which the filter should be applied
 % -     ApplyAlongDims              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %                                          Filter is applied. Otherwise, a 3d filter is used.
 % -     EllipsoidCoefficients       ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
 %                                          Filter, set c = 1;
-% -     InputIskSpace_flag          ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
+% -     PerformFFT_flag          ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
 %                                          and transformed back to image domain afterwards
 %
 % Output:
@@ -40,13 +40,15 @@ function [OutArray,mask] = Zerofilling_1_0(InArray,Zerofill_To,InputIskSpace_fla
 
 
 % 0.1 Preparations
-
+if(nargin < 1)
+	OutArray = 0;
+	return
+end
 if(nargin < 2)
-    OutArray = InArray;
     return
 end
-if(~exist('InputIskSpace_flag','var'))
-   InputIskSpace_flag = true; 
+if(~exist('PerformFFT_flag','var'))
+   PerformFFT_flag = false; 
 end 
 
 
@@ -55,12 +57,10 @@ end
 
 % 0.3 Definitions
     
-OutArray = InArray;
-
 size_OutArray = size(OutArray);
 AppendZeros = round(Zerofill_To - size_OutArray);
-AppendZeros(AppendZeros < 0) = 0;
-ApplyAlongDims = find(AppendZeros > 0);
+%AppendZeros(AppendZeros < 0) = 0;
+ApplyAlongDims = find(ne(AppendZeros,0));
 
 
 
@@ -72,7 +72,7 @@ ApplyAlongDims = find(AppendZeros > 0);
 
 %% 1. FFT to k-space
 
-if(~InputIskSpace_flag)
+if(PerformFFT_flag)
 
     for filter_dim = ApplyAlongDims
         OutArray = ifftshift(OutArray,filter_dim);
@@ -90,10 +90,17 @@ end
 
 for dummy_dim = ApplyAlongDims
 
-    
-	AppendZeros_AtBeginning = zeros([size_OutArray(1:dummy_dim-1) ceil(AppendZeros(dummy_dim)/2) size_OutArray(dummy_dim+1:end)]);
-	AppendZeros_AtEnd = zeros([size_OutArray(1:dummy_dim-1) floor(AppendZeros(dummy_dim)/2) size_OutArray(dummy_dim+1:end)]);
-    OutArray = cat(dummy_dim,AppendZeros_AtBeginning,OutArray,AppendZeros_AtEnd);
+	if(AppendZeros(dummy_dim) > 0)
+		AppendZeros_AtBeginning = zeros([size_OutArray(1:dummy_dim-1) ceil(AppendZeros(dummy_dim)/2) size_OutArray(dummy_dim+1:end)]);
+		AppendZeros_AtEnd = zeros([size_OutArray(1:dummy_dim-1) floor(AppendZeros(dummy_dim)/2) size_OutArray(dummy_dim+1:end)]);
+		OutArray = cat(dummy_dim,AppendZeros_AtBeginning,OutArray,AppendZeros_AtEnd);
+	else
+		center = floor(size(OutArray,dummy_dim)/2) + 1;
+		AccessPart = {num2str(center - floor(Zerofill_To(dummy_dim)/2)), num2str(center + ceil(Zerofill_To(dummy_dim)/2) - 1)};
+		AccessString = [repmat(':,',[1 dummy_dim-1]) AccessPart{1} ':' AccessPart{2} ',' repmat(':,',[1 numel(size_OutArray)-dummy_dim])];
+		AccessString(end) = [];
+		OutArray = eval(['OutArray(' AccessString ');']);
+	end
     size_OutArray = size(OutArray);
     
 end
@@ -102,7 +109,7 @@ end
 %% 4. FFT to ImageSpace
 
 
-if(~InputIskSpace_flag)
+if(PerformFFT_flag)
     
     for filter_dim = ApplyAlongDims
         OutArray = ifftshift(OutArray,filter_dim);
