@@ -46,12 +46,16 @@ function Association = Associate_EvalInfoMask(EvalInfoMask_logical)
 %% 1. Define Flags
 
     % Set CurrentMeasSet
-	if(EvalInfoMask_logical(4))             % ONLINE
+	if(numel(EvalInfoMask_logical) == 1 && EvalInfoMask_logical == 0)   % If something didnt work
+		Association = '0';
+	elseif(EvalInfoMask_logical(4))										% ONLINE
 		Association = 'ONLINE';
-	elseif(EvalInfoMask_logical(21))        % PATREFANDIMASCAN
+	elseif(EvalInfoMask_logical(21))									% PATREFANDIMASCAN
 		Association = 'PATREFANDIMASCAN';
-	elseif(EvalInfoMask_logical(23))        % NOISEADJSCAN
-		Association = 'NOISEADJSCAN';
+	elseif(EvalInfoMask_logical(23))									% NOISEADJSCAN
+		Association = 'NOISEADJSCAN';	
+	elseif(EvalInfoMask_logical(1))										% 
+		Association = 'ACQEND';
 	else
 		Association = 'Other';
 	end

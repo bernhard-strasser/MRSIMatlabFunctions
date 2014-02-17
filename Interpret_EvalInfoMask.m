@@ -45,8 +45,18 @@ function [Flags,FlagNamesSet] = Interpret_EvalInfoMask(EvalInfoMask_2xuint32)
 
 %% 1. Define Flags
 
-FlagsString1 = dec2bin(EvalInfoMask_2xuint32(1),32);
-FlagsString2 = dec2bin(EvalInfoMask_2xuint32(2),32);
+
+
+try
+	FlagsString1 = dec2bin(EvalInfoMask_2xuint32(1),32);
+	FlagsString2 = dec2bin(EvalInfoMask_2xuint32(2),32);
+catch errie
+	if(exist('errie','var'))
+		Flags = 0;
+		FlagNamesSet = '0';
+		return;
+	end
+end
 
 Flags1 = zeros([1 numel(FlagsString1)]);
 Flags2 = zeros([1 numel(FlagsString2)]);
@@ -60,8 +70,41 @@ end
 Flags = cat(2,fliplr(Flags1),fliplr(Flags2));
 always_zeros = [7,8,10,34,35,36,37,38,39,40,44,45,54,55,56,57,58,59,60,61,62,63,64];
 
+if(sum(Flags(always_zeros) == 1))
+	Flags = 0;
+	FlagNamesSet = '0';
+	return;
+end
 Flags(always_zeros) = [];
 
+
+
+%% Check for Consistency and Illogicalness
+
+
+% check for Illogicalness
+ContradictoryFlags = {...
+[4 5], ...					% Online, Offline
+[26 27], ...				% FirstScanInSlice, LastScanInSlice
+[31 32], ...				% First_Scan_In_Blade, Last_Scan_In_Blade
+[28 29] ...					% TREffectiveBegin TREffectiveEnd
+};
+
+for FlagLoop = ContradictoryFlags
+	if(sum(Flags(FlagLoop{:})) == 2)
+		Flags = 0;
+		FlagNamesSet = '0';
+		return;
+	end
+end
+
+
+% This is a little fishy, but why would anyone set so many flags at once?
+if(sum(Flags) > 14)
+	Flags = 0;
+	FlagNamesSet = '0';
+	return;	
+end
 
 
 
