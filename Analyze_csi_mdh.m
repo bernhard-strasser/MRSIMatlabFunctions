@@ -1,4 +1,4 @@
-function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholekSpace_flag)
+function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholeMDH)
 %
 % Analyze_csi_mdh_x_x Analyze measurement data header of Siemens csi raw data
 %
@@ -8,11 +8,11 @@ function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholekSpace_flag)
 % The function analyzes the mdh of Siemens raw csi data to find out the Parameters listed under Output
 %
 %
-% ParList = read_Analyze_csi_mdh_1_3(csi_path, AnalyzeWholekSpace_flag)
+% ParList = read_Analyze_csi_mdh_1_3(csi_path, AnalyzeWholeMDH)
 %
 % Input: 
 % -         csi_path                        ...     Path of MRS(I) file.
-% -         AnalyzeWholekSpace_flag         ...     Determines if over whole k-space is looped to find out the matrix sizes ROW and COL.
+% -         AnalyzeWholeMDH         ...     Determines if over whole k-space is looped to find out the matrix sizes ROW and COL.
 %
 % Output:
 % -         ParList                         ...     Structure giving all the Parameters. It contains:
@@ -21,7 +21,7 @@ function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholekSpace_flag)
 %           -- ParList.total_k_points               - obvious
 %           -- ParList.SLC                          - Number of Slices
 %           -- ParList.Averages                     - Number of acquired averages.
-% if AnalyzeWholekSpace_flag = true
+% if AnalyzeWholeMDH = true
 %           ++ ParList.ROW_measured                 - Number of measured rows (lines), these gives the number of the REALLY measured lines
 %           ++ ParList.COL_measured                 - Number of measured columns (phase_encoding)
 %           ++ ParList.kline_min                    - Minimum value of k-point in ROW-direction. All values start from 1, not from 0 like in C!
@@ -42,59 +42,130 @@ function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholekSpace_flag)
 %% 0. Preparations
 
 % Assign standard values to variables if nothing is passed to function.
-if(~exist('AnalyzeWholekSpace_flag','var'))
-    AnalyzeWholekSpace_flag = true;
+if(~exist('AnalyzeWholeMDH','var'))
+    AnalyzeWholeMDH = 0;
 end
 
 % Open file
-raw_csi_fid = fopen(sprintf('%s', csi_path),'r');
+fid = fopen(sprintf('%s', csi_path),'r');
 
 % READ HEADERSIZE
-headersize = fread(raw_csi_fid,1, 'uint32');
+headersize = fread(fid,1, 'uint32');
 
 
 
 
 %% 1. READ FROM FIRST DATA-HEADER
 
-fseek(raw_csi_fid,headersize,'bof'); 
-chak_header = fread(raw_csi_fid, 64, 'uint16');
+fseek(fid,headersize,'bof');
+chak_header = zeros([1 64]);
+
+
+
+% Read first mdh
+chak_header(1:7) = fread(fid, 7, 'uint32');
+chak_header(8:57) = fread(fid, 50, 'int16');
+EvalInfoMask_First = Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7)));
+
 
 % VectorSize & Total Channel Number
-ParList.vecSize = chak_header(15);
+ParList.(EvalInfoMask_First).vecSize = chak_header(8);
 
 
 
 
 %% 2. READ FROM END OF FILE
 
-fseek(raw_csi_fid, -256,'eof');
-chak_header = fread(raw_csi_fid, 64, 'uint16');
+% Read last mdh
+fseek(fid, -256,'eof');
+chak_header = fread(fid, 64, 'uint16');
 
 % total measured k-space points & Number of Slices
 
-if(chak_header(19) > 0)
-    ParList.SLC = chak_header(19)+1;
-else
-    ParList.SLC = 1;
-end
-ParList.Averages = chak_header(24) + 1;
-ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;			% This is wrong! If there are more ADCs in the file (e.g. from Prescans) the kPoints cannot be computed like that!
-ParList.total_ADC_meas = chak_header(5)-1;
-ParList.total_channel_no = chak_header(16);
+% if(chak_header(19) > 0)
+%     ParList.SLC = chak_header(19)+1;
+% else
+%     ParList.SLC = 1;
+% end
+% ParList.Averages = chak_header(24) + 1;
+%ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;			% This is wrong! If there are more ADCs in the file (e.g. from Prescans) the kPoints cannot be computed like that!
+ParList.General.total_ADC_meas = chak_header(5)-1;
+%%ParList.total_channel_no = chak_header(16);
 
+
+
+%% Find out which Datasets are in the file
+
+if(AnalyzeWholeMDH == 1)
+	
+	
+	
+	fseek(fid, headersize,'bof');
+	EvalInfoMask_Cur = EvalInfoMask_First;
+	step = 12;
+	while(~strcmpi(EvalInfoMask_Cur,'ACQEND') || ~feof(fid))
+
+
+
+		fseek_ok = fseek(fid, step*(64*2 + ParList.(EvalInfoMask_Cur).vecSize*2*4),'cof');
+		if(fseek_ok == -1)
+			step = 1;
+			continue;
+		end
+		
+		
+		
+		chak_header(1:7) = fread(fid, 7, 'uint32');
+		chak_header(8) = fread(fid, 1, 'uint16');		
+		fseek(fid, -7*4-1*2,'cof');
+
+
+
+		if(strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),'0'))
+			fseek(fid, -step*(64*2 + ParList.(EvalInfoMask_Cur).vecSize*2*4),'cof');
+			step = 1;
+		elseif(strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),'ACQEND'))
+			break;
+		elseif(~strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),EvalInfoMask_Cur))
+			EvalInfoMask_Cur = Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7)));
+			step = 12;
+			ParList.(EvalInfoMask_Cur).vecSize = chak_header(8);
+		end
+
+
+	end
+	
+	
+	
+end
+
+
+
+%% 3. Find other Datasets inside file
+
+% if(strcmp(EvalInfoMask_First,EvalInfoMask_Last))
+% 	ParList.DataSetNames = EvalInfoMask_First;
+% else
+% 	ParList.DataSetNames{1} = EvalInfoMask_First;
+% 	ParList.DataSetNames{2} = EvalInfoMask_Last;
+% 	
+% 
+% 	
+% 	
+% 	
+% end
 
 
 
 %% 3. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
 
-if(AnalyzeWholekSpace_flag)
+if(AnalyzeWholeMDH == 2)
     
-    fseek(raw_csi_fid,headersize,'bof');
+    fseek(fid,headersize,'bof');
     kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
 
     for i = 1:ParList.total_k_points*ParList.Averages
-            chak_header = fread(raw_csi_fid, 64, 'uint16');
+            chak_header = fread(fid, 64, 'uint16');
             if(chak_header(17) > kline_max)
                 kline_max = chak_header(17);
             end
@@ -108,7 +179,7 @@ if(AnalyzeWholekSpace_flag)
             if(chak_header(22) < kphase_min)
                 kphase_min = chak_header(22);
             end        
-            fseek(raw_csi_fid,ParList.vecSize*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
+            fseek(fid,ParList.vecSize*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
     end
     ParList.ROW_measured = kline_max - kline_min + 1;
     ParList.COL_measured = kphase_max - kphase_min + 1;
@@ -125,4 +196,4 @@ end
 
 %% 4. POSTPARATIONS
 
-fclose(raw_csi_fid);
+fclose(fid);
