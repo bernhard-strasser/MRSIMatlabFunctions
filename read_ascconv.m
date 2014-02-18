@@ -82,7 +82,7 @@ ParList_Search =  { ...
 'alTE\[\d+\]',                                                  ...     % 35
 'tFree',														...		% 36
 'lAverages',													...		% 37
-'sWiPMemBlock\.alFree\[5\d\]'									...		% 38	Our sequence: Prescan Pars nFreqEnc, nPhasEnc, nPartEnc, nSLC, nAverages (all Prescans_GRE) and lNumberofADCs
+'sWiPMemBlock\.alFree\[(\d){1,2}\]'								...		% 38	All variables set in Special Card + those from above
 };
 
 
@@ -126,7 +126,7 @@ ParList_Assign = { ...
 'TEs',                                                              ...     % 35
 'wipMemBlock_tFree',												...		% 36
 'nAverages',														...		% 37
-'wipMemBlock_alFree'												...		% 38
+'wipMemBlock_alFree_all'											...		% 38
 };
 
 
@@ -259,10 +259,18 @@ ascconv = strtrim([ascconv(1:2:end) ascconv(2:2:end)]);
 % eval(...) We assign the found value to ParList.ParameterName, where ParameterName is determined by ParList_Assign. We also convert the values.
 
 for Par_no = 1:numel(ParList_Search)
-    Par_Logic = regexp(ascconv(:,1),ParList_Search{Par_no});    
-    Par_Logic = not(cellfun('isempty',Par_Logic));
+    TokenAssignString = regexp(ascconv(:,1),ParList_Search{Par_no},'tokens');    
+    Par_Logic = not(cellfun('isempty',TokenAssignString));
+	TokenAssignString = TokenAssignString(Par_Logic); 
+	while(iscell([TokenAssignString{:}]))
+		TokenAssignString = [TokenAssignString{:}];
+	end
+	TokenAssignString = cell2mat(strcat(TokenAssignString,'+1,'));
+	if(numel(TokenAssignString) > 0)
+		TokenAssignString = ['([' TokenAssignString(1:end-1) '])'];
+	end
     if(find(Par_Logic) > 0)
-        eval([ 'ParList.' ParList_Assign{Par_no} ' = ' ParList_Convert{Par_no} '(ascconv(Par_Logic,2));' ]);
+        eval([ 'ParList.' ParList_Assign{Par_no} TokenAssignString ' = ' ParList_Convert{Par_no} '(ascconv(Par_Logic,2));' ]);
     end
 end
 
