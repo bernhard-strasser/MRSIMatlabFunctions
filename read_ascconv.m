@@ -183,7 +183,6 @@ fid = fopen(file_path,'r');
 
 
 
-
 %% 1. Track down & save element: ASCCONV
 
 begin_found = 0;
@@ -249,7 +248,6 @@ ascconv = strtrim([ascconv(1:2:end) ascconv(2:2:end)]);
 
 
 
-
 %% 4. Search certain entries & Save these
 
 % The following code performs these tasks:
@@ -265,14 +263,18 @@ for Par_no = 1:numel(ParList_Search)
 	while(iscell([TokenAssignString{:}]))
 		TokenAssignString = [TokenAssignString{:}];
 	end
-	TokenAssignString = cell2mat(strcat(TokenAssignString,'+1,'));
+
 	if(numel(TokenAssignString) > 0)
+        TokenAssignString = cell2mat(strcat(TokenAssignString,'+1,'));
 		TokenAssignString = ['([' TokenAssignString(1:end-1) '])'];
+	else
+        TokenAssignString = '';
 	end
-    if(find(Par_Logic) > 0)
+	if(find(Par_Logic) > 0)
         eval([ 'ParList.' ParList_Assign{Par_no} TokenAssignString ' = ' ParList_Convert{Par_no} '(ascconv(Par_Logic,2));' ]);
-    end
+	end
 end
+
 
 
 %% 5. Change & Correct certain values
