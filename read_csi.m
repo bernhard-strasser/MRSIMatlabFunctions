@@ -1,4 +1,4 @@
-function [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreProcessingInfo)
+function [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreProcessingInfo,ReadInDataSets)
 %
 % read_csi Read in csi-data
 %
@@ -43,10 +43,13 @@ if(nargin < 1)
     kSpace = 0;
     return;
 end
+if(~exist('ReadInDataSets','var'))
+	ReadInDataSets = 'All';
+end
 
 % Test if any kSpace Preprocessing should be done with ONLINE
-if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE') && (isfield(PreProcessingInfo.ONLINE,'fredir_shift') || isfield(PreProcessingInfo.ONLINE,'Hamming_flag') ))
-	ONLINEkSpaceNecessary = ne(PreProcessingInfo.ONLINE.fredir_shift,0) && PreProcessingInfo.ONLINE.Hamming_flag;
+if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE') &&  isfield(PreProcessingInfo.ONLINE,'Hamming_flag') )
+	ONLINEkSpaceNecessary = PreProcessingInfo.ONLINE.Hamming_flag;
 else
 	ONLINEkSpaceNecessary = false;
 end
@@ -59,7 +62,7 @@ end
 if(numel(strfind(file, '.dat')) > 0)
     
     % Read Raw Data
-    [kSpace,ReadInInfo] = read_csi_dat(file);
+    [kSpace,ReadInInfo] = read_csi_dat(file,0,ReadInDataSets);
 	
 	
       
@@ -104,6 +107,11 @@ PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
 
+
+if(isfield(kSpace,'PATREFANDIMASCAN'))
+	bla = size(kSpace.ONLINE); bla = [bla(1:5) 1 size(kSpace.PATREFANDIMASCAN,7)];
+	PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize = bla; clear bla;
+end
 if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) )
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end

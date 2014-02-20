@@ -1,4 +1,4 @@
-function [kSpace, Info] = read_csi_dat(file, DesiredSize)
+function [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -50,7 +50,9 @@ memused_before = memused_linux_1_0(1);
 if(exist('DesiredSize','var') && ~isstruct(DesiredSize))
 	DesiredSize2 = DesiredSize; clear DesiredSize; DesiredSize.ONLINE = DesiredSize2; clear DesiredSize2;
 end
-
+if(~exist('ReadInDataSets','var'))
+	ReadInDataSets = 'All';
+end
 
 
 
@@ -64,7 +66,7 @@ ParList = read_ascconv(file);
 Info.General.Ascconv = ParList;
 
 % Dwelltimes
-if(numel(ParList.wipMemBlock_alFree) > 8)
+if(isfield(ParList,'wipMemBlock_alFree') && numel(ParList.wipMemBlock_alFree) > 8)
 	Info.NOISEADJSCAN.Dwelltime = ParList.wipMemBlock_alFree(7);
 	Info.PATREFANDIMASCAN.Dwelltime = ParList.wipMemBlock_alFree(8);
 	Info.ONLINE.Dwelltime = ParList.wipMemBlock_alFree(9);
@@ -89,7 +91,7 @@ end
 
 % Second try: Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
 % Prescan Info
-if(numel(ParList.wipMemBlock_alFree) > 5)
+if(isfield(ParList,'wipMemBlock_alFree') && numel(ParList.wipMemBlock_alFree) > 5)
 	try
 		Info.PATREFANDIMASCAN.nReadEnc = ParList.wipMemBlock_alFree(1);
 		Info.PATREFANDIMASCAN.nPhasEnc = ParList.wipMemBlock_alFree(2);
@@ -108,10 +110,10 @@ if(numel(ParList.wipMemBlock_alFree) > 5)
 end
 	
 % ONLINE Info
-if(ParList.wipMemBlock_tFree == 0)
-	if(ParList.wipMemBlock_alFree == 0)
+if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree') && ParList.wipMemBlock_tFree == 0))
+	if(~isfield(ParList,'wipMemBlock_alFree') || (isfield(ParList,'wipMemBlock_alFree') && ParList.wipMemBlock_alFree == 0))
 		fprintf(['\nNo wipMemBlock.tFree and wipMemBlock.alFree[50-55] entries found. If you have several datasets\n(like Prescans) in your raw data, consider writing the info about\n' ...
-		'the sizes of those scans in the wipMemBlock.tFree!\n\n'])
+		'the sizes of those scans in the wipMemBlock.tFree or wipMemBlock.alFree[50-55]!\n\n'])
 	end
 	Info.ONLINE.nReadEnc = ParList.nFreqEnc;
 	Info.ONLINE.nPhasEnc = ParList.nPhasEnc;
@@ -125,9 +127,9 @@ end
 
 
 % Analyze mdh.
-ParList = Analyze_csi_mdh(file,0);
+ParList = Analyze_mdh(file,0);
 %Info.ONLINE.total_channel_no = ParList.total_channel_no;
-Info.General.total_ADCs = ParList.total_ADC_meas;
+Info.General.total_ADCs = ParList.General.total_ADC_meas;
 clear ParList;
 
 
@@ -153,6 +155,7 @@ ACQEND_flag = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%	Loop over different measurement sets	%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+SkipMeassageAlreadyPrinted = false;
 while(~ACQEND_flag)
 
     % Read first mdh
@@ -170,8 +173,18 @@ while(~ACQEND_flag)
     
     % Set CurrentMeasSet
 	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
-	fprintf('\nRead in %s data.\nChange ''Interpret_EvalInfoMask.m'' function to rename measurement.', CurrentMeasSet)
 	
+	if((sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
+		fprintf('\nRead\t%s data.', CurrentMeasSet)
+	else
+		if(~SkipMeassageAlreadyPrinted)
+			fprintf('\nSkip\t%s data.', CurrentMeasSet)
+			SkipMeassageAlreadyPrinted = true;
+		end
+		fseek(file_fid,(128+chak_header(8)*2*4)*chak_header(9),'cof');
+		continue;
+	end	
+	SkipMeassageAlreadyPrinted = false;
 	
 	% Initialize Current Info
 	if(~isfield(Info,CurrentMeasSet))
@@ -306,6 +319,7 @@ fclose(file_fid);
 
 fprintf('\ttook\t%10.6f seconds',toc)       
 
+fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
 
 
 
