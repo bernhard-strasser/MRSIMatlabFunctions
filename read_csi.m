@@ -47,6 +47,10 @@ if(~exist('ReadInDataSets','var'))
 	ReadInDataSets = 'All';
 end
 
+if(exist('PreProcessingInfo','var') && numel(PreProcessingInfo) == 1 && ~isstruct(PreProcessingInfo) && PreProcessingInfo == 0)
+	clear PreProcessingInfo;
+end
+	
 % Test if any kSpace Preprocessing should be done with ONLINE
 if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo,'ONLINE') &&  isfield(PreProcessingInfo.ONLINE,'Hamming_flag') )
 	ONLINEkSpaceNecessary = PreProcessingInfo.ONLINE.Hamming_flag;
@@ -99,8 +103,8 @@ PreProcessingInfo_Standard.ONLINE.NoFFT_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.NoFFT_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceAlong = 2;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceWhileAccessing = ':,:,:,:,:,:,2';
-PreProcessingInfo_Standard.ONLINE.fredir_shift = 0;
-PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
+%PreProcessingInfo_Standard.ONLINE.fredir_shift = 0;
+%PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
 PreProcessingInfo_Standard.ONLINE.SaveUnfilteredkSpace = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.SaveUnfilteredkSpace = true;
 PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
@@ -108,17 +112,17 @@ PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
 
 
-if(isfield(kSpace,'PATREFANDIMASCAN'))
+if(isfield(kSpace,'PATREFANDIMASCAN') && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
 	bla = size(kSpace.ONLINE); bla = [bla(1:5) 1 size(kSpace.PATREFANDIMASCAN,7)];
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize = bla; clear bla;
 end
-if(exist('ReadInInfo','var') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) )
+if(exist('ReadInInfo','var') && isfield(ReadInInfo, 'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end
 
 
 % If PreProcessingInfo is not passed over
-if(nargin < 2)
+if(~exist('PreProcessingInfo','var'))
     PreProcessingInfo = PreProcessingInfo_Standard;
 end
 

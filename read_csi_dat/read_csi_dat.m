@@ -45,8 +45,9 @@ function [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 % Find out memory used by MATLAB
 memused_before = memused_linux_1_0(1); 
 
-
-
+if(exist('DesiredSize','var') && numel(DesiredSize) == 1 && DesiredSize == 0)
+	clear DesiredSize;
+end
 if(exist('DesiredSize','var') && ~isstruct(DesiredSize))
 	DesiredSize2 = DesiredSize; clear DesiredSize; DesiredSize.ONLINE = DesiredSize2; clear DesiredSize2;
 end
@@ -79,13 +80,10 @@ if(ParList.wipMemBlock_tFree ~= 0)
 	% Only evaluate the tFree string if it is proper MATLAB CODE (doesnt throw any errors)
 	try
 		eval(ParList.wipMemBlock_tFree);
-	catch errie %#ok
-		if(exist('errie','var'))
-			fprintf(['\nThe wipMemBlock.tFree entry is not MATLAB code. Consider writing the info about\n' ...
-			'the sizes of those scans in the wipMemBlock.tFree!\n\n'])
-			clear errie;
-			ParList.wipMemBlock_tFree = 0;
-		end
+	catch
+		fprintf(['\nThe wipMemBlock.tFree entry is not MATLAB code. Consider writing the info about\n' ...
+		'the sizes of those scans in the wipMemBlock.tFree!\n\n'])
+		ParList.wipMemBlock_tFree = 0;
 	end
 end
 
@@ -99,13 +97,10 @@ if(isfield(ParList,'wipMemBlock_alFree') && numel(ParList.wipMemBlock_alFree) > 
 		Info.PATREFANDIMASCAN.nSLC = ParList.wipMemBlock_alFree(4);
 		Info.PATREFANDIMASCAN.nAverages = ParList.wipMemBlock_alFree(5);
 		Info.NOISEADJSCAN.nReadEnc = ParList.wipMemBlock_alFree(6);
-	catch errie %#ok
-		if(exist('errie','var'))
-			fprintf(['\nIs there something different than infos about the Prescans in wipMemBlock.alFree[50-55] ?\n' ...
-			'Consider writing the Prescans Info into that array for faster read-in.'])
-			clear errie;
-			ParList.wipMemBlock_alFree = 0;
-		end
+	catch
+		fprintf(['\nIs there something different than infos about the Prescans in wipMemBlock.alFree[50-55] ?\n' ...
+		'Consider writing the Prescans Info into that array for faster read-in.'])
+		ParList.wipMemBlock_alFree = 0;
 	end
 end
 	
@@ -215,7 +210,7 @@ while(~ACQEND_flag)
 	Info.(CurrentMeasSet).total_channel_no = chak_header(9);
 	Info.(CurrentMeasSet).Samples = chak_header(8);
 	
-	if( strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN') )
+	if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
 		vecSize = Info.(CurrentMeasSet).Samples;
 	else
 		vecSize = 1;
@@ -261,6 +256,8 @@ while(~ACQEND_flag)
             k_x = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);                     
             k_y = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);  
 			k_z = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);
+			
+   			Rep = chak_header(16) + 1;
             slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
 			Avg = chak_header(17) + 1;									% Averages
             %channel_no = chak_header(63-7) + 1;							% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
@@ -295,10 +292,10 @@ while(~ACQEND_flag)
 			
 			% Read & Assign Data
             chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-			if( strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN') )
-                kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg) = complex(chak_data(1:2:end),chak_data(2:2:end));
+			if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
+                kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
             else
-                kSpace.(CurrentMeasSet)(channel_no,:,k_x,k_z,slice,1,Avg) = complex(chak_data(1:2:end),chak_data(2:2:end));
+                kSpace.(CurrentMeasSet)(channel_no,:,k_x,k_z,slice,1,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
 			end
 			
 			% Check if this was the last measurement of scan
@@ -313,11 +310,14 @@ while(~ACQEND_flag)
     end
 
 end
-    
+
+if(numel(kSpace.ONLINE) == 1 && isnan(kSpace.ONLINE))
+	kSpace = rmfield(kSpace,'ONLINE');
+end
     
 fclose(file_fid);
 
-fprintf('\ttook\t%10.6f seconds',toc)       
+fprintf('\n\t\t\t\t...took\t%10.6f seconds',toc)       
 
 fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
 
