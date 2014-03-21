@@ -89,12 +89,8 @@ end
 
 
 
+%% 2. Define Standard PreProcessingInfo
 
-
-%% 2. PreProcesing Preps
-
-
-% Define Standard PreProcessingInfo
 PreProcessingInfo_Standard.ONLINE.NoiseCorrMat = 1;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.NoiseCorrMat = 1;
 PreProcessingInfo_Standard.ONLINE.Hadamard_flag = true;				% If this flag is set to true, hadamard decoding is performed, if several slices were measure. If set to false, 
@@ -104,28 +100,50 @@ PreProcessingInfo_Standard.PATREFANDIMASCAN.NoFFT_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceAlong = 2;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.FlipkSpaceWhileAccessing = ':,:,:,:,:,:,2';
 %PreProcessingInfo_Standard.ONLINE.fredir_shift = 0;
-%PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
+PreProcessingInfo_Standard.PATREFANDIMASCAN.fredir_shift = 0;
 PreProcessingInfo_Standard.ONLINE.SaveUnfilteredkSpace = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.SaveUnfilteredkSpace = true;
 PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
+% Remove Oversampling
+if(size(kSpace.ONLINE,6) > 1)
+	PreProcessingInfo_Standard.ONLINE.RmOs = false;		% CSI
+else
+	PreProcessingInfo_Standard.ONLINE.RmOs = true;		% Imaging
+end
+PreProcessingInfo_Standard.PATREFANDIMASCAN.RmOs = true;
+OversamplingFactor_PATREFANDIMASCAN = 2;
+OversamplingFactor_ONLINE = 2;
+if(isfield(ReadInInfo,'PATREFANDIMASCAN') && isfield(ReadInInfo.PATREFANDIMASCAN, 'nReadEnc') && size(kSpace.PATREFANDIMASCAN,2) == size(kSpace.PATREFANDIMASCAN,3))  % This is really really bad...
+	PreProcessingInfo_Standard.PATREFANDIMASCAN.RmOs = false;
+	OversamplingFactor_PATREFANDIMASCAN = 1;
+end	
+if(isfield(ReadInInfo,'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && size(kSpace.ONLINE,2) == size(kSpace.ONLINE,3))  % This is really really bad...
+	PreProcessingInfo_Standard.ONLINE.RmOs = false;
+	OversamplingFactor_ONLINE = 1;
+end	
 
-
+% Zerofilling
 if(isfield(kSpace,'PATREFANDIMASCAN') && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
 	bla = size(kSpace.ONLINE); bla = [bla(1:5) 1 size(kSpace.PATREFANDIMASCAN,7)];
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize = bla; clear bla;
 end
-if(exist('ReadInInfo','var') && isfield(ReadInInfo, 'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
+
+% Elliptical Filtering
+if(exist('ReadInInfo','var') && isfield(ReadInInfo, 'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) ...
+	&& isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end
 
 
-% If PreProcessingInfo is not passed over
+
+
+%% 3. Assign standard values
+
 if(~exist('PreProcessingInfo','var'))
     PreProcessingInfo = PreProcessingInfo_Standard;
 end
-
 % If PreProcessingInfo does not contain all necessary fields
 PreProcessingFields = transpose(fields(kSpace)); PreProcessingFields(strcmpi(PreProcessingFields,'NOISEADJSCAN')) = [];
 for i = PreProcessingFields
@@ -144,10 +162,36 @@ clear PreProcessingFields i j PreProcessingInfo_Standard;
 
 
 
+%% 4. Correct Values
+if(isfield(PreProcessingInfo,'PATREFANDIMASCAN'))
+	if(isfield(PreProcessingInfo.PATREFANDIMASCAN, 'EllipticalFilterSize'))
+		if(numel(PreProcessingInfo.PATREFANDIMASCAN.EllipticalFilterSize) == 1)
+			PreProcessingInfo.PATREFANDIMASCAN.EllipticalFilterSize = [OversamplingFactor_PATREFANDIMASCAN 1 1 PreProcessingInfo.PATREFANDIMASCAN.EllipticalFilterSize];
+		else
+			PreProcessingInfo.PATREFANDIMASCAN.EllipticalFilterSize(1) = OversamplingFactor_PATREFANDIMASCAN*PreProcessingInfo.PATREFANDIMASCAN.EllipticalFilterSize(1);			
+		end
+	end
+	if(isfield(PreProcessingInfo.PATREFANDIMASCAN, 'ZeroFillingDesiredSize'))
+		PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize(2) = PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize(2) * OversamplingFactor_PATREFANDIMASCAN;
+	end
+end
+
+if(isfield(PreProcessingInfo,'ONLINE'))
+	if(isfield(PreProcessingInfo.ONLINE, 'EllipticalFilterSize'))
+		if(numel(PreProcessingInfo.ONLINE.EllipticalFilterSize) == 1)
+			PreProcessingInfo.ONLINE.EllipticalFilterSize = [OversamplingFactor_ONLINE 1 1 PreProcessingInfo.ONLINE.EllipticalFilterSize];
+		else
+			PreProcessingInfo.ONLINE.EllipticalFilterSize(1) = OversamplingFactor_ONLINE*PreProcessingInfo.ONLINE.EllipticalFilterSize(1);			
+		end
+	end
+	if(isfield(PreProcessingInfo.ONLINE, 'ZeroFillingDesiredSize'))
+		PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) = PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) * OversamplingFactor_ONLINE;
+	end
+end
 
 
 
-%% 3. PreProcess Data
+%% 5. PreProcess Data
 
 
 % PreProcess Data
@@ -168,7 +212,7 @@ end
 
 
 
-%% 3. Postparations
+%% 6. Postparations
 
 % if(isfield(kSpace,'Noise'))
 %     if(PreProcessingInfo.Values.NoiseCorrMat == 1)

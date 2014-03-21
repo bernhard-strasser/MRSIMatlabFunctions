@@ -59,6 +59,7 @@ end
 
 
 
+
 %% 1. Gather information from header
 
 
@@ -66,12 +67,7 @@ end
 ParList = read_ascconv(file);
 Info.General.Ascconv = ParList;
 
-% Dwelltimes
-if(isfield(ParList,'wipMemBlock_alFree') && numel(ParList.wipMemBlock_alFree) > 8)
-	Info.NOISEADJSCAN.Dwelltime = ParList.wipMemBlock_alFree(7);
-	Info.PATREFANDIMASCAN.Dwelltime = ParList.wipMemBlock_alFree(8);
-	Info.ONLINE.Dwelltime = ParList.wipMemBlock_alFree(9);
-end
+
 
 
 % Info about sizes
@@ -89,35 +85,38 @@ end
 
 % Second try: Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
 % Prescan Info
-if(isfield(ParList,'wipMemBlock_alFree') && numel(ParList.wipMemBlock_alFree) > 5)
-	try
-		Info.PATREFANDIMASCAN.nReadEnc = ParList.wipMemBlock_alFree(1);
-		Info.PATREFANDIMASCAN.nPhasEnc = ParList.wipMemBlock_alFree(2);
-		Info.PATREFANDIMASCAN.nPartEnc = ParList.wipMemBlock_alFree(3);
-		Info.PATREFANDIMASCAN.nSLC = ParList.wipMemBlock_alFree(4);
-		Info.PATREFANDIMASCAN.nAverages = ParList.wipMemBlock_alFree(5);
-		Info.NOISEADJSCAN.nReadEnc = ParList.wipMemBlock_alFree(6);
-	catch
-		fprintf(['\nIs there something different than infos about the Prescans in wipMemBlock.alFree[50-55] ?\n' ...
-		'Consider writing the Prescans Info into that array for faster read-in.'])
-		ParList.wipMemBlock_alFree = 0;
+if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'Prescan'))
+	if(isfield(ParList.WipMemBlockInterpretation,'NOISEADJSCAN'))
+		Info.NOISEADJSCAN = ParList.WipMemBlockInterpretation.Prescan.NOISEADJSCAN;
+	end
+	if(isfield(ParList.WipMemBlockInterpretation,'ONLINE'))
+		Info.ONLINE = ParList.WipMemBlockInterpretation.Prescan.ONLINE;
+	end
+	if(isfield(ParList.WipMemBlockInterpretation,'PATREFANDIMASCAN'))
+		Info.PATREFANDIMASCAN = ParList.WipMemBlockInterpretation.Prescan.PATREFANDIMASCAN;
 	end
 end
 	
+
 % ONLINE Info
 if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree') && ParList.wipMemBlock_tFree == 0))
-	if(~isfield(ParList,'wipMemBlock_alFree') || (isfield(ParList,'wipMemBlock_alFree') && ParList.wipMemBlock_alFree == 0))
-		fprintf(['\nNo wipMemBlock.tFree and wipMemBlock.alFree[50-55] entries found. If you have several datasets\n(like Prescans) in your raw data, consider writing the info about\n' ...
-		'the sizes of those scans in the wipMemBlock.tFree or wipMemBlock.alFree[50-55]!\n\n'])
-	end
+
 	Info.ONLINE.nReadEnc = ParList.nFreqEnc;
 	Info.ONLINE.nPhasEnc = ParList.nPhasEnc;
 	Info.ONLINE.nPartEnc = ParList.nPartEnc;
-	Info.ONLINE.nReadEncReallyMeas = ParList.nFreqEnc;
-	Info.ONLINE.nPhasEncReallyMeas = ParList.nPhasEnc;
-	Info.ONLINE.nPartEncReallyMeas = ParList.nPartEnc;
-	Info.ONLINE.nSLC = ParList.nSLC;
+	Info.ONLINE.nReadEncFinalMatrix = ParList.nFreqEnc_FinalMatrix;
+	Info.ONLINE.nPhasEncFinalMatrix = ParList.nPhasEnc_FinalMatrix;
+	%Info.ONLINE.nPartEncFinalMatrix = ParList.nSLC_FinalMatrix;
+	Info.ONLINE.kSpaceShiftDueToICEZeroFill = zeros([1 5]);
+	Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
+	Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
+	%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
 	Info.ONLINE.nAverages = ParList.nAverages;
+	if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'OneDCaipi') && isfield(ParList.WipMemBlockInterpretation.OneDCaipi,'NoOfMeasSlices'))
+		Info.ONLINE.nSLC = ParList.WipMemBlockInterpretation.OneDCaipi.NoOfMeasSlices;
+	else
+		Info.ONLINE.nSLC = ParList.nSLC;
+	end
 end
 
 
@@ -203,7 +202,9 @@ while(~ACQEND_flag)
 			kSpaceShift.(CurrentMeasSet)(dim) = 0;
 			DesiredSize.(CurrentMeasSet)(dim) = 99999;		% So that it has no effect			
 		end
-		
+		if(isfield(Info.(CurrentMeasSet),'kSpaceShiftDueToICEZeroFill') && Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim) > 0)
+			kSpaceShift.(CurrentMeasSet)(dim) = kSpaceShift.(CurrentMeasSet)(dim) + Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim);
+		end
 	end
 	
 
@@ -260,8 +261,9 @@ while(~ACQEND_flag)
    			Rep = chak_header(16) + 1;
             slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
 			Avg = chak_header(17) + 1;									% Averages
-            %channel_no = chak_header(63-7) + 1;							% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
+            %channel_no = chak_header(63-7) + 1;						% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
             
+			
 			% Check if the k-points are alright
 			if(k_x < 1 || k_x > DesiredSize.(CurrentMeasSet)(1))
 				if(k_x < 1)
@@ -319,7 +321,11 @@ fclose(file_fid);
 
 fprintf('\n\t\t\t\t...took\t%10.6f seconds',toc)       
 
-fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
+if(numel(fields(kSpace)) > 1 && numel(fields(Info)) + 1 < numel(fields(kSpace)) )
+	fprintf(['\nNo wipMemBlock.tFree and wipMemBlock.alFree[50-55] entries found. If you have several datasets\n(like Prescans) in your raw data, consider writing the info about\n' ...
+	'the sizes of those scans in the wipMemBlock.tFree or wipMemBlock.alFree[50-55]!\n\n'])
+end
+%fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
 
 
 
