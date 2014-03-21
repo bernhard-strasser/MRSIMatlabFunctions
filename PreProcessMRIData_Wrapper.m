@@ -83,7 +83,6 @@ DataSetNames = transpose(fields(PreProcessingInfo));
 for CurDataSet = DataSetNames
 
 	if(~isfield(kSpace,CurDataSet{:}))
-		fprintf('\n\nSkipping to Preprocess Data\t...\t%s',CurDataSet{:})
 		continue;
 	end
 	fprintf('\n\nPreprocessing Data         \t...\t%s',CurDataSet{:})
@@ -94,7 +93,7 @@ for CurDataSet = DataSetNames
 	CurDataSetString = CurDataSet{:};
 	% Set fredirshift
 	if(~isfield(PreProcessingInfo.(CurDataSetString),'fredir_shift') && size(kSpace.(CurDataSetString),6) == 1)	% Only for imaging data
-		PreProcessingInfo.(CurDataSetString).fredir_shift = ReadInInfo.General.Ascconv.Pos_Sag(1)/ (-ReadInInfo.General.Ascconv.FoV_Read(1)/ReadInInfo.(CurDataSetString).nReadEnc );
+		PreProcessingInfo.(CurDataSetString).fredir_shift = 2*ReadInInfo.General.Ascconv.Pos_Sag(1)/ (-ReadInInfo.General.Ascconv.FoV_Read(1)/ReadInInfo.(CurDataSetString).nReadEnc );
 	end
 	
 	
@@ -148,9 +147,7 @@ for CurDataSet = DataSetNames
 		end
 	end
 
-	
-	
-	
+
 	
 	% 1.2. Perform Noise Decorrelation
 	if(isfield(PreProcessingInfo.(CurDataSetString),'NoiseCorrMat') && numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) > 1)
@@ -206,7 +203,6 @@ for CurDataSet = DataSetNames
 	% 1.5. Correct phase due to shift in freq encoding direction
 	% Strange phenomenon for images: if you shift them in frequency encoding direction, the phase of the image changes. This undoes the phase change.
 	if(isfield(PreProcessingInfo.(CurDataSetString),'fredir_shift') && ne(PreProcessingInfo.(CurDataSetString).fredir_shift(1),0))
-		2^nextpow2(size(kSpace.(CurDataSetString),2))
 		phase = PreProcessingInfo.(CurDataSetString).fredir_shift(1)*(360/2^nextpow2(size(kSpace.(CurDataSetString),2)));
 		fprintf('\nCorrect global phase of %f deg due to FoV-shift of %f in kSpace.',phase,PreProcessingInfo.(CurDataSetString).fredir_shift(1)) 								
 		kSpace.(CurDataSetString) = kSpace.(CurDataSetString) * exp(1i*deg2rad(phase));												% Is it really 2^nextpow2(fredir_measured) 
@@ -225,10 +221,9 @@ for CurDataSet = DataSetNames
 	
 	
 	% 8. Apply Elliptical Filter
-	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize > 0)
+	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize(end) > 0)
 		fprintf('\nApply Elliptical Filter with Filtersize %d.',PreProcessingInfo.(CurDataSetString).EllipticalFilterSize)    				
-		OversamplingFactor = 1;				% Hack for now
-		kSpace.(CurDataSetString) = EllipticalFilter_1_1(kSpace.(CurDataSetString),[2 3],[OversamplingFactor 1 1 PreProcessingInfo.(CurDataSetString).EllipticalFilterSize],1);
+		kSpace.(CurDataSetString) = EllipticalFilter_1_1(kSpace.(CurDataSetString),[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
 	end
 
 
@@ -262,6 +257,25 @@ for CurDataSet = DataSetNames
 	end
 
 
+	
+	% Remove spatial oversampling
+	if(isfield(PreProcessingInfo.(CurDataSetString), 'RmOs') && PreProcessingInfo.(CurDataSetString).RmOs == 1)
+		fprintf('\nRemove Spatial Oversampling.')
+		image_center = floor(size(iSpace.(CurDataSetString),2) / 2) + 1;
+		left_border = image_center - ceil(size(iSpace.(CurDataSetString),2) / (2*2));   
+		right_border = image_center + ceil(size(iSpace.(CurDataSetString),2) / (2*2)) - 1;   
+	
+		if(size(iSpace.(CurDataSetString),2) > 1)
+			iSpace.(CurDataSetString) = iSpace.(CurDataSetString)(:,left_border:right_border,:,:,:,:,:);
+		else
+			iSpace.(CurDataSetString) = fftshift(fft(ifftshift(kSpace.(CurDataSetString),2),[],2),2);
+			iSpace.(CurDataSetString) = iSpace.(CurDataSetString)(:,left_border:right_border,:,:,:,:,:);
+		end
+		if(nargout > 3)
+			kSpace.(CurDataSetString) = ifftshift(ifft(fftshift(iSpace.(CurDataSetString),2),[],2),2);
+		end	
+	end
+	
 
 
 	% 6. Spatial Shift
