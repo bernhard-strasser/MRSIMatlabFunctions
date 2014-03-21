@@ -126,7 +126,7 @@ ParList_Assign = { ...
 'TEs',                                                              ...     % 35
 'wipMemBlock_tFree',												...		% 36
 'nAverages',														...		% 37
-'wipMemBlock_alFree_all'											...		% 38
+'WipMemBlock_alFree'												...		% 38
 };
 
 
@@ -281,10 +281,21 @@ end
 
 
 
+
+% Interpret WipMemBlocks
+try
+	ParList = InterpretWipMemBlock(ParList); %#ok
+catch Error
+	fprintf('\nCould not InterpretWipMemBlock, due to following error:\n%s',Error);
+end
+
+
+
+
 % Convert from 0x1 etc. to logicals
 
 % Remove Oversampling
-if(strcmp(ParList.RemoveOversampling, '0x1')) %#ok<NODEF>
+if(strcmp(ParList.RemoveOversampling, '0x1'))
     ParList.RemoveOversampling = true;
 else 
     ParList.RemoveOversampling = false;
@@ -382,7 +393,7 @@ ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
 % This could lead to problems, e.g. the following:
 % SliceNormalVector_x = 0; SliceNormalVector_y = [0.12 0.12]; SliceNormalVector_z = [0.9 0.9];
 
-MaxSizeSliceNormalVecs = max(cat(1,numel(ParList.SliceNormalVector_x),numel(ParList.SliceNormalVector_y),numel(ParList.SliceNormalVector_z)));
+MaxSizeSliceNormalVecs = max(cat(1,numel(ParList.SliceNormalVector_x),numel(ParList.SliceNormalVector_y),numel(ParList.SliceNormalVector_z))); %#ok
 %ParList.SliceNormalVector_x = repmat(ParList.SliceNormalVector_x, [1 1+MaxSizeSliceNormalVecs-numel(ParList.SliceNormalVector_x)]);
 
 for Dim = {'x','y','z'}
@@ -396,3 +407,209 @@ end
 %% 5. Postparations
 
 fclose(fid);
+
+end
+
+
+
+
+
+
+
+
+
+
+
+function ParList = InterpretWipMemBlock(ParList)
+
+	if(~isfield(ParList,'wipMemBlock_tFree'))
+		ParList.wipMemBlock_tFree = 0;
+	end
+
+	if(  isfield(ParList,'WipMemBlock_alFree') && (numel(ParList.WipMemBlock_alFree) > 1 || (numel(ParList.WipMemBlock_alFree)== 1 && ~(ParList.WipMemBlock_alFree == 0)))  )
+		
+		ParList.WipMemBlockInterpretation.Prescan = CheckWipMemBlockForPrescan(ParList);
+		ParList.WipMemBlockInterpretation.OneDCaipi = CheckWipMemBlockForOneDCaipi(ParList);
+		ParList.WipMemBlockInterpretation.TwoDCaipi = CheckWipMemBlockForTwoDCaipi(ParList);
+		
+	else
+		
+		ParList.WipMemBlockInterpretation = 0;
+		
+	end
+	
+
+
+	
+	% Prescan
+	function PrescanInterpretation = CheckWipMemBlockForPrescan(ParList)
+		
+		
+		% Info about sizes
+		% Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
+		% Prescan Info
+		if(numel(ParList.WipMemBlock_alFree) > 55)
+			try
+				%PrescanInterpretation.nReadEnc = ParList.WipMemBlock_alFree(1);
+				PrescanInterpretation.PATREFANDIMASCAN.nPhasEnc = ParList.WipMemBlock_alFree(52);
+				PrescanInterpretation.PATREFANDIMASCAN.nPartEnc = ParList.WipMemBlock_alFree(53);
+				PrescanInterpretation.PATREFANDIMASCAN.nSLC = ParList.WipMemBlock_alFree(54);
+				PrescanInterpretation.PATREFANDIMASCAN.nAverages = ParList.WipMemBlock_alFree(55);
+				PrescanInterpretation.NOISEADJSCAN.nReadEnc = ParList.WipMemBlock_alFree(56);
+			catch
+				fprintf(['\nIs there something different than infos about the Prescans in wipMemBlock.alFree[50-55] ?\n' ...
+				'Consider writing the Prescans Info into that array for faster read-in.'])
+				ParList.WipMemBlock_alFree = 0;
+			end
+		end
+
+
+		% Dwelltimes
+		if(numel(ParList.WipMemBlock_alFree) > 58)
+			PrescanInterpretation.NOISEADJSCAN.Dwelltime = ParList.WipMemBlock_alFree(57);
+			PrescanInterpretation.PATREFANDIMASCAN.Dwelltime = ParList.WipMemBlock_alFree(58);
+			PrescanInterpretation.ONLINE.Dwelltime = ParList.WipMemBlock_alFree(59);
+		end
+		
+		
+		if(~exist('PrescanInterpretation','var'))
+			PrescanInterpretation = 0;
+		end
+		
+		
+	end
+
+
+
+	
+	
+	% 1D Caipi
+	function OneDCaipiInterpretation = CheckWipMemBlockForOneDCaipi(ParList)
+
+		% Check if info is available in wipmemblock
+		OneDCaipiInfoAvail = numel(ParList.WipMemBlock_alFree) > 31 && ParList.WipMemBlock_alFree(31) < 9999 ...
+		&& ParList.WipMemBlock_alFree(32) < 56 && ~(numel(ParList.WipMemBlock_alFree) > 39 && ParList.WipMemBlock_alFree(40) == -1);
+	
+		if(~OneDCaipiInfoAvail)
+			OneDCaipiInterpretation = 0;
+			return;
+		end
+
+		StopLoop = false;
+		wipNo = 31;
+		SliceAliasingIDs = [];
+		FoVShifts_x = [];
+		FoVShifts_y = [];
+
+		% Loop always over three consecutive wipMemblock Entries.
+		while(~StopLoop && ~(wipNo+2 > 41) && ~(((wipNo - 31)/3 + 1)*4 > ParList.nSLC)) 
+			StopLoop = (ParList.WipMemBlock_alFree(wipNo) == -1 || ParList.WipMemBlock_alFree(wipNo+1) == -1 || ParList.WipMemBlock_alFree(wipNo+2) == -1);
+			if(StopLoop)
+				break;
+			end
+
+			SliceAliasingIDs_temp = zeros([1 4]);
+			FoVShifts_x_temp = zeros([1 4]);
+			FoVShifts_y_temp = zeros([1 4]);
+
+			NumTemp1 = ParList.WipMemBlock_alFree(wipNo);
+			NumTemp2 = ParList.WipMemBlock_alFree(wipNo+1);
+			NumTemp3 = ParList.WipMemBlock_alFree(wipNo+2);
+
+			% The info for the Slicealiasing is given as 1000*SliceID1 + 100*SliceID2 + 10 * SliceID3 + 1 * SliceID4
+			for BlockNo = 3:-1:0
+				SliceAliasingIDs_temp(4-BlockNo) = floor(NumTemp1/10^BlockNo);
+				FoVShifts_x_temp(4-BlockNo) = floor(NumTemp2/10^BlockNo);
+				FoVShifts_y_temp(4-BlockNo) = floor(NumTemp3/10^BlockNo);
+
+				NumTemp1 = NumTemp1 - floor(NumTemp1/10^BlockNo) * 10^BlockNo;
+				NumTemp2 = NumTemp2 - floor(NumTemp2/10^BlockNo) * 10^BlockNo;
+				NumTemp3 = NumTemp3 - floor(NumTemp3/10^BlockNo) * 10^BlockNo;
+			end
+
+			SliceAliasingIDs = cat(2,SliceAliasingIDs,SliceAliasingIDs_temp);
+			FoVShifts_x = cat(2,FoVShifts_x,FoVShifts_x_temp/10);
+			FoVShifts_y = cat(2,FoVShifts_y,FoVShifts_y_temp/10);
+
+			wipNo = wipNo + 3;
+
+			OneDCaipiInterpretation.SliceAliasingIDs = SliceAliasingIDs;
+			OneDCaipiInterpretation.FoVShifts_x = FoVShifts_x;
+			OneDCaipiInterpretation.FoVShifts_y = FoVShifts_y;
+
+		end
+
+		clear SliceAliasingIDs_temp FoVShifts_x_temp FoVShifts_y_temp BlockNo NumTemp1 NumTemp2 NumTemp3;
+
+
+		if(numel(SliceAliasingIDs) > 0 && (numel(unique(SliceAliasingIDs)) < numel(SliceAliasingIDs)))
+			OneDCaipiInterpretation.SliceParallelImaging_flag = true;
+		else
+			OneDCaipiInterpretation.SliceParallelImaging_flag = false;
+		end
+
+
+		if(isfield(OneDCaipiInterpretation,'SliceAliasingIDs'))
+			% Convert SliceAliasingIDs to SliceAliasingPattern ([1 2 1 2] --> [1 3; 2 4]);
+			SliceAliasingPattern = [];
+			ProcessedIDs = zeros(size(OneDCaipiInterpretation.SliceAliasingIDs));
+
+			for CurRep = 1:numel(OneDCaipiInterpretation.SliceAliasingIDs)
+				CurID = SliceAliasingIDs(CurRep);
+
+				if(sum(ProcessedIDs == CurID) > 0)
+					continue;
+				end
+				ProcessedIDs(CurRep) = CurID;
+
+				% This only works if all SliceAliasingGroups have the same number of aliased slices (e.g. SliceAliasingIDs = [1 2 1 1] would not be allowed)
+				SliceAliasingPattern = cat(1,SliceAliasingPattern,find(OneDCaipiInterpretation.SliceAliasingIDs == CurID));
+			end
+
+			OneDCaipiInterpretation.SliceAliasingPattern = SliceAliasingPattern;
+		end
+
+		OneDCaipiInterpretation.NoOfMeasSlices = size(OneDCaipiInterpretation.SliceAliasingPattern,1);
+
+	end
+
+
+	
+
+
+
+
+	% 2D Caipi
+	function TwoDCaipiInterpretation = CheckWipMemBlockForTwoDCaipi(ParList)
+		
+		
+		TwoDCaipInfoAvail = numel(ParList.WipMemBlock_alFree) > 41 && ParList.WipMemBlock_alFree(41) < 10 && ParList.WipMemBlock_alFree(42) < 10 && ~(numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1);
+
+		if(TwoDCaipInfoAvail && ParList.WipMemBlock_alFree(41) > 0 && ParList.WipMemBlock_alFree(42) > 0)
+			TwoDCaipiInterpretation.Skip_Matrix = zeros([ParList.WipMemBlock_alFree(41) ParList.WipMemBlock_alFree(42)]);
+			TwoDCaipiInterpretation.VD_Radius = ParList.WipMemBlock_alFree(43);
+			MaxAccess = 50; MaxAccess(MaxAccess > numel(ParList.WipMemBlock_alFree)) = numel(ParList.WipMemBlock_alFree);
+			Access = ParList.WipMemBlock_alFree(44:MaxAccess); 
+			Access(Access == 0) = [];
+			TwoDCaipiInterpretation.Skip_Matrix(Access) = 1;
+
+			if(numel(TwoDCaipiInterpretation.Skip_Matrix) > 1)
+				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = true;
+			else
+				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = false;
+			end
+
+			clear MaxAccess Access;
+		end
+		
+		if(~exist('TwoDCaipiInterpretation','var'))
+			TwoDCaipiInterpretation = 0;
+		end
+		
+		
+	end
+
+
+
+end
+
