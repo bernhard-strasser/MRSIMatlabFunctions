@@ -1,4 +1,4 @@
-function [OutArray,HammingFilter] = HammingFilter_1_3(InArray,ApplyAlongDims,InputIskSpace_flag)
+function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,InputIskSpace_flag)
 %
 % EllipticalFilter_1_0 Apply an elliptical filter to k-space data
 %
@@ -14,7 +14,7 @@ function [OutArray,HammingFilter] = HammingFilter_1_3(InArray,ApplyAlongDims,Inp
 % [A,B] = read_csi_dat_1_10(inputvar1,inputvar2)
 %
 % Input: 
-% -         InArray                     ...    Input array to which the filter should be applied
+% -         OutArray                     ...   Input array to which the filter should be applied. For memory reasons InArray = OutArray.
 % -         ApplyAlongDims              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %                                              Filter is applied. Otherwise, a 3d filter is used.
 % -         InputIskSpace_flag          ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
@@ -37,7 +37,7 @@ function [OutArray,HammingFilter] = HammingFilter_1_3(InArray,ApplyAlongDims,Inp
 %% 0. Declarations, Preparations, Definitions
 
 
-OutArray = InArray; 
+%OutArray = InArray; 
 
 
 %% 1. FFT to k-space
