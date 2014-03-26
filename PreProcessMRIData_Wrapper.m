@@ -50,30 +50,7 @@ memused_before = memused_linux_1_0(1);
 
 
 % % Assign standard values to variables if nothing is passed to function.
-% if(~exist('zerofill_to_nextpow2_flag','var'))
-%     zerofill_to_nextpow2_flag = 1;
-% end
-% if(~exist('zerofilling_fact','var'))
-%     zerofilling_fact = 1;
-% end
-% if(~exist('Hadamard_flag','var'))
-%     Hadamard_flag = 0;
-% end
-% if(~exist('iSpaceShift','var'))
-%     iSpaceShift = 0;
-% end
-% if(~exist('iSpaceShift(2)','var'))
-%     iSpaceShift(2) = 0;
-% end
-% if(~exist('NoFFT_flag','var'))
-%     NoFFT_flag = false;
-% end
-% if(~exist('NoiseCorrMat','var'))
-%     NoiseCorrMat = false;
-% end
-% if(~exist('Noise_mat','var'))
-%     Noise_mat = 0;
-% end
+
 
 
 
@@ -273,6 +250,9 @@ for CurDataSet = DataSetNames
 		end
 		if(nargout > 3)
 			kSpace.(CurDataSetString) = ifftshift(ifft(fftshift(iSpace.(CurDataSetString),2),[],2),2);
+			if(isfield(kSpace,[CurDataSetString '_Unfiltered']))
+				kSpace.([CurDataSetString '_Unfiltered']) = kSpace.([CurDataSetString '_Unfiltered'])(:,1:2:end,:,:,:,:,:);
+			end
 		end	
 	end
 	
