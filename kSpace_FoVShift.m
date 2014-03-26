@@ -5,8 +5,8 @@ function [OutData,FoV_Phase] = kSpace_FoVShift(InData, FoV_shifts)
 %  [OutData,FoV_Phase] = kSpace_FoVShift(InData, FoV_shifts) 
 %       
 %   Input:      
-% -     InData             Unshifted Data            (size: [#coils, nx, ny, nSlice, nTime]) (nTime = 1 for MRI)
-%                          Must have as many slices as the OutData should have. Use similar sequence parameters as for the InData.
+% -     InData            Unshifted Data            (size: [#coils, nx, ny, nSlice, nTime]) (nTime = 1 for MRI) (For Memory reasons, same variable used for input and output data.)
+%                          Must have as many slices as the OutData should have. Use similar sequence parameters as for the OutData.
 % -     FoV_shifts         The multiples of the FoV with which each slice should be shifted 
 %                          (against the original slice position) in x- and y- direction.
 %                          For each slice and for both directions (x and y) this must be given.
@@ -17,7 +17,7 @@ function [OutData,FoV_Phase] = kSpace_FoVShift(InData, FoV_shifts)
 % 
 %   Output:
 % -     OutData            Shifted Output Data
-% -     FoV_Phase          The Phase with which the InData gets multiplied (or in fact by exp(Phase)).
+% -     FoV_Phase          The Phase with which the OutData gets multiplied (or in fact by exp(Phase)).
 %              
 %
 
@@ -38,21 +38,58 @@ if(~exist('InData','var'))
 end
 if(~exist('FoV_shifts','var'))
     display([char(10) 'You have to input a shift-array if you want to shift the FoV. Aborting . . .'])
-    OutData = InData;
     return
 end
 
-[nChannel nx ny nSlice nTime] = size(InData);
+[nChannel, nx, ny, nSlice, nTime] = size(InData);
 
 if(nSlice ~= size(FoV_shifts,1) || size(FoV_shifts,2) ~= 2)
     display([char(10) 'You have to input the the FoV_shifts in the proper format. Aborting . . .'])
-    OutData = InData;
     return
 end
 
 
 
-%% 1. Compute the Phase to Shift the FoV
+
+
+%% 1. Memory Considerations - Find best Looping
+
+size_InData = size(InData);
+
+[dummy, MemFree] = memused_linux_1_1(1);
+MemNecessary = numel(InData)*8*2*4/2^20;							% every entry of InData is double --> 8 bytes. *2 because complex. *4 as safety measure (so InData fits 2 times in memory,
+																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
+ApplyAlongDims = [2 3];
+if(MemNecessary > MemFree)
+	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(1:end));
+	LoopOverIndex(LoopOverIndex < 1) = NaN;
+	LoopOverIndex(ApplyAlongDims) = NaN;
+	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
+	AccessString = [repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_InData)-LoopOverIndex])];
+	AccessString(end) = [];
+	
+	RepmatString = size_InData;
+	RepmatString(LoopOverIndex) = 1;
+	RepmatString(4) = 1;
+	RepmatString_x = RepmatString;
+	RepmatString_x(2) = 1;
+	RepmatString_y = RepmatString;
+	RepmatString_y(3) = 1;
+	RepmatString_x = regexprep(regexprep(num2str(RepmatString_x),' (?=\d)',','),' ','');
+	RepmatString_y = regexprep(regexprep(num2str(RepmatString_y),' (?=\d)',','),' ','');
+	
+	
+	
+end
+
+
+
+
+
+
+
+%% 2. Compute the Phase to Shift the FoV
 
 
 % Create a matrix with size [nChannel nx ny nSlice nTime] which linearly increases in x or y direction by -i*m*2pi, m E {-nx/2,...nx/2-1}
@@ -72,24 +109,40 @@ for SliceIndex = 1:nSlice
 end
 
 % Replicate to [nChannel nx ny nSlice]
-Phase_x = repmat(reshape(Phase_x,[1 nx 1 nSlice]), [nChannel 1 ny 1 nTime]);
-Phase_y = repmat(reshape(Phase_y,[1 1 ny nSlice]), [nChannel nx 1 1 nTime]);
-
-
-FoV_Phase = Phase_x + Phase_y;
+% Phase_x = repmat(reshape(Phase_x,[1 nx 1 nSlice]), [nChannel 1 ny 1 nTime]);
+% Phase_y = repmat(reshape(Phase_y,[1 1 ny nSlice]), [nChannel nx 1 1 nTime]);
 
 
 
 
 
-%% 2. Apply the Phase
 
 
-OutData = InData .* exp(FoV_Phase);
+%% 2. Repmat Apply the Phase
 
 
+% Perform Noise Decorrelation by looping to avoid extensive memory usage 
+if(MemNecessary > MemFree)	
+	
+	Phase_x = eval(['repmat(reshape(Phase_x,[1 nx 1 nSlice]),[' RepmatString_x '])']);
+	Phase_y = eval(['repmat(reshape(Phase_y,[1 1 ny nSlice]),[' RepmatString_y '])']);
+	FoV_Phase = Phase_x + Phase_y;
+	
+	for LoopIndex = 1:size(InData,LoopOverIndex)
+		TempData = eval(['InData(' AccessString ');']);	
+		TempData = TempData .* exp(FoV_Phase); %#ok
+		eval(['OutData(' AccessString ') = TempData;']);
+	end
+	clear TempData;
+	
+else
+	
+	FoV_Phase = repmat(reshape(Phase_x,[1 nx 1 nSlice]), [nChannel 1 ny 1 nTime]) + repmat(reshape(Phase_y,[1 1 ny nSlice]), [nChannel nx 1 1 nTime]);
+	OutData = InData .* exp(FoV_Phase);
 
+end
 
+clear Phase_x Phase_y FoV_Phase;
 
 
 
