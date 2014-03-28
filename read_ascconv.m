@@ -488,7 +488,7 @@ function ParList = InterpretWipMemBlock(ParList)
 
 		% Check if info is available in wipmemblock
 		OneDCaipiInfoAvail = numel(ParList.WipMemBlock_alFree) > 31 && ParList.WipMemBlock_alFree(31) < 9999 ...
-		&& ParList.WipMemBlock_alFree(32) < 56 && ~(numel(ParList.WipMemBlock_alFree) > 39 && ParList.WipMemBlock_alFree(40) == -1);
+		&& ParList.WipMemBlock_alFree(32) < 56 && ~(numel(ParList.WipMemBlock_alFree) > 39 && ParList.WipMemBlock_alFree(40) == -1) && sum(ParList.WipMemBlock_alFree(31:40));
 	
 		if(~OneDCaipiInfoAvail)
 			OneDCaipiInterpretation = 0;
@@ -583,7 +583,8 @@ function ParList = InterpretWipMemBlock(ParList)
 	function TwoDCaipiInterpretation = CheckWipMemBlockForTwoDCaipi(ParList)
 		
 		
-		TwoDCaipInfoAvail = numel(ParList.WipMemBlock_alFree) > 41 && ParList.WipMemBlock_alFree(41) < 10 && ParList.WipMemBlock_alFree(42) < 10 && ~(numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1);
+		TwoDCaipInfoAvail = numel(ParList.WipMemBlock_alFree) > 41 && ParList.WipMemBlock_alFree(41) < 10 && ParList.WipMemBlock_alFree(42) < 10 ...
+			&& ~(numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1) && sum(ParList.WipMemBlock_alFree(41:50));
 
 		if(TwoDCaipInfoAvail && ParList.WipMemBlock_alFree(41) > 0 && ParList.WipMemBlock_alFree(42) > 0)
 			TwoDCaipiInterpretation.Skip_Matrix = zeros([ParList.WipMemBlock_alFree(41) ParList.WipMemBlock_alFree(42)]);
