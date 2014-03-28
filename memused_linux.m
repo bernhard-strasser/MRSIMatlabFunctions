@@ -1,11 +1,11 @@
-function memused = memused_linux_1_0(quiet_flag)
+function [memused,memfree] = memused_linux_1_1(quiet_flag)
 %
-% memused_linux_1_0 Show memory usage of MATLAB
+% memused_linux_1_1 Show memory usage of MATLAB and free memory in GiB.
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
 %
-% The function shows the memory that is used by MATLAB in percent of all memory. Should work on all linux systems, probably even on all UNIX
+% The function shows the memory that is used by MATLAB in percent of all memory and the free system memory. Should work on all linux systems, probably even on all UNIX
 % 
 %
 %
@@ -15,7 +15,8 @@ function memused = memused_linux_1_0(quiet_flag)
 % -         quiet_flag                  ...    If 1, nothing is printed to display.
 %
 % Output:
-% -         memused                     ...     used memory by MATLAB, in percent of all memory
+% -         memused                     ...    used memory by MATLAB, in percent of all memory
+% -         memfree                     ...    free memory on system
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -47,17 +48,20 @@ end
 
 %% 1. Find out used memory
 
-[stat,memused] = unix('ps aux | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1');          % unix just performs the unix-command.
+[stat,memused] = unix('ps aux | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1');     % unix just performs the unix-command.
 clear stat
-memused = sum(str2num(memused));                                                                    % str2double does not work
+memused = sum(str2num(memused));                                                               % str2double does not work
 
-
+[stat,memfree] = unix('free -m | awk ''NR==3'' | awk ''{print $4}''');                         % unix just performs the unix-command. perform free -g command, take 3rd line of that, and 4th column.
+clear stat
+memfree = sum(str2num(memfree));                                                               % str2double does not work
 
 
 %% 2. Display used memory
 
 if(~quiet_flag)
-    display([ char(10) num2str(memused) '% of total memory is used.' char(10)])
+    display([ char(10) num2str(memused) '% of total memory is used by MATLAB.' char(10)])
+    display([ char(10) num2str(memfree) ' MB of memory available.' char(10)])    
 end
 
 
