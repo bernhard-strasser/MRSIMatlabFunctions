@@ -1,4 +1,4 @@
-function [memused,memfree] = memused_linux_1_1(quiet_flag)
+function [memused,memfree] = memused_linux(quiet_flag)
 %
 % memused_linux_1_1 Show memory usage of MATLAB and free memory in GiB.
 %
@@ -48,7 +48,14 @@ end
 
 %% 1. Find out used memory
 
-[stat,memused] = unix('ps aux | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1');     % unix just performs the unix-command.
+
+% Find out username.
+[stat,uname] = unix('whoami');
+[stat,uid] = unix('id');
+uid = regexp(regexp(uid,'uid=\d+','match'),'\d+','match');
+uid = uid{:}; uid = str2num(uid{:});
+
+[stat,memused] = unix(['ps aux | grep "' uname '\|' uid '" | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1']);     % unix just performs the unix-command.
 clear stat
 memused = sum(str2num(memused));                                                               % str2double does not work
 
