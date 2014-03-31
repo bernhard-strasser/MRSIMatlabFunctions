@@ -286,7 +286,7 @@ end
 try
 	ParList = InterpretWipMemBlock(ParList); %#ok
 catch Error
-	fprintf('\nCould not InterpretWipMemBlock, due to following error:\n%s',Error);
+	fprintf('\nCould not InterpretWipMemBlock, due to following error:\n%s',Error.message);
 end
 
 
@@ -567,9 +567,10 @@ function ParList = InterpretWipMemBlock(ParList)
 			end
 
 			OneDCaipiInterpretation.SliceAliasingPattern = SliceAliasingPattern;
+			OneDCaipiInterpretation.NoOfMeasSlices = size(OneDCaipiInterpretation.SliceAliasingPattern,1);
+			
 		end
 
-		OneDCaipiInterpretation.NoOfMeasSlices = size(OneDCaipiInterpretation.SliceAliasingPattern,1);
 
 	end
 
