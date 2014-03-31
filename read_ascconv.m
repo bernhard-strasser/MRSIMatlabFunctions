@@ -596,6 +596,7 @@ function ParList = InterpretWipMemBlock(ParList)
 
 			if(numel(TwoDCaipiInterpretation.Skip_Matrix) > 1)
 				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = true;
+				TwoDCaipiInterpretation.Skip_Matrix = transpose(TwoDCaipiInterpretation.Skip_Matrix);
 			else
 				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = false;
 			end
