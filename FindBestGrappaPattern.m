@@ -1,4 +1,4 @@
-function [BestPatterns,no_Patterns,QualityMeasure,R_InPlaneVD] = FindBestGrappaPattern(R_InPlane)
+function [BestPatterns,no_Patterns,R_VD] = FindBestGrappaPattern(R,LookUpTable)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -37,69 +37,100 @@ function [BestPatterns,no_Patterns,QualityMeasure,R_InPlaneVD] = FindBestGrappaP
 
 
 
+%% 1. LookUpTable
+
+if(~exist('LookUpTable','var') || LookUpTable)
+	
+	if(ceil(R) == 2)
+		R_x = [1 2];
+		R_y = [2 1];
+	elseif(ceil(R) == 3)
+		R_x = [1 2 3];
+		R_y = [3 2 1];	
+	elseif(ceil(R) == 4)
+		R_x = [1 2 4];
+		R_y = [4 2 1];		
+	elseif(ceil(R) == 5)
+		R_x = [2 3];
+		R_y = [3 2];
+	elseif(ceil(R) == 6)
+		R_x = [2 3];
+		R_y = [3 2];	
+	elseif(ceil(R) == 7)
+		R_x = [2 3 4];
+		R_y = [4 3 2];	
+	elseif(ceil(R) == 8)
+		R_x = [2 3 4];
+		R_y = [4 3 2];	
+	elseif(ceil(R) == 9)
+		R_x = 3;
+		R_y = 3;
+	elseif(ceil(R) == 10)
+		R_x = [3 4];
+		R_y = [4 3];
+	end
+	
+	R_Actual = R_x .* R_y;
+
+	
+end
+	
+	
+
+%% 2. Routine
 
 
-%% 1. Create All Possible Patterns of the Measured Points.
+if(exist('LookUpTable','var') && ~LookUpTable)
+	% 1. Create All Possible Patterns of the Measured Points.
 
-[R_InPlane_x, R_InPlane_y] = meshgrid(1:4);
+	[R_x, R_y] = meshgrid(1:4);
 
-R_InPlane_x = reshape(R_InPlane_x,[1 numel(R_InPlane_x)]);
-R_InPlane_y = reshape(R_InPlane_y,[1 numel(R_InPlane_y)]);
-
-
-
-
-%% 2. Restrict Patterns
-
-% Criteria: - If one acceleration is more than four times the other --> dont allow
-%			- If the R_InPlane is not reached --> dont allow
-%			- If R_InPlaneActual is much higher than R_InPlane
+	R_x = reshape(R_x,[1 numel(R_x)]);
+	R_y = reshape(R_y,[1 numel(R_y)]);
 
 
 
 
+	% 2. Restrict Patterns
 
-% Omit too big differences between R_x and R_x
-XDoubleY = R_InPlane_x > 4*R_InPlane_y;
-YDoubleX = R_InPlane_y > 4*R_InPlane_x;
-
-R_InPlane_Actual = R_InPlane_x .* R_InPlane_y;
-
-% If the R_InPlane is not reached --> dont allow
-R_InPlaneActualTooSmall = (R_InPlane_Actual < R_InPlane);
-
-% If R_InPlaneActual is much higher than R_InPlane
-R_InPlaneActualTooLarge = (R_InPlane_Actual > 1.5*R_InPlane);
+	% Criteria: - If one acceleration is more than four times the other --> dont allow
+	%			- If the R is not reached --> dont allow
+	%			- If R_Actual is much higher than R_
 
 
+	% Omit too big differences between R_x and R_x
+	XDoubleY = R_x > 4*R_y;
+	YDoubleX = R_y > 4*R_x;
 
+	R_Actual = R_x .* R_y;
 
-R_InPlane_x(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
-R_InPlane_y(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
-R_InPlane_Actual(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
+	% If the R is not reached --> dont allow
+	R_ActualTooSmall = (R_Actual < R);
 
-R_InPlaneVD = 1./(1/R_InPlane - 1./R_InPlane_Actual); 
+	% If R_Actual is much higher than R_
+	R_ActualTooLarge = (R_Actual > 1.5*R);
+
+	R_x(XDoubleY | YDoubleX | R_ActualTooSmall | R_ActualTooLarge) = [];
+	R_y(XDoubleY | YDoubleX | R_ActualTooSmall | R_ActualTooLarge) = [];
+	R_Actual(XDoubleY | YDoubleX | R_ActualTooSmall | R_ActualTooLarge) = [];
+
+	
+end
 
 
 %% 3. Define Important Variables and Quality Measure
 
-BestPatterns.Indices = 1:numel(R_InPlane_x);
-BestPatterns.Patterns = ones([1 numel(R_InPlane_x)]);
-BestPatterns.CellSizes = cat(2,R_InPlane_x,R_InPlane_y);
-no_Patterns = numel(R_InPlane_x);
+
+R_VD = 1./(1/R - 1./R_Actual); 
+
+
+BestPatterns.Indices = 1:numel(R_x);
+BestPatterns.Patterns = ones([1 numel(R_x)]);
+BestPatterns.CellSizes = cat(1,R_x,R_y);
+no_Patterns = numel(R_x);
 
 
 
-QltyMeas_dummy = DistBtwMeasPts(squeeze(BestPatterns.Patterns(1,:)), BestPatterns.CellSizes,0);
-NoQltyMeas = size(QltyMeas_dummy,2);
-QualityMeasure = zeros([size(BestPatterns.Patterns,1) NoQltyMeas]);
-clear QltyMeas_dummy NoQltyMeas
-
-for Patt_no = 1:size(BestPatterns.Patterns,1)
-    
-    QualityMeasure(Patt_no,:) = DistBtwMeasPts(squeeze(BestPatterns.Patterns(Patt_no,:)), BestPatterns.CellSizes,0);
-    
-end
 
 
 
