@@ -1,4 +1,4 @@
-function [BestPatterns,BestXPercPatterns,no_Patterns,QualityMeasure, AllPatterns] = FindBestGrappaPattern(R_InPlane)
+function [BestPatterns,no_Patterns,QualityMeasure,R_InPlaneVD] = FindBestGrappaPattern(R_InPlane)
 %
 % kSpace_Distance Compute quality measure of kSpace Pattern.
 %
@@ -35,129 +35,72 @@ function [BestPatterns,BestXPercPatterns,no_Patterns,QualityMeasure, AllPatterns
 
 %% 0. DEFINITIONS, PREPARATIONS
 
-% Initialize
-BestPatterns.Indices = 0;
-BestPatterns.Patterns = 0;
-BestXPercPatterns.Indices = 0;
-BestXPercPatterns.Patterns = 0;
-QualityMeasure = 0;
-no_Patterns = 0;
-
-
-% Assign standard values to variables if nothing is passed to function.
-if(nargin < 2)
-    display([ char(10) 'Gimme more input, Ma''am!' char(10) ])
-    return;
-end 
-if(~exist('no_WantedPatterns','var'))
-    no_WantedPatterns = 0;
-end
-
-if(no_measured_points == 1)
-	BestPatterns.Indices = 1;
-	BestPatterns.Patterns = 1;
-	BestXPercPatterns = BestPatterns;
-	no_Patterns = 1;
-    QualityMeasure = DistBtwMeasPts(1, cell_size,0);
-    AllPatterns = 1;
-    return
-end
-
-
-
-
-% Check if too many patterns are possible
-no_Patterns = nchoosek(prod(cell_size)-1,no_measured_points-1);
-fprintf('\n\n%d possible patterns.', no_Patterns)
-
-if(no_Patterns > 10^9)
-    fprintf('\nThese are too many. I will quit here.')
-    return
-elseif(no_Patterns > 10^7)
-    fprintf('\nThis may take really long. Overnight processing recommended!')    
-elseif(no_Patterns > 10^6)
-    fprintf('\nThis may take a while. Sit back, relax & drink a tea!')
-else
-    fprintf('\n')    
-end
-
-if(no_WantedPatterns <= 0)
-    if(no_Patterns < 70)
-        PercentageBestPatterns = 0.51;
-    elseif(no_Patterns < 2000)
-        PercentageBestPatterns = 0.1;
-    else
-        PercentageBestPatterns = 200/no_Patterns;
-    end
-else
-    PercentageBestPatterns = no_WantedPatterns/no_Patterns;
-end
-PercentageBestPatterns(PercentageBestPatterns > 1) = 1;
-
-fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*100)    
-
-
-
 
 
 
 
 %% 1. Create All Possible Patterns of the Measured Points.
 
+[R_InPlane_x, R_InPlane_y] = meshgrid(1:4);
+
+R_InPlane_x = reshape(R_InPlane_x,[1 numel(R_InPlane_x)]);
+R_InPlane_y = reshape(R_InPlane_y,[1 numel(R_InPlane_y)]);
 
 
-AllPatterns = nchoosek(2:prod(cell_size),no_measured_points-1);    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
-AllPatterns = cat(2, ones(size(AllPatterns,1),1), AllPatterns);          % Add the point (1,1) to all Patterns.
+
+
+%% 2. Restrict Patterns
+
+% Criteria: - If one acceleration is more than four times the other --> dont allow
+%			- If the R_InPlane is not reached --> dont allow
+%			- If R_InPlaneActual is much higher than R_InPlane
 
 
 
 
-%% 2. Loop over all Patterns, Compute the mean distance for each.
 
-QltyMeas_dummy = DistBtwMeasPts(squeeze(AllPatterns(1,:)), cell_size,0);
+% Omit too big differences between R_x and R_x
+XDoubleY = R_InPlane_x > 4*R_InPlane_y;
+YDoubleX = R_InPlane_y > 4*R_InPlane_x;
+
+R_InPlane_Actual = R_InPlane_x .* R_InPlane_y;
+
+% If the R_InPlane is not reached --> dont allow
+R_InPlaneActualTooSmall = (R_InPlane_Actual < R_InPlane);
+
+% If R_InPlaneActual is much higher than R_InPlane
+R_InPlaneActualTooLarge = (R_InPlane_Actual > 1.5*R_InPlane);
+
+
+
+
+R_InPlane_x(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
+R_InPlane_y(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
+R_InPlane_Actual(XDoubleY | YDoubleX | R_InPlaneActualTooSmall | R_InPlaneActualTooLarge) = [];
+
+R_InPlaneVD = 1./(1/R_InPlane - 1./R_InPlane_Actual); 
+
+
+%% 3. Define Important Variables and Quality Measure
+
+BestPatterns.Indices = 1:numel(R_InPlane_x);
+BestPatterns.Patterns = ones([1 numel(R_InPlane_x)]);
+BestPatterns.CellSizes = cat(2,R_InPlane_x,R_InPlane_y);
+no_Patterns = numel(R_InPlane_x);
+
+
+
+QltyMeas_dummy = DistBtwMeasPts(squeeze(BestPatterns.Patterns(1,:)), BestPatterns.CellSizes,0);
 NoQltyMeas = size(QltyMeas_dummy,2);
-
-QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas]);
+QualityMeasure = zeros([size(BestPatterns.Patterns,1) NoQltyMeas]);
 clear QltyMeas_dummy NoQltyMeas
 
-for Patt_no = 1:size(AllPatterns,1)
+for Patt_no = 1:size(BestPatterns.Patterns,1)
     
-    QualityMeasure(Patt_no,:) = DistBtwMeasPts(squeeze(AllPatterns(Patt_no,:)), cell_size,0);
+    QualityMeasure(Patt_no,:) = DistBtwMeasPts(squeeze(BestPatterns.Patterns(Patt_no,:)), BestPatterns.CellSizes,0);
     
 end
 
-
-
-
-
-
-
-%% 3. Find the Best & the Best 10% Patterns
-
-
-% In Image Domain
-% Index_BestXPerc = QualityMeasure(:,2) >= quantile(QualityMeasure(:,2),PercentageBestPatterns);
-% Index_Best = QualityMeasure(:,2) == max(QualityMeasure(:,2));
-
-% In kSpace domain
-Index_BestXPerc = QualityMeasure(:,end) <= quantile(QualityMeasure(:,end),PercentageBestPatterns);
-Index_Best = QualityMeasure(:,end) == min(QualityMeasure(:,end));
-
-BestPatterns.Indices = find(Index_Best);
-BestXPercPatterns.Indices = find(Index_BestXPerc);
-
-Index_BestXPerc = repmat(Index_BestXPerc, [1 no_measured_points]);
-Index_Best = repmat(Index_Best, [1 no_measured_points]);
-
-
-BestPatterns.Patterns = AllPatterns(Index_Best);
-BestXPercPatterns.Patterns = AllPatterns(Index_BestXPerc);
-
-BestPatterns.Patterns = reshape(BestPatterns.Patterns, [numel(BestPatterns.Patterns)/no_measured_points no_measured_points]);
-BestXPercPatterns.Patterns = reshape(BestXPercPatterns.Patterns, [numel(BestXPercPatterns.Patterns)/no_measured_points no_measured_points]);
-
-BestPatterns.Patterns = transpose(BestPatterns.Patterns);
-BestXPercPatterns.Patterns = transpose(BestXPercPatterns.Patterns);
 
 
 
