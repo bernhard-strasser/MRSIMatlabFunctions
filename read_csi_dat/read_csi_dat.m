@@ -86,13 +86,13 @@ end
 % Second try: Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
 % Prescan Info
 if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'Prescan'))
-	if(isfield(ParList.WipMemBlockInterpretation,'NOISEADJSCAN'))
+	if(isfield(ParList.WipMemBlockInterpretation.Prescan,'NOISEADJSCAN'))
 		Info.NOISEADJSCAN = ParList.WipMemBlockInterpretation.Prescan.NOISEADJSCAN;
 	end
 	if(isfield(ParList.WipMemBlockInterpretation,'ONLINE'))
 		Info.ONLINE = ParList.WipMemBlockInterpretation.Prescan.ONLINE;
 	end
-	if(isfield(ParList.WipMemBlockInterpretation,'PATREFANDIMASCAN'))
+	if(isfield(ParList.WipMemBlockInterpretation.Prescan,'PATREFANDIMASCAN'))
 		Info.PATREFANDIMASCAN = ParList.WipMemBlockInterpretation.Prescan.PATREFANDIMASCAN;
 	end
 end
@@ -112,6 +112,8 @@ if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree'
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
 	%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
 	Info.ONLINE.nAverages = ParList.nAverages;
+	Info.ONLINE.Dwelltime = ParList.Dwelltimes(1);	% For now only take the first one. Assume that all slices have the same dwelltime
+	
 	if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'OneDCaipi') && isfield(ParList.WipMemBlockInterpretation.OneDCaipi,'NoOfMeasSlices'))
 		Info.ONLINE.nSLC = ParList.WipMemBlockInterpretation.OneDCaipi.NoOfMeasSlices;
 	else
@@ -258,6 +260,8 @@ while(~ACQEND_flag)
             k_y = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);  
 			k_z = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);
 			
+			SamplesBeforeEcho = chak_header(38) * 2 * 2;
+			
    			Rep = chak_header(16) + 1;
             slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
 			Avg = chak_header(17) + 1;									% Averages
@@ -294,6 +298,7 @@ while(~ACQEND_flag)
 			
 			% Read & Assign Data
             chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
+			chak_data = chak_data(SamplesBeforeEcho:end);
 			if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
                 kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
             else

@@ -107,7 +107,7 @@ PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
 % Remove Oversampling
-if(size(kSpace.ONLINE,6) > 1)
+if(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,6) > 1)
 	PreProcessingInfo_Standard.ONLINE.RmOs = false;		% CSI
 else
 	PreProcessingInfo_Standard.ONLINE.RmOs = true;		% Imaging
@@ -119,14 +119,14 @@ if(isfield(ReadInInfo,'PATREFANDIMASCAN') && isfield(ReadInInfo.PATREFANDIMASCAN
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.RmOs = false;
 	OversamplingFactor_PATREFANDIMASCAN = 1;
 end	
-if(isfield(ReadInInfo,'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && size(kSpace.ONLINE,2) == size(kSpace.ONLINE,3))  % This is really really bad...
+if(isfield(kSpace,'ONLINE') && isfield(ReadInInfo,'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && size(kSpace.ONLINE,2) == size(kSpace.ONLINE,3))  % This is really really bad...
 	PreProcessingInfo_Standard.ONLINE.RmOs = false;
 	OversamplingFactor_ONLINE = 1;
 end	
 
 % Zerofilling
 if(isfield(kSpace,'PATREFANDIMASCAN') && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
-	bla = size(kSpace.ONLINE); bla = [bla(1:5) 1 size(kSpace.PATREFANDIMASCAN,7)];
+	bla = size(kSpace.ONLINE); bla = [bla(1:4) size(kSpace.PATREFANDIMASCAN,5) 1 size(kSpace.PATREFANDIMASCAN,7)];
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize = bla; clear bla;
 end
 
