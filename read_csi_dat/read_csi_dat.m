@@ -298,7 +298,7 @@ while(~ACQEND_flag)
 			
 			% Read & Assign Data
             chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-			chak_data = chak_data(SamplesBeforeEcho:end);
+			chak_data = chak_data(SamplesBeforeEcho+1:end);
 			if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
                 kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
             else
