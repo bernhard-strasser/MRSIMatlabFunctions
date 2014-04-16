@@ -81,19 +81,19 @@ for CurDataSet = DataSetNames
 	
 	% 1.1 Compute Noise Correlation Matrix if necessary
 	% Only read in data if NoiseCorrelationMatrix exists and is a 1
-	if( isfield(PreProcessingInfo.(CurDataSetString),'NoiseCorrMat') && numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) == 1 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 1 )
-	fprintf('\nCompute noise correlation matrix')
+	if( isfield(PreProcessingInfo.(CurDataSetString),'NoiseCorrMat') && numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) == 1 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat > 0 )
+		fprintf('\nCompute noise correlation matrix')
 
 
 		%%%%%%% GET NOISE %%%%%%
 
 		% Get data from Noise Prescan
-		if(isfield(kSpace,'NOISEADJSCAN'))
+		if(isfield(kSpace,'NOISEADJSCAN') && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 1)
 			fprintf('\nGet noise from\t...\tNoise Prescan.')    
 			Noise_mat = reshape(kSpace.NOISEADJSCAN,[size(kSpace.NOISEADJSCAN,1) numel(kSpace.NOISEADJSCAN)/size(kSpace.NOISEADJSCAN,1)]);
 			Noise_mat = Noise_mat(:,20:end);
 		% Or from end of FID of the outer kSpace
-		elseif(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,6) > 512)
+		elseif(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,6) > 512 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 2)
 			fprintf('\nGet noise from\t...\tONLINE Data Itself.')
 			Noise_mat = GatherNoiseFromCSI(kSpace.ONLINE,ReadInInfo.General.Ascconv.Full_ElliptWeighted_Or_Weighted_Acq);
 		end
@@ -106,7 +106,8 @@ for CurDataSet = DataSetNames
 				end
 
 				% Rescale Noise to be the same like ONLINE noise
-				if( isfield(ReadInInfo,'NOISEADJSCAN') && isfield(ReadInInfo.NOISEADJSCAN,'Dwelltime') && isfield(ReadInInfo,CurDataSet2{:}) && isfield(ReadInInfo.(CurDataSet2{:}),'Dwelltime') )
+				if( numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) == 1 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 1 && ...
+					isfield(ReadInInfo,'NOISEADJSCAN') && isfield(ReadInInfo.NOISEADJSCAN,'Dwelltime') && isfield(ReadInInfo,CurDataSet2{:}) && isfield(ReadInInfo.(CurDataSet2{:}),'Dwelltime') )
 					NoiseScalingFactor = sqrt(ReadInInfo.(CurDataSet2{:}).Dwelltime / ReadInInfo.NOISEADJSCAN.Dwelltime);
 				else
 					NoiseScalingFactor = 1;
@@ -199,7 +200,7 @@ for CurDataSet = DataSetNames
 	
 	% 8. Apply Elliptical Filter
 	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize(end) > 0)
-		fprintf('\nApply Elliptical Filter with Filtersize %d.',PreProcessingInfo.(CurDataSetString).EllipticalFilterSize)    				
+		fprintf('\nApply Elliptical Filter with Filtersize %d.',transpose(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))    				
 		kSpace.(CurDataSetString) = EllipticalFilter_1_1(kSpace.(CurDataSetString),[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
 	end
 
@@ -209,7 +210,7 @@ for CurDataSet = DataSetNames
 	% 9. Apply Hamming Filter
 	if(isfield(PreProcessingInfo.(CurDataSetString),'Hamming_flag') && PreProcessingInfo.(CurDataSetString).Hamming_flag)
 		fprintf('\nApply Hamming Filter.')    				
-		kSpace.(CurDataSetString) = HammingFilter_1_3(kSpace.(CurDataSetString),[2 3],1);
+		kSpace.(CurDataSetString) = HammingFilter(kSpace.(CurDataSetString),[2 3],1);
 	end
 
 	
