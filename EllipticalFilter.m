@@ -47,7 +47,7 @@ end
 if(~exist('EllipsoidCoefficients','var'))
    EllipsoidCoefficients = [1 1 1 32];                  % This is a ball in x-y-z-space with radius 32
 end
-EllipsoidCoefficients(EllipsoidCoefficients == 0) = 1;  % There are no zeros allowed, because through these values gets divided. 
+EllipsoidCoefficients(EllipsoidCoefficients(1:3) == 0) = 1;  % There are no zeros allowed, because through these values gets divided. 
 if(~exist('InputIskSpace_flag','var'))
    InputIskSpace_flag = true; 
 end 
