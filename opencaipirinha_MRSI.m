@@ -1,4 +1,4 @@
-function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
+function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg,quiet_flag) 
 % 
 % opencaipirinha_MRSI Reconstruct MRSI and MRI Data Undersampled With caipirinha Patterns
 % 
@@ -99,6 +99,9 @@ if(sum(sum(sum(UndersamplingCell))) == numel(UndersamplingCell))
 end
 
 
+if(~exist('quiet_flag','var'))
+	quiet_flag = false;
+end
 
 
 % Further Preparations
@@ -132,12 +135,15 @@ ElementaryCellLinearIndex = find(~UndersamplingCell);
 
 %% 1. Calculate weights
 
-
-tic;
+if(~quiet_flag)
+	tic;
+end
 if(~exist('weights','var'))
 
     % Fancy Text Message
-    fprintf('\nFilling the glasses (Calculating weights)')
+	if(~quiet_flag)
+		fprintf('\nFilling the glasses (Calculating weights)')
+	end
 
     % What does the code do here? Let's assume an UndersamplingCell like this:
     % UndersmaplingCell = 1 0 1 0
@@ -198,10 +204,12 @@ if(~exist('weights','var'))
 
 
     % Iterate over all Kernels
-    for KernelIndex = 1:nKernels
-
-        fprintf('\nFilling Glass %d',KernelIndex)
-
+	for KernelIndex = 1:nKernels
+		
+		if(~quiet_flag)
+			fprintf('\nFilling Glass %d',KernelIndex)
+		end
+		
         % Compute kernel size for processed Kernel
         kernelsize{KernelIndex} = [1 1 1 1];
         no_SourcePoints = 0;
@@ -354,16 +362,18 @@ if(~exist('weights','var'))
 
 
 
-    end
+	end
 
-    fprintf('... %f sec \n',toc)                                                          
-    fprintf('Aaaaahhh! This SMELL! \n') 
-
+	if(~quiet_flag)
+		fprintf('... %f sec \n',toc)                                                          
+		fprintf('Aaaaahhh! This SMELL! \n') 
+	end
 
 else
-    
-    fprintf('... %f sec \n',toc)                                                          
-    fprintf('Aaaaahhh! This SMELLS much BETTER! \n') 
+	if(~quiet_flag)
+		fprintf('... %f sec \n',toc)                                                          
+		fprintf('Aaaaahhh! This SMELLS much BETTER! \n') 
+	end
 end
 
 
@@ -372,8 +382,9 @@ end
 %% 2. Apply weights
 
 % Fancy Text Message
-tic; fprintf('\nDrinking CAIPIRINHA (Applyig weights) ')
-
+if(~quiet_flag)
+	tic; fprintf('\nDrinking CAIPIRINHA (Applyig weights) ')
+end
 
 
 % Create an extended matrix, extended by the maximum kernelsize. This extension is necessary, so that also the target points at the border of the matrix can be reconstructed, using the kernel.
@@ -390,8 +401,9 @@ Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxk
 
 
 for KernelIndex = 1:nKernels
-    fprintf('\nDrinking Glass %d\tGUUULLPP . . . UAHHHH . . . ',KernelIndex)
-
+	if(~quiet_flag)
+		fprintf('\nDrinking Glass %d\tGUUULLPP . . . UAHHHH . . . ',KernelIndex)
+	end
     
     % Compute all the linear indices of the target points within Reco_dummy of the processed Kernel
     UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));                  % Mark the current target point in the undersampling cell
@@ -443,8 +455,9 @@ end
 
 OutData = Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:,:);                                           %Crop out the good data.
 
-fprintf('... %f sec \n',toc)
-
+if(~quiet_flag)
+	fprintf('... %f sec \n',toc)
+end
 
 
 
@@ -454,7 +467,8 @@ fprintf('... %f sec \n',toc)
 %% ~. Postparations
 
 % Fancy Text Message
-fprintf('Mmmmhhh, I love CAIPIRINHA! \n')    
-
+if(~quiet_flag)
+	fprintf('Mmmmhhh, I love CAIPIRINHA! \n')    
+end
 
 
