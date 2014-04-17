@@ -1,4 +1,4 @@
-function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, AliasedSlices, kernelsize) 
+function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, AliasedSlices, kernelsize, quiet_flag) 
 % 
 % openslicegrappa_MRSI Reconstruct the Slices of MRSI and MRI Data Ehen Only the Sum of Those Slices Was Measured.
 % 
@@ -62,6 +62,9 @@ end
 if(~exist('ACS_or_weights','var'))
     display([char(10) 'I need Glasses ( = Auto Calibration Signal (ACS)) for preparing CAIPIRINHA! Aborting . . .'])
     return
+end
+if(~exist('quiet_flag','var'))
+	quiet_flag = false;
 end
 
 
@@ -159,8 +162,10 @@ end
 if(~exist('weights','var'))
     
     % Fancy Text Message
-    tic;
-    fprintf('\nFilling the glasses and cutting lemon slices (Calculating weights)')
+	if(~quiet_flag)
+		tic;
+		fprintf('\nFilling the glasses and cutting lemon slices (Calculating weights)')
+	end
 
     % What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
     % No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
@@ -259,10 +264,12 @@ if(~exist('weights','var'))
             weights{TargetSliceIndex} = TargetPoints_ACS * pinv(SourcePoints_ACS); 
 
         end
-    end
+	end
 
-    fprintf('\nCutting took\t... %f sec \n',toc)                                                          
-    fprintf('Aaaaahhh! This SMELL! \n')
+	if(~quiet_flag)
+		fprintf('\nCutting took\t... %f sec \n',toc)                                                          
+		fprintf('Aaaaahhh! This SMELL! \n')
+	end
 
 end
 
@@ -273,8 +280,9 @@ end
 %% 3. Apply weights
 
 % Fancy Text Message
-tic; fprintf('\nDrinking Caipirinha with slices of lemon (Applyig weights).')
-
+if(~quiet_flag)
+	tic; fprintf('\nDrinking Caipirinha with slices of lemon (Applyig weights).')
+end
 
 
 % Create an extended matrix, extended by the kernelsize. This extension is necessary, so that also the target points at the border of the matrix can be reconstructed, using the kernel.
@@ -287,7 +295,9 @@ InPlane_UndersamplingPattern = abs(squeeze(Reco_dummy(1,:,:,1,1))) > 0;
 % Create the OutData which has to have as many slices as the ACS data because we want to reconstruct all those slices.
 OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
 for SourceSliceIndex = 1:nSlice
-	fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SourceSliceIndex)   
+	if(~quiet_flag)
+		fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SourceSliceIndex)   
+	end
     % Loop over all target points for the processed kernel
     for Targetloopy = 1:numel(TargetPoints_x)   
         % Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
@@ -305,8 +315,9 @@ for SourceSliceIndex = 1:nSlice
 end
 
 
-
-fprintf('\nDrinking took\t...\t%f sec.',toc)
+if(~quiet_flag)
+	fprintf('\nDrinking took\t...\t%f sec.',toc)
+end
 
 
 
@@ -321,7 +332,8 @@ OutData = kSpace_FoVShift(OutData,-FoV_shifts);
 %% ~. Postparations
 
 % Fancy Text Message
-fprintf('\nMmmmhhh, I love Caipirinha! \n')    
-
+if(~quiet_flag)
+	fprintf('\nMmmmhhh, I love Caipirinha! \n')    
+end
 
 
