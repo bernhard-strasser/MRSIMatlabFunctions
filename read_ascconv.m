@@ -588,7 +588,7 @@ function ParList = InterpretWipMemBlock(ParList)
 			&& ~(numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1) && sum(ParList.WipMemBlock_alFree(41:50));
 
 		if(TwoDCaipInfoAvail && ParList.WipMemBlock_alFree(41) > 0 && ParList.WipMemBlock_alFree(42) > 0)
-			TwoDCaipiInterpretation.Skip_Matrix = zeros([ParList.WipMemBlock_alFree(41) ParList.WipMemBlock_alFree(42)]);
+			TwoDCaipiInterpretation.Skip_Matrix = zeros([ParList.WipMemBlock_alFree(42) ParList.WipMemBlock_alFree(41)]);
 			TwoDCaipiInterpretation.VD_Radius = ParList.WipMemBlock_alFree(43);
 			MaxAccess = 50; MaxAccess(MaxAccess > numel(ParList.WipMemBlock_alFree)) = numel(ParList.WipMemBlock_alFree);
 			Access = ParList.WipMemBlock_alFree(44:MaxAccess); 
@@ -597,7 +597,6 @@ function ParList = InterpretWipMemBlock(ParList)
 
 			if(numel(TwoDCaipiInterpretation.Skip_Matrix) > 1)
 				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = true;
-				TwoDCaipiInterpretation.Skip_Matrix = transpose(TwoDCaipiInterpretation.Skip_Matrix);
 			else
 				TwoDCaipiInterpretation.TwoDCaipParallelImaging_flag = false;
 			end
