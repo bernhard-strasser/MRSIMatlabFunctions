@@ -108,7 +108,7 @@ for CurDataSet = DataSetNames
 				% Rescale Noise to be the same like ONLINE noise
 				if( numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) == 1 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 1 && ...
 					isfield(ReadInInfo,'NOISEADJSCAN') && isfield(ReadInInfo.NOISEADJSCAN,'Dwelltime') && isfield(ReadInInfo,CurDataSet2{:}) && isfield(ReadInInfo.(CurDataSet2{:}),'Dwelltime') )
-					NoiseScalingFactor = sqrt(ReadInInfo.(CurDataSet2{:}).Dwelltime / ReadInInfo.NOISEADJSCAN.Dwelltime);
+					NoiseScalingFactor = sqrt(ReadInInfo.NOISEADJSCAN.Dwelltime / ReadInInfo.(CurDataSet2{:}).Dwelltime);
 				else
 					NoiseScalingFactor = 1;
 				end
