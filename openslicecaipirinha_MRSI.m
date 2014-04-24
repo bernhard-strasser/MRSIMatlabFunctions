@@ -1,4 +1,4 @@
-function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, AliasedSlices, kernelsize, quiet_flag) 
+function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, quiet_flag, AliasedSlices, kernelsize) 
 % 
 % openslicegrappa_MRSI Reconstruct the Slices of MRSI and MRI Data Ehen Only the Sum of Those Slices Was Measured.
 % 
@@ -48,8 +48,7 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_
 
 %% 0. Preparation
 
-% Fancy Text Message
-fprintf('\n\nLet the lemon-slice-caipirinha party start!')
+
 
 
 % Assign standard values to variables if nothing is passed to function.
@@ -80,7 +79,10 @@ elseif(numel(kernelsize) < 4)
 end
 
 
-
+% Fancy Text Message
+if(~quiet_flag)
+	fprintf('\n\nLet the lemon-slice-caipirinha party start!')
+end
 
 
 % Further Preparations
@@ -318,7 +320,7 @@ end
 if(~quiet_flag)
 	fprintf('\nDrinking took\t...\t%f sec.',toc)
 end
-
+clearvars -except quiet_flag OutData FoV_shifts weights
 
 
 
