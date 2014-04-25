@@ -99,7 +99,7 @@ if(iscell(ACS_or_weights))
     weights = ACS_or_weights; clear ACS_or_weights
     
     if(exist('FoV_shifts','var'))
-        nSlice_ACS = size(FoV_shifts,2);
+        nSlice_ACS = size(FoV_shifts,1);
     elseif(exist('AliasedSlices','var'))
         nSlice_ACS = numel(AliasedSlices);
     else
