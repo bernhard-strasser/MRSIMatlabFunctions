@@ -144,7 +144,9 @@ headersize = fread(file_fid,1, 'uint32');
 fseek(file_fid, headersize,'bof'); 
 
 chak_header = zeros([1 64]);
-kSpace = struct('ONLINE',NaN);
+chak_header_old = zeros([1 64]);
+
+kSpace.ONLINE{1} = NaN;
 ACQEND_flag = false;
 
 
@@ -222,8 +224,8 @@ while(~ACQEND_flag)
 	
 	
 	% Allocate memory
-	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet)) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
-		kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc,Info.(CurrentMeasSet).nPhasEnc, ...
+	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet){1}) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
+		kSpace.(CurrentMeasSet){1} = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc,Info.(CurrentMeasSet).nPhasEnc, ...
 		Info.(CurrentMeasSet).nPartEnc,Info.(CurrentMeasSet).nSLC,vecSize,Info.(CurrentMeasSet).nAverages]);
 	end
 	
@@ -234,6 +236,7 @@ while(~ACQEND_flag)
 	%%%%%%%%	Loop over all measurements	%%%%%%
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     BreakOutOfPrison = false;
+	Echo_Prev = 1;
     for ADC_MeasNo = 1 : Info.General.total_ADCs;
 		
 		if(BreakOutOfPrison)
@@ -262,10 +265,25 @@ while(~ACQEND_flag)
 			
 			SamplesBeforeEcho = chak_header(38) * 2 * 2;
 			
+			Echo = chak_header(14) + 1;
+			if(~(Echo == Echo_Prev))
+				% In case there changes something else than just the vecSize (=Samples) from echo to echo, this would have to be changed in the zeros here too
+				Info.(CurrentMeasSet).Samples = chak_header(8);
+				if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
+					vecSize = Info.(CurrentMeasSet).Samples;
+				else
+					vecSize = 1;
+					Info.(CurrentMeasSet).nReadEnc = Info.(CurrentMeasSet).Samples;
+				end			
+				kSpace.(CurrentMeasSet){Echo} = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc,Info.(CurrentMeasSet).nPhasEnc, ...
+				Info.(CurrentMeasSet).nPartEnc,Info.(CurrentMeasSet).nSLC,vecSize,Info.(CurrentMeasSet).nAverages]);
+			end
+			Echo_Prev = Echo;
+			
    			Rep = chak_header(16) + 1;
             slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
 			Avg = chak_header(17) + 1;									% Averages
-            %channel_no = chak_header(63-7) + 1;						% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
+            %channel_no_2 = chak_header(63-7) + 1						% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
             
 			
 			% Check if the k-points are alright
@@ -295,14 +313,13 @@ while(~ACQEND_flag)
                 slice = 1;															% some distinction between multislice/hadamard and real 3d necessary!
 			end
 			
-			
 			% Read & Assign Data
             chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
 			chak_data = chak_data(SamplesBeforeEcho+1:end);
 			if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
-                kSpace.(CurrentMeasSet)(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
+                kSpace.(CurrentMeasSet){Echo}(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
             else
-                kSpace.(CurrentMeasSet)(channel_no,:,k_x,k_z,slice,1,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
+                kSpace.(CurrentMeasSet){Echo}(channel_no,:,k_x,k_z,slice,1,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
 			end
 			
 			% Check if this was the last measurement of scan
