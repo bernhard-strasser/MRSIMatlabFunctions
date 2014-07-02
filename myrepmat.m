@@ -20,6 +20,11 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 % -         DimensionCorrespondence				...		Matrix with numel(DesiredSize) elements, which tells the function which dimension of the
 %														InArray should correspond to which index of the OutArray. zeros mean
 %														that the dimension, given by the place in DimensionCorrespondence, should be created totally new.
+%														If you dont
+%														replicate the array in a dimension that already exists (e.g. from
+%														[64 64 8] to [64 64 16] replicates in an already existing dim, but
+%														[64 64 8] to [32 64 64 8 2048] or [32 64 2 64 8] does not)
+%														you can omit DimensionCorrespondence.
 %														Example: 
 %														size(InArray) = [64 64 16]; DesiredSize = [32 64 64 32 2048]; 
 %														DimensionCorrespondence = [0 1 2 3 0];
@@ -39,6 +44,14 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 
 % Further remarks: 
 
+Feature: Changed function so that it really can handle (almost) all
+>    repmat situations. You can now pass over the DesiredSize. If you dont
+>    replicate the array in a dimension that already exists (e.g. from
+>    [64 64 8] to [64 64 16] replicates in an already existing dim, but
+>    [64 64 8] to [32 64 64 8 2048] or [32 64 2 64 8] does not)
+>    you can omit DimensionCorrespondence. Otherwise you have to tell the
+>    function with DimensionCorrespondence which dimension in the new, repmatted
+>    OutArray corresponds to which dim in the old InArray."
 
 
 %% 0. Preparations, Definitions
