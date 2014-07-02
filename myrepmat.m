@@ -1,24 +1,32 @@
-function OutArray = myrepmat(InArray,DesiredSize,ReplicationStartIndexInDesiredSize)
+function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 %
-% myrepmat_1_0 Replicate matrix to desired size
+% myrepmat Replicate matrix to desired size
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
 %
 % The normal MATLAB repmat function cannot add a dimension at the beginning of the array. E.g., if you have an array, size(array) = [64 64] and
 % you want it to replicate it to size [32 64 64] there is no easy way to do that. If you do repmat(array, [32 1 1]) you get a array of size
-% [64*32 64] = [2048 64]. This function gets you the desired [32 64 64] result.
+% [64*32 64] = [2048 64]. This function gets you the desired [32 64 64] result. So it is a generalized repmat function, the result will always
+% be your desired size (except if DesiredSize(i) < InArray(DimensionCorrespondance(1,i), because that wouldnt be replicating the matrix but
+% cutting it down)
 %
 %
-% OutArray = myrepmat_1_0(InArray,DesiredSize,ReplicationStartIndexInDesiredSize)
+% OutArray = myrepmat_1_0(InArray,DesiredSize,DimensionCorrespondence)
 %
 % Input: 
-% -         InArray                             ...    The input array that should be replicated
-% -         DesiredSize                         ...    The desired size of the replicated array. size(InArray) must occur somewhere in this var.
-% -         ReplicationStartIndexInDesiredSize  ...    Index that defines 'where size(InArray) is located in DesiredSize'. 
-%                                                      E.g.: size(InArray) = [64 64], DesiredSize = [32 64 64 64 2]; ReplicationStartInd... = 2
-%                                                      Tells the program, that the first two 64's are the InArray, thus InArray gets replicated
-%                                                      By 32 in its 'pre-Array'-dimensions, and by [64 2] in its 'post-array'-dimensions.
+% -         InArray                             ...		The input array that should be replicated
+% -         DesiredSize                         ...		The desired size of the replicated array. size(InArray) must occur somewhere in this var.
+% -         DimensionCorrespondence				...		Matrix with numel(DesiredSize) elements, which tells the function which dimension of the
+%														InArray should correspond to which index of the OutArray. zeros mean
+%														that the dimension, given by the place in DimensionCorrespondence, should be created totally new.
+%														Example: 
+%														size(InArray) = [64 64 16]; DesiredSize = [32 64 64 32 2048]; 
+%														DimensionCorrespondence = [0 1 2 3 0];
+%														That means: DesiredSize(1) = 32 should be repmatted from the scratch (so just take
+%														the InArray, replicate it 32 times, and bring the new dimension to the right position).
+%														The first index of size(InArray) should be replicated to the second index of the DesiredSize
+%														(since they are the same, nothing has to be done). etc. etc.
 %
 % Output:
 % -         OutArray                            ...    The replicated output array
@@ -38,79 +46,87 @@ function OutArray = myrepmat(InArray,DesiredSize,ReplicationStartIndexInDesiredS
 
 
 % 0.1 Preparations
-
-OutArray = InArray;
+Size_InArray = size(InArray);
+if(Size_InArray(end) == 1)
+	Size_InArray(end) = [];
+end
+if(numel(Size_InArray) == 2 && Size_InArray(1) == 1)
+	Size_InArray(1) = [];
+end
+OutArray = InArray; clear InArray;
 
 if(~exist('DesiredSize', 'var'))
     return
 end
-if(~exist('ReplicationStartIndexInDesiredSize', 'var'))
-    % Find first index where the size(InArray) occurs in DesiredSize and assign that value to StartIndexFor... 
-    % E.g. if size(InArray) = [64 64], DesiredSize = [32 64 64 4], then we find size(InArray) in DesiredSize at starting index = 2;   
-    ReplicationStartIndexInDesiredSize = strfind(reshape(DesiredSize',1,[]),size(InArray));
-    if(isempty(ReplicationStartIndexInDesiredSize))
-       display([ char(10) 'Error: size(InArray) must occur in DesiredSize.' ])
+
+
+if(~exist('DimensionCorrespondence', 'var'))
+	
+	DimensionCorrespondence = zeros([1 numel(DesiredSize)]);
+	Size_InArray_dum = Size_InArray;
+	% Create DimensionCorrespondence by checking index by index if Size_InArray is somehow distributed in DesiredSize
+	for curoutind=1:numel(DesiredSize)
+		
+		% Check if DesiredSize(curoutind) is in Size_InArray_dum
+		IndexMatch = Size_InArray_dum == DesiredSize(curoutind);
+		if(sum(IndexMatch) > 0)
+			IndexOfInArrayWhichMatched = find(IndexMatch);
+			DimensionCorrespondence(curoutind) = IndexOfInArrayWhichMatched(1);
+			Size_InArray_dum(IndexOfInArrayWhichMatched(1)) = 0;
+		end
+	end
+	
+	% If not all of the indices of Size_InArray were found in DesiredSize, the automatic calculation of DimensionCorespondence doesnt work. Display error.  
+	if(sum(Size_InArray_dum) > 0)
+       display([ char(10) 'Error: All elements of size(InArray) must occur in DesiredSize.' char(10) 'Automatic calculation of DimensionCorrespondence failed. Manual input needed.' ])
        return
-    end
+	end
+	
+	clear Size_InArray_dum
+	
+end
+
+
+
+%% 1. Exchange dims if DimensionCorrespondence is not ordered
+
+DimensionCor_NoZeros = DimensionCorrespondence(DimensionCorrespondence>0);
+[DimensionCor_NoZeros,Permut] = sort(DimensionCor_NoZeros);
+DimensionCorrespondence(DimensionCorrespondence>0) = DimensionCor_NoZeros;
+OutArray = permute(OutArray, Permut);
+Size_InArray = size(OutArray);
+
+
+
+%% 2. Replicate
+
+OrigExpandedSize = ones([1 numel(DesiredSize)]);
+OrigExpandedSize(DimensionCorrespondence > 0) = Size_InArray(DimensionCorrespondence(DimensionCorrespondence>0)); % Now that looks nasty!
+
+for curoutdim = 1:numel(DesiredSize)
+	
+	Size_InArray = size(OutArray);
+	%RepMatTo = cat(2,ones([1 numel(Size_InArray)]),DesiredSize(curoutdim)/OrigExpandedSize(curoutdim));
+	
+	
+	RepMatTo = ones([1 numel(Size_InArray) + 0^DimensionCorrespondence(curoutdim)]);  % 0^... is 1 if DimCorr=0, otherwise 0.
+	if(DimensionCorrespondence(curoutdim) == 0)
+		ReshapeTo = RepMatTo;
+		ReshapeTo(setdiff(1:numel(ReshapeTo),curoutdim)) = Size_InArray;
+		OutArray = reshape(OutArray,ReshapeTo);
+	end
+	RepMatTo(curoutdim) = DesiredSize(curoutdim)/OrigExpandedSize(curoutdim);
+	
+	OutArray = repmat(OutArray,RepMatTo);
+	
+	
 end
 
 
 
 
 
-% 0.2 Definitions
-  
-% Index which determines the first 'post-array'-index
-ReplicationEndIndexInDesiredSize = ReplicationStartIndexInDesiredSize + numel(size(InArray));
 
-% In case of input-array is vector, it has only one dimension, but nevertheless matlab says it has 2 (all numbers/arrays have minimum dimensionality of 2 in MATLAB).
-if(ndims(InArray) == 2 && size(InArray,2) == 1)
-    ReplicationEndIndexInDesiredSize = ReplicationEndIndexInDesiredSize - 1;
-end
-
-
-
-
-%% 1. Replicate the 'pre-array' dimensions
-% Loop over these 'pre-array' dimensions, beginning from the last one. Replicate along the dimension, so that this dimension is at the END of the
-% resulting array. Then put this dimension to the beginning.
-% Example: size(InArray) = [64 64]; DesiredSize = [32 2 64 64]; ReplicationStartIndexInDesiredSize = 3;
-% First loop:  replicate from [64 64]    --> [64 64 2];     Reorder to [2 64 64];
-% Second loop: replicate from [2 64 64]  --> [ 2 64 64 32]; Reorder to [32 2 64 64]
-
-for Dim = ReplicationStartIndexInDesiredSize-1:-1:1                  
-   
-    if(DesiredSize(Dim) == 1)
-        OutArray = reshape(OutArray, [1 size(OutArray)]);
-    else
-        Repmat_vector = [ones([1 ndims(OutArray)]) DesiredSize(Dim)];   % Create vector e.g. [1 1 1 32] for example above
-        OutArray = repmat(OutArray,Repmat_vector);
-        OutArray = shiftdim(OutArray,ndims(OutArray)-1);                % Shift all dimensions ndims(OutArray) positions to the left, so that the last dim gets the 1st
-    end
-end
-
-
-
-%% 2. Replicate the 'post-array' dimensions
-% Use repmat function directly to create all the 'post-array' dimensions, because for those the repmat works directly.
-% Example: size(InArray) = [64 64]; DesiredSize = [32 64 64 1024 2]; ReplicationStartIndexInDesiredSize = 2;
-% The above 'pre-array' procedure will give us: size(OutArray) = [32 64 64];
-% OutArray = repmat(OutArray,[1 1 1 1024 2]). This will give us size(OutArray) = [32 64 64 1024 2]
-
-if(ndims(OutArray) ~= numel(DesiredSize))                        % if matrix is not yet replicated to DesiredSize
-    Repmat_vector = DesiredSize;
-    Repmat_vector(1:ReplicationEndIndexInDesiredSize-1) = 1;
-
-    OutArray = repmat(OutArray,Repmat_vector);
-end
-
-
-
-
-
-%% 3. Postparations
-
-% fclose(fid)
 
 
 
