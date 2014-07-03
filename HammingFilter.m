@@ -144,7 +144,7 @@ if(strcmpi(RadialOrOuterProduct,'Radial'))
 	
 else
 	
-	HammingFilter = zeros(size(OutArray));	
+	HammingFilter = ones(size(OutArray));	
 	for hamming_dim = ApplyAlongDims                                            % Compute Hamming filter in each dimension seperately
 
 
