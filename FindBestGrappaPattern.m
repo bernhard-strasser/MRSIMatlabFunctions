@@ -126,7 +126,7 @@ R_VD = 1./(1/R - 1./R_Actual);
 
 BestPatterns.Indices = 1:numel(R_x);
 BestPatterns.Patterns = ones([1 numel(R_x)]);
-BestPatterns.CellSizes = cat(1,R_x,R_y);
+BestPatterns.CellSizes = cat(1,R_x,R_y); BestPatterns.CellSizes = transpose(BestPatterns.CellSizes);
 no_Patterns = numel(R_x);
 
 
