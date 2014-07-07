@@ -148,8 +148,9 @@ end
 
 
 if(EachNonMeasPtHasOwnKernel_flag)
-	MinDist = zeros([1 numel(CutOutCell)]);
-	MinDist2 = zeros([1 numel(CutOutCell)]);
+% 	MinDist = zeros([1 numel(CutOutCell)]);
+% 	MinDist2 = zeros([1 numel(CutOutCell)]);
+	distance_sum3 = zeros([1 numel(CutOutCell)]);
 	for KernelIndex = 1:numel(CutOutCell)
 
 		
@@ -170,17 +171,22 @@ if(EachNonMeasPtHasOwnKernel_flag)
 		% Compute the Euclidean distance
 		distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
 
-		% Get min distance for each non-meas pt and weight that inversely with the number of occurences
-		MinDist_dum = min(distance_mat,[],1);
-		MinDist_dum2 = distance_mat; MinDist_dum2(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1])) = Inf;
-		MinDist_dum2 = min(MinDist_dum2,[],1); 
-
-		MinDist_dum = MinDist_dum ./ sqrt(sum(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1]),1));
-		MinDist_dum2 = MinDist_dum2 ./ sqrt(sum(distance_mat == repmat(MinDist_dum2,[size(distance_mat,1) 1]),1));
-		MinDist_dum2 = 0;
 		
-		MinDist(KernelIndex) = MinDist_dum;
-		MinDist2(KernelIndex) = MinDist_dum2;
+		
+		% OLD
+% 		% Get min distance for each non-meas pt and weight that inversely with the number of occurences
+% 		MinDist_dum = min(distance_mat,[],1);
+% 		MinDist_dum2 = distance_mat; MinDist_dum2(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1])) = Inf;
+% 		MinDist_dum2 = min(MinDist_dum2,[],1); 
+% 
+% 		MinDist_dum = MinDist_dum ./ sqrt(sum(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1]),1));
+% 		MinDist_dum2 = MinDist_dum2 ./ sqrt(sum(distance_mat == repmat(MinDist_dum2,[size(distance_mat,1) 1]),1));
+% 		MinDist_dum2 = 0;
+% 		
+% 		MinDist(KernelIndex) = MinDist_dum;
+% 		MinDist2(KernelIndex) = MinDist_dum2;
+		% OLD END
+
 		
 
 		%MinDist1 = min(distance_mat,[],1) ./ 
@@ -189,11 +195,11 @@ if(EachNonMeasPtHasOwnKernel_flag)
 		distance_sum3_dum = sort(distance_mat);
 		distance_sum3(KernelIndex) = sum(distance_sum3_dum(1:3));
 
-		% And the mean distance (mena over all measured points) 
-		distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
-
-		% And the min distance (min over all measured points) 
-		distance_min = min(distance_mat,[],2);	
+% 		% And the mean distance (mena over all measured points) 
+% 		distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
+% 
+% 		% And the min distance (min over all measured points) 
+% 		distance_min = min(distance_mat,[],2);	
 
 
 
@@ -223,26 +229,34 @@ else
 	% Compute the Euclidean distance
 	distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
 	
-	% Get min distance for each non-meas pt and weight that inversely with the number of occurences
-	MinDist = min(distance_mat,[],1);
-	MinDist2 = distance_mat; MinDist2(distance_mat == repmat(MinDist,[size(distance_mat,1) 1])) = Inf;
-	MinDist2 = min(MinDist2,[],1); 
 	
-	MinDist = MinDist ./ sqrt(sum(distance_mat == repmat(MinDist,[size(distance_mat,1) 1]),1));
-	MinDist2 = MinDist2 ./ sqrt(sum(distance_mat == repmat(MinDist2,[size(distance_mat,1) 1]),1));
-	MinDist2 = 0;
+	
+	% OLD
+% 	% Get min distance for each non-meas pt and weight that inversely with the number of occurences
+% 	MinDist = min(distance_mat,[],1);
+% 	MinDist2 = distance_mat; MinDist2(distance_mat == repmat(MinDist,[size(distance_mat,1) 1])) = Inf;
+% 	MinDist2 = min(MinDist2,[],1); 
+% 	
+% 	MinDist = MinDist ./ sqrt(sum(distance_mat == repmat(MinDist,[size(distance_mat,1) 1]),1));
+% 	MinDist2 = MinDist2 ./ sqrt(sum(distance_mat == repmat(MinDist2,[size(distance_mat,1) 1]),1));
+% 	MinDist2 = 0;
+% 	
+	% 	% And the mean distance (mena over all measured points) 
+% 	distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
+% 	
+% 	% And the min distance (min over all measured points) 
+% 	distance_min = min(distance_mat,[],2);	
 	
 	%MinDist1 = min(distance_mat,[],1) ./ 
+	% OLD END
+	
+	
 	
 	% sum distance of closest 3 pts
-	distance_sum3 = sort(distance_mat);
-	distance_sum3 = sum(distance_sum3(1:3));	
+	distance_sum3 = sort(distance_mat,1);
+	distance_sum3 = sum(distance_sum3(1:3,:),1);	
 	
-	% And the mean distance (mena over all measured points) 
-	distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
-	
-	% And the min distance (min over all measured points) 
-	distance_min = min(distance_mat,[],2);	
+
 end
 
 
@@ -257,10 +271,10 @@ end
 
 %% 1. Compute the quality measure
 
-QualityMeasure(1) = max(distance_min);
-QualityMeasure(2) = max(distance_mean);
-QualityMeasure(3) = mean(MinDist+MinDist2);
-QualityMeasure(4) = max(distance_sum3);
+% QualityMeasure(1) = max(distance_min);
+% QualityMeasure(2) = max(distance_mean);
+% QualityMeasure(3) = mean(MinDist+MinDist2);
+QualityMeasure(1) = max(distance_sum3);
 
 
 
