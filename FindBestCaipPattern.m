@@ -53,11 +53,36 @@ if(~exist('no_WantedPatterns','var'))
     no_WantedPatterns = 0;
 end
 
+if(no_measured_points == 1)
+	BestPatterns.Indices = 1;
+	BestPatterns.Patterns = 1;
+	BestPatterns.CellSizes = cell_size;
+	BestXPercPatterns = BestPatterns;
+	no_Patterns = 1;
+    QualityMeasure = DistBtwMeasPts(1, cell_size,0);
+    AllPatterns = 1;
+    return
+end
+
+
 
 
 % Check if too many patterns are possible
 no_Patterns = nchoosek(prod(cell_size)-1,no_measured_points-1);
+MatrixSize_GBytes = 2*no_Patterns*(no_measured_points-1)*8/2^30;
 fprintf('\n\n%d possible patterns.', no_Patterns)
+
+try
+	[memused,memfree] = memused_linux(1);
+catch
+	memfree = 8000;
+end
+
+if(MatrixSize_GBytes > memfree/2^10)
+    fprintf('\nSorry, there is not enough memory free.\n')
+    return
+end
+
 
 if(no_Patterns > 10^9)
     fprintf('\nThese are too many. I will quit here.')
@@ -81,7 +106,12 @@ if(no_WantedPatterns <= 0)
 else
     PercentageBestPatterns = no_WantedPatterns/no_Patterns;
 end
+PercentageBestPatterns(PercentageBestPatterns > 1) = 1;
+
 fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*100)    
+
+
+
 
 
 
@@ -89,22 +119,24 @@ fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*
 %% 1. Create All Possible Patterns of the Measured Points.
 
 
+
 AllPatterns = nchoosek(2:prod(cell_size),no_measured_points-1);    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
 AllPatterns = cat(2, ones(size(AllPatterns,1),1), AllPatterns);          % Add the point (1,1) to all Patterns.
 
 
 
+
 %% 2. Loop over all Patterns, Compute the mean distance for each.
 
-QltyMeas_dummy = DistBtwMeasPts(squeeze(AllPatterns(1,:)), cell_size,0);
+QltyMeas_dummy = kSpace_DistBtwMeasAndNonMeasPts2(squeeze(AllPatterns(1,:)), cell_size,1);
 NoQltyMeas = size(QltyMeas_dummy,2);
 
-QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas]);
+QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas],'single');
 clear QltyMeas_dummy NoQltyMeas
 
 for Patt_no = 1:size(AllPatterns,1)
     
-    QualityMeasure(Patt_no,:) = DistBtwMeasPts(squeeze(AllPatterns(Patt_no,:)), cell_size,0);
+    QualityMeasure(Patt_no,:) = single(kSpace_DistBtwMeasAndNonMeasPts2(squeeze(AllPatterns(Patt_no,:)), cell_size,1));
     
 end
 
@@ -134,7 +166,10 @@ Index_Best = repmat(Index_Best, [1 no_measured_points]);
 
 BestPatterns.Patterns = AllPatterns(Index_Best);
 BestXPercPatterns.Patterns = AllPatterns(Index_BestXPerc);
-
+if(nargout < 5)
+	clear AllPatterns;
+end
+	
 BestPatterns.Patterns = reshape(BestPatterns.Patterns, [numel(BestPatterns.Patterns)/no_measured_points no_measured_points]);
 BestXPercPatterns.Patterns = reshape(BestXPercPatterns.Patterns, [numel(BestXPercPatterns.Patterns)/no_measured_points no_measured_points]);
 
@@ -142,7 +177,8 @@ BestPatterns.Patterns = transpose(BestPatterns.Patterns);
 BestXPercPatterns.Patterns = transpose(BestXPercPatterns.Patterns);
 
 
-
+BestPatterns.CellSizes = transpose(squeeze(repmat(cell_size,[1 1 size(BestPatterns.Patterns,2)])));
+BestXPercPatterns.CellSizes = transpose(squeeze(repmat(cell_size,[1 1 size(BestXPercPatterns.Patterns,2)])));
 
 
 
