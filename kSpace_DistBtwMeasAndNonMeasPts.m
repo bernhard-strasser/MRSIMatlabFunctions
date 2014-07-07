@@ -121,6 +121,7 @@ QualityMeasure_mean = 1.0*mean(mean(distance_mat,1),2);    % Compute a quality m
 QualityMeasure_max = max(reshape(distance_mat,[1 numel(distance_mat)]));    % Compute a quality measure.
 
 
+QualityMeasure_maxmean = 1.0*max(mean(distance_mat,2),1);    % Compute a quality measure.
 
 
 
@@ -133,7 +134,7 @@ QualityMeasure_max = max(reshape(distance_mat,[1 numel(distance_mat)]));    % Co
 
 
 
-QualityMeasure = cat(2,QualityMeasure_mean,QualityMeasure_max);
+QualityMeasure = cat(2,QualityMeasure_mean,QualityMeasure_max,QualityMeasure_maxmean);
 
 
 
