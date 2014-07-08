@@ -184,3 +184,9 @@ BestXPercPatterns.CellSizes = transpose(squeeze(repmat(cell_size,[1 1 size(BestX
 
 
 
+
+%% 4. Exclude similar patterns
+
+% Not yet done -- Is it really necessary?
+
+
