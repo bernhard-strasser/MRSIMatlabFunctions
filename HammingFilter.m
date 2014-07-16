@@ -1,20 +1,22 @@
 function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
 %
-% EllipticalFilter_1_0 Apply an elliptical filter to k-space data
+% HammingFilter Apply an Hamming filter to (k-space) data
 %
-% This function was written by Bernhard Strasser, July 2012.
-%
-%
-% The function masks the data in k-space, so that k-space values outside of an ellipsoid-shaped mask are set to zero. The mask can be a
-% 3d-ellipsoid, or an 2d-ellipse. The equation for the mask is
-% mask = {(x,y,z) E R³ | (x/a)² + (y/b)² + (z/c)² <= R²}
-% a, b, c, and R can be chosen by the user.
+% This function was written by Bernhard Strasser, July 2012 - July 2014.
 %
 %
-% [A,B] = read_csi_dat_1_10(inputvar1,inputvar2)
+% The function applies a Hamming filter to the input-data. You can specify along which dimensions this should be done (e.g. [2 4 5 6]). You can
+% also specify the filter width in %, e.g. a FilterWidth of 70 % leaves the inner 30% of the k-Space untouched and applies the filter only
+% along the 70 % of the outer data. You can also specify how the multi-dimensional filter is created, i.e. by the OuterProduct, 
+% Hamming2D(x,y) = Hamming1D(x) * Hamming1D(y), or by a Radial 'rotation' (e.g. creating a 1D-hamming filter along the x-axis and then rotating
+% that around the z-axis to get a 2D-filter. If you tell the function that the Input is already in kSpace, no fft is performed before applying
+% the filter.
+%
+%
+% [OutArray,HammingFilter] = HammingFilter(InArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
 %
 % Input: 
-% -         OutArray                    ...		Input array to which the filter should be applied. For memory reasons InArray = OutArray.
+% -         InArray                    ...		Input array to which the filter should be applied. For memory reasons InArray = OutArray.
 % -         ApplyAlongDims              ...		Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %												Filter is applied. Otherwise, a 3d filter is used.
 % -			FilterWidth					...		Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
