@@ -16,26 +16,26 @@ function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,Filter
 % [OutArray,HammingFilter] = HammingFilter(InArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
 %
 % Input: 
-% -         InArray                    ...		Input array to which the filter should be applied. For memory reasons InArray = OutArray.
-% -         ApplyAlongDims              ...		Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
-%												Filter is applied. Otherwise, a 3d filter is used.
-% -			FilterWidth					...		Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
-%												filter width of n % means filter is only applied on n % (n/2 % on left, n/2 % on right) of
-%												the data, the rest of the data is untouched (filter is set to 1 there).
-% -         RadialOrOuterProduct        ...		Input: 'Radial' or 'OuterProduct'. Default: 'Radial'. There are two different methods to
-%												create an n-dimensional filter from an 1-d filter: The OuterProduct is nothing more
-%												than applying the 1d-filter in each dimension consecutively, 
-%												i.e. Filter_nD(x1,x2,...,xn) = Filter_1D(x1)*Filter_1D(x2)*...*Filter_1D(xn)
-%												Radial in contrary does Filter(x1,x2,...,xn) = Filter_1D(||x - M||), where x = (x1,x2,...,xn), 
-%												and M is something like a center (around which point the filter should be applied, e.g.
-%												the k-Space center). (Note: In fact it is a little more complicated, because if we want to
-%												filter a 64x32 matrix, we have actually a elliptical filter, not radial...)
-% -         InputIskSpace_flag          ...		If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
-%												and transformed back to image domain afterwards
+% -         InArray                    ...    Input array to which the filter should be applied. For memory reasons InArray = OutArray.
+% -         ApplyAlongDims             ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
+%                                             Filter is applied. Otherwise, a 3d filter is used.
+% -         FilterWidth                ...    Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
+%                                             filter width of n % means filter is only applied on n % (n/2 % on left, n/2 % on right) of
+%                                             the data, the rest of the data is untouched (filter is set to 1 there).
+% -         RadialOrOuterProduct       ...    Input: 'Radial' or 'OuterProduct'. Default: 'Radial'. There are two different methods to
+%                                             create an n-dimensional filter from an 1-d filter: The OuterProduct is nothing more
+%                                             than applying the 1d-filter in each dimension consecutively, 
+%                                             i.e. Filter_nD(x1,x2,...,xn) = Filter_1D(x1)*Filter_1D(x2)*...*Filter_1D(xn)
+%                                             Radial in contrary does Filter(x1,x2,...,xn) = Filter_1D(||x - M||), where x = (x1,x2,...,xn), 
+%                                             and M is something like a center (around which point the filter should be applied, e.g.
+%                                             the k-Space center). (Note: In fact it is a little more complicated, because if we want to
+%                                             filter a 64x32 matrix, we have actually a elliptical filter, not radial...)
+% -         InputIskSpace_flag         ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
+%                                             and transformed back to image domain afterwards
 %
 % Output:
-% -         OutArray                    ...		The filtered/masked output array
-% -         HammingFilter               ...		The values of the Hamming filter in k-Space.
+% -         OutArray                   ...    The filtered/masked output array
+% -         HammingFilter              ...    The values of the Hamming filter in k-Space.
 %
 %
 % Feel free to change/reuse/copy the function. 
