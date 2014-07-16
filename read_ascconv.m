@@ -82,7 +82,9 @@ ParList_Search =  { ...
 'alTE\[\d+\]',                                                  ...     % 35
 'tFree',														...		% 36
 'lAverages',													...		% 37
-'sWiPMemBlock\.alFree\[(\d){1,2}\]'								...		% 38	All variables set in Special Card + those from above
+'sWiPMemBlock\.alFree\[(\d){1,2}\]',							...		% 38	All variables set in Special Card + those from above
+'sKSpace.ucPhasePartialFourier',								...		% 39
+'sKSpace.ucSlicePartialFourier'									...		% 40
 };
 
 
@@ -126,7 +128,9 @@ ParList_Assign = { ...
 'TEs',                                                              ...     % 35
 'wipMemBlock_tFree',												...		% 36
 'nAverages',														...		% 37
-'WipMemBlock_alFree'												...		% 38
+'WipMemBlock_alFree',												...		% 38
+'PhasePartialFourier',												...		% 39
+'SlicePartialFourier'												...		% 40
 };
 
 
@@ -169,7 +173,9 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 35
 'char',																...		% 36
 'str2double',														...		% 37
-'str2double'														...		% 38
+'str2double',														...		% 38
+'char',																...		% 39
+'char'																...		% 40
 };
 
 
@@ -310,9 +316,11 @@ end
 
 % Interleaved Acquisition: Slice Ordering
 if(strcmp(ParList.InterleavedSliceAcquisition, '0x1'))
-    ParList.InterleavedSliceAcquisition = false;
+	ParList.InterleavedSliceAcquisition = false;
 elseif(strcmp(ParList.InterleavedSliceAcquisition, '0x2'))
-       ParList.InterleavedSliceAcquisition = true; 
+	ParList.InterleavedSliceAcquisition = true;
+elseif(strcmp(ParList.InterleavedSliceAcquisition, '0x4'))
+	ParList.InterleavedSliceAcquisition = 3;				% Single-Shot	   
 end
 
 % 3D_flag
@@ -329,8 +337,31 @@ else
     ParList.SaveUncombined_flag = false;
 end
 
+% Phase Partial Fourier
+if(strcmp(ParList.PhasePartialFourier, '0x1'))
+    ParList.PhasePartialFourier = 4/8;
+elseif(strcmp(ParList.PhasePartialFourier, '0x2'))
+    ParList.PhasePartialFourier = 5/8;
+elseif(strcmp(ParList.PhasePartialFourier, '0x4'))
+    ParList.PhasePartialFourier = 6/8;
+elseif(strcmp(ParList.PhasePartialFourier, '0x8'))
+    ParList.PhasePartialFourier = 7/8;
+else
+    ParList.PhasePartialFourier = 0;
+end
 
-
+% Slice Partial Fourier
+if(strcmp(ParList.SlicePartialFourier, '0x1'))
+    ParList.SlicePartialFourier = 4/8;
+elseif(strcmp(ParList.SlicePartialFourier, '0x2'))
+    ParList.SlicePartialFourier = 5/8;
+elseif(strcmp(ParList.SlicePartialFourier, '0x4'))
+    ParList.SlicePartialFourier = 6/8;
+elseif(strcmp(ParList.SlicePartialFourier, '0x8'))
+    ParList.SlicePartialFourier = 7/8;
+else
+    ParList.SlicePartialFourier = 0;
+end
 
 % Corrections
 
