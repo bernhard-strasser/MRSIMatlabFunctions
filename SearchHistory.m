@@ -62,7 +62,7 @@ HistoryString = fscanf(history_fid,'%c');
 
 Daty = regexp(HistoryString,'%{1,2}--.{12,33}--%{1,2}','match');
 HistoryString_DateSplit = regexp(HistoryString,'%{1,2}--.{15,33}--%{1,2}','split');
-search_match = feval(SearchFunction,HistoryString_DateSplit,['\n[^\n]*' SearchString '[^\n]*\n'],'match');
+search_match = feval(SearchFunction,HistoryString_DateSplit,['[^\n]*' SearchString '[^\n]*\n'],'match');
 
 
 
