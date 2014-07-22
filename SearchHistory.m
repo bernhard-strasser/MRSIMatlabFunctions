@@ -1,29 +1,21 @@
 function SearchHistory(SearchString,CaseInsensitive_flag)
 %
-% SearchHistory Searches the file prefdir/history.m. 
+% SearchHistory Searches the command history. 
 %
 % This function was written by Bernhard Strasser, July 2014.
 %
 %
-% The function masks the data in k-space, so that k-space values outside of an ellipsoid-shaped mask are set to zero. The mask can be a
-% 3d-ellipsoid, or an 2d-ellipse. The equation for the mask is
-% mask = {(x,y,z) E R³ | (x/a)² + (y/b)² + (z/c)² <= R²}
-% a, b, c, and R can be chosen by the user.
+% The function searches the command history (file prefdir/history.m) for SearchString.
 %
 %
-% [OutArray,mask] = EllipticalFilter_x_y(OutArray,ApplyAlongDims,EllipsoidCoefficients,PerformFFT_flag)
+% SearchHistory(SearchString,CaseInsensitive_flag)
 %
 % Input: 
-% -     OutArray                     ...    Input array to which the filter should be applied
-% -     ApplyAlongDims               ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
-%                                          Filter is applied. Otherwise, a 3d filter is used.
-% -     EllipsoidCoefficients        ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
-%                                          Filter, set c = 1;
-% -     PerformFFT_flag              ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
-%                                          and transformed back to image domain afterwards
+% -     SearchString                   ...    String you want to search for.
+% -     CaseInsensitive_flag           ...    If you want to search case insensitive, set this flag to true or 1.
 %
 % Output:
-% -     IND                     ...     c
+% None
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -46,6 +38,12 @@ end
 if(~exist('CaseInsensitive_flag','var'))
 	CaseInsensitive_flag = false;
 end
+if(CaseInsensitive_flag)
+	SearchFunction = 'regexpi';
+else
+	SearchFunction = 'regexp';
+end
+	
 
 % 0.2 Declarations
 
@@ -64,7 +62,7 @@ HistoryString = fscanf(history_fid,'%c');
 
 Daty = regexp(HistoryString,'%{1,2}--.{12,33}--%{1,2}','match');
 HistoryString_DateSplit = regexp(HistoryString,'%{1,2}--.{15,33}--%{1,2}','split');
-search_match = regexp(HistoryString_DateSplit,['\n[^\n]*' SearchString '[^\n]*\n'],'match');
+search_match = feval(SearchFunction,HistoryString_DateSplit,['\n[^\n]*' SearchString '[^\n]*\n'],'match');
 
 
 
