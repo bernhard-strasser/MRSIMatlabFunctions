@@ -102,90 +102,43 @@ end
 % source points to a target point is computed within the kernel, and this relative information is applied to the target points
 % in order to get the source points. Then the linear indices can be computed.
 
-[sizes_x, sizes_y] = cellfun(@size,varargin); clear sizes_y;
+[AccessPointSize, sizes_y] = cellfun(@size,varargin); clear sizes_y;
 
 
+% We have to replicate also
 if( isstruct(AdditionalReplication) )
-	
+	AccessPointSize = [AccessPointSize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) AccessPointSize(AdditionalReplication.DimPos:end)];
 end
 
 sub2indString = 'sub2ind(ArraySize';
 for dim = 1:numel(ArraySize)
+	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim) = 1;
 	
+	
+	% Replicate the part of AdditionalReplication and add to varargin.
 	if( isstruct(AdditionalReplication) && sum(dim == AdditionalReplication.AddToDims) > 0 )
-		AddDim = 0;
+		RepmatTo = [numel(varargin{dim}) size(AdditionalReplication.Mat,1)];
+		AddPts = int16(myrepmat(AdditionalReplication.Mat(:,dim == AdditionalReplication.AddToDims),RepmatTo,[0 1]));
+		varargin{dim} = myrepmat(varargin{dim},RepmatTo,[1 0]) + AddPts;
 		if(AdditionalReplication.DimPos <= dim)
-			AddDim = 1;
+			varargin{dim} = transpose(varargin{dim});
+			DimCorr(dim) = 0; DimCorr(dim+1) = 2; DimCorr(AdditionalReplication.DimPos) = 1;
+		else
+			DimCorr(AdditionalReplication.DimPos) = 2;
 		end
-		RepmatTo = ones([1 size(ArraySize,2)+numel(AdditionalReplication.DimPos)]); RepmatTo(AdditionalReplication.DimPos) = size(AdditionalReplication.Mat,1); RepmatTo(dim+AddDim) = numel(varargin{dim});
-		DimCorr = zeros([1 AdditionalReplication.DimPos]); DimCorr2 = DimCorr; 
-		DimCorr(AdditionalReplication.DimPos) = 1; DimCorr(dim+AddDim) = 0; DimCorr2(AdditionalReplication.DimPos) = 0; DimCorr2(dim+AddDim) = 1;
-		AddPts = int16(myrepmat(AdditionalReplication.Mat(:,dim == AdditionalReplication.AddToDims),RepmatTo,DimCorr));
-		varargin{dim} = myrepmat(varargin{dim},RepmatTo,DimCorr2) + AddPts;
-	else
-	
-		% Replicate each of the vectors to an array of the outer products of all vectors
-		DimCorr = zeros([1 numel(sizes_x)]); DimCorr(dim) = 1;
-		varargin{dim} = myrepmat(varargin{dim},sizes_x,DimCorr);
-		varargin{dim} = reshape(varargin{dim},[1 numel(varargin{dim})]);
-
 	end
+	
+	% Replicate each of the vectors to an array of the outer products of all vectors
+
+	varargin{dim} = myrepmat(varargin{dim},AccessPointSize,DimCorr);
+	varargin{dim} = reshape(varargin{dim},[1 numel(varargin{dim})]);
+
 	
 	sub2indString = [sub2indString ', uint32(varargin{' num2str(dim) '})'];
 end
 sub2indString = [sub2indString ');'];
 
 IND = eval(sub2indString);
-
-
-
-% Source_Channels = int16(transpose(1:nChannel));
-% Source_Channels = repmat(Source_Channels, [1 no_SourcePoints nx_ACS_wo_border ny_ACS_wo_border]);
-% 
-% % Create spatial info
-% Source_x = int16(kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2));
-% Source_y = int16(kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
-% 
-% % Copy Source to Target Points
-% Target_x = Source_x;
-% Target_y = Source_y;
-% 
-% % Apply Relative Info
-% Source_x = repmat(transpose(Source_x), [1 no_SourcePoints]);
-% Source_y = repmat(transpose(Source_y), [1 no_SourcePoints]);
-% Source_x = Source_x + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,1)),[1 no_SourcePoints]),[size(Source_x,1) 1]);
-% Source_y = Source_y + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,2)),[1 no_SourcePoints]),[size(Source_y,1) 1]);
-% 
-% % Replicate spatial info
-% Source_x = repmat(Source_x, [1 1 nChannel ny_ACS_wo_border]);
-% Source_y = repmat(reshape(Source_y, [ny_ACS_wo_border no_SourcePoints]), [1 1 nChannel nx_ACS_wo_border]);
-% 
-% % Reorder Source Points
-% Source_x = permute(Source_x, [3 2 1 4]);
-% Source_y = permute(Source_y, [3 2 4 1]);
-% 
-% 
-% % Target Points
-% Target_Channels = reshape(Source_Channels(:,1,:,:), [nChannel nx_ACS_wo_border ny_ACS_wo_border]);
-% Target_x = repmat(Target_x,[nChannel 1 ny_ACS_wo_border]);
-% Target_y = repmat(reshape(Target_y,[1 1 numel(Target_y)]),[nChannel nx_ACS_wo_border 1]);
-% 
-% 
-% % Linear Indices
-% Target_linear = sub2ind( ...
-% [nChannel nx_ACS ny_ACS], uint32(reshape(Target_Channels, [1 numel(Target_Channels)])), uint32(reshape(Target_x, [1 numel(Target_x)])), uint32(reshape(Target_y, [1 numel(Target_y)])));    
-% Source_linear = sub2ind( ...
-% [nChannel nx_ACS ny_ACS], uint32(reshape(Source_Channels, [1 numel(Source_Channels)])), uint32(reshape(Source_x, [1 numel(Source_x)])), uint32(reshape(Source_y, [1 numel(Source_y)])));
-% % For Reconstructing MRSI data, uint32 has to be changed to uint64
-% 
-% if(max(Source_linear) > 2^31)
-% 	max(Source_linear)
-% 	display('Change to uint64 in code. Aborting.')
-% 	OutData = InData; weights = 0;
-% 	return
-% end
-
-
 
 
 
