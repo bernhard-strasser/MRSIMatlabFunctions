@@ -78,10 +78,11 @@ end
 for DateIndex = 1:numel(search_match)
 	
 	if(ismember(0,cellfun(@isempty,search_match{DateIndex})))
-		fprintf('\n\n%s:\n', Daty{DateIndex})
+		fprintf('\n%s:\n', Daty{DateIndex})
 		for LineIndex = 1:numel(search_match{DateIndex})
 			fprintf('%s',search_match{DateIndex}{LineIndex})
 		end
+		fprintf('\n')
 	end
 	
 end
