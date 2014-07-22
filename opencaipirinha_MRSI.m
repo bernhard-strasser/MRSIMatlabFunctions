@@ -1,4 +1,4 @@
-function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg,quiet_flag) 
+function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(InData, ACS, UndersamplingCell, quiet_flag, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
 % 
 % opencaipirinha_MRSI Reconstruct MRSI and MRI Data Undersampled With caipirinha Patterns
 % 
@@ -191,7 +191,7 @@ if(~exist('weights','var'))
     CentralCellLinearIndex_ACS(CentralCellMatIndexFirstVoxel_ACS(1) : CentralCellMatIndexFirstVoxel_ACS(1) + size(UndersamplingCell,1) - 1, ...
                                CentralCellMatIndexFirstVoxel_ACS(2) : CentralCellMatIndexFirstVoxel_ACS(2) + size(UndersamplingCell,2) - 1) = ~UndersamplingCell;
     CentralCellLinearIndex_ACS = find(CentralCellLinearIndex_ACS);
-    [CentralCellMatIndex_ACS_x CentralCellMatIndex_ACS_y] = ind2sub(size(UndersamplingPattern_ACS), CentralCellLinearIndex_ACS);
+    [CentralCellMatIndex_ACS_x, CentralCellMatIndex_ACS_y] = ind2sub(size(UndersamplingPattern_ACS), CentralCellLinearIndex_ACS);
 
 
 
@@ -213,7 +213,7 @@ if(~exist('weights','var'))
         % Compute kernel size for processed Kernel
         kernelsize{KernelIndex} = [1 1 1 1];
         no_SourcePoints = 0;
-        while(no_SourcePoints < MinKernelSrcPts)
+		while(no_SourcePoints < MinKernelSrcPts)
             kernelsize{KernelIndex} = kernelsize{KernelIndex} + 1;
 
             kernel_dummy = UndersamplingPattern_ACS(CentralCellMatIndex_ACS_x(KernelIndex) - kernelsize{KernelIndex}(1): ...
@@ -222,25 +222,32 @@ if(~exist('weights','var'))
                                                     CentralCellMatIndex_ACS_y(KernelIndex) + kernelsize{KernelIndex}(4));
 
             no_SourcePoints = sum(sum(kernel_dummy));
-        end
+		end
 
 
+		% Test if the kernel size can be reduced in one direction without losing any Source points
+		kernel_dummy_sumrow = sum(kernel_dummy,1);
+		kernel_dummy_sumcol = sum(kernel_dummy,2);
+		KernelCropCellLog = ~[kernel_dummy_sumcol(1),kernel_dummy_sumcol(end),kernel_dummy_sumrow(1),kernel_dummy_sumrow(end)];
+		KernelCropCellDummy = {[1 0 0 0],[0 1 0 0],[0 0 1 0],[0 0 0 1]};
+		KernelCropCell = KernelCropCellDummy(KernelCropCellLog);
+	
+		for kernelcrop = KernelCropCell
 
-        % Test if the kernel size can be reduced in one direction without losing any Source points
-        for kernelcrop = {[1 0 0 0], [0 1 0 0], [0 0 1 0], [0 0 0 1]}
-
-            for crop_repeat = 1:max(size(UndersamplingCell))    % In GRAPPA-like kernels, one has to remove several lines/rows, if R_x > 2 | R_y > 2
+			for crop_repeat = 1:max(size(UndersamplingCell))    % In GRAPPA-like kernels, one has to remove several lines/rows, if R_x > 2 | R_y > 2
                 kernel_dummy_cropped = kernel_dummy(1 + kernelcrop{1}(1) : end - kernelcrop{1}(2), 1 + kernelcrop{1}(3) : end - kernelcrop{1}(4));
 
                 no_SourcePoints_cropped = sum(sum(kernel_dummy_cropped));
 
-                if(no_SourcePoints_cropped == no_SourcePoints)
+				if(no_SourcePoints_cropped == no_SourcePoints)
                     kernel_dummy = kernel_dummy_cropped;
                     kernelsize{KernelIndex} = kernelsize{KernelIndex} - kernelcrop{1};
-                end
-            end
+				else
+					break;
+				end
+			end
 
-        end
+		end
         clear kernel_dummy_cropped no_SourcePoints_cropped
 
 
@@ -425,9 +432,10 @@ for KernelIndex = 1:nKernels
     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = UC_dummy;
 %     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
 %     repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
-    [TargetPoints_x TargetPoints_y] = find(TargetPoints);
+    [TargetPoints_x, TargetPoints_y] = find(TargetPoints);
      
-    
+	SourceIndices2 = repmat(cat(3,TargetPoints_x, TargetPoints_y),[1 size(SrcRelativeTarg{KernelIndex},1) 1]) + repmat(reshape(SrcRelativeTarg{KernelIndex},[1 size(SrcRelativeTarg{KernelIndex})]),[numel(TargetPoints_x) 1 1]);
+
     % Loop over all target points for the processed kernel
     for Targetloopy = 1:numel(TargetPoints_x)
 
