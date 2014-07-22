@@ -1,29 +1,47 @@
 function IND = sub2ind_extended(ArraySize,AdditionalReplication,varargin)
 %
-% sub2ind_extended 
+% sub2ind_extended Compute the linear indices of an array with extended features w.r.t. sub2ind.
 %
 % This function was written by Bernhard Strasser, July 2014.
 %
 %
-% The function masks the data in k-space, so that k-space values outside of an ellipsoid-shaped mask are set to zero. The mask can be a
-% 3d-ellipsoid, or an 2d-ellipse. The equation for the mask is
-% mask = {(x,y,z) E R³ | (x/a)² + (y/b)² + (z/c)² <= R²}
-% a, b, c, and R can be chosen by the user.
+% The function does the same as the internal sub2ind function, but with 2 additional features:
+% 1) If you specify a range for I1,I2 etc. with min(In) <= size(ArraySize,n) <= max(In), you get a whole list of
+%    indices. In the original sub2ind you have to can do this only indirectly, by giving the whole list already,
+%    e.g. IND = sub2ind([2 2 2],[1 1 1 1],[1 1 2 2],[1 2 1 2]);
+%    in comparison, this can achieved by this function simply by
+%    IND = sub2ind_extended([2 2 2],0,1,1:2,1:2);
+%    which is less flexible (the order of the output indices is determined) but much easier to use.
+%
+% 2) You can also compute the linear indices when additionally replicating the SIZ along one dimension
+%    and add a relative position matrix along this dimension.
+%    Example: If you have an 3x4x5-array, and for each of these points you want to have a set of 6 points
+%    which can be computed by taking the y- and z-point of the array and adding
+%    [-1 -1 -1 0 0 0] to the y-points and [-1 0 1 -1 0 1] to the z-points, then you can do this by
+%    setting AdditionalReplication.Mat = [-1 -1; -1 0; -1 1; 0 -1; 0 0; 0 1] and 
+%    AdditionalReplication.AddToDims = [2 3]. AdditionalReplication.DimPos can be set to any value,
+%    the output will differ.
 %
 %
-% [OutArray,mask] = EllipticalFilter_x_y(OutArray,ApplyAlongDims,EllipsoidCoefficients,PerformFFT_flag)
+% IND = sub2ind_extended(SIZ,AdditionalReplication,I1,I2,...,IN)
 %
 % Input: 
-% -     OutArray                     ...    Input array to which the filter should be applied
-% -     ApplyAlongDims               ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
-%                                          Filter is applied. Otherwise, a 3d filter is used.
-% -     EllipsoidCoefficients        ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
-%                                          Filter, set c = 1;
-% -     PerformFFT_flag              ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
-%                                          and transformed back to image domain afterwards
+% -     ArraySize              ...    Size of Array for which the linear indices should be computed.
+% -     AdditionalReplication  ...    Structure with fields (all mandatory):
+%                                     * .Mat
+%                                     * .AddToDims
+%                                     * .DimPos
+%                                     If there should be performed an additional replication along dimension n,
+%                                     so if you wantfor each point a set of additional points which have a
+%                                     relative position of Mat to the other original points of dimensions AddToDims,
+%                                     you can achieve this by setting AdditionalReplication.DimPos = n; 
+%                                     AdditionalReplication.AddToDims = AddToDims; AdditionalReplication.Mat = Mat;
+% -     I1,I2,...,IN           ...    The ranges for which the linear indices should be computed for all the dimensions
+%                                     of ArraySize. Thus, numel(ArraySize) = N must hold.
 %
 % Output:
-% -     IND                     ...     c
+% -     IND                    ...    The linear indices of the array which is of size 
+%                                     [1 numel(I1)*numel(I2)*...*numel(IN)*size(AdditionalReplication.Mat,1)
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -105,13 +123,16 @@ end
 [AccessPointSize, sizes_y] = cellfun(@size,varargin); clear sizes_y;
 
 
-% We have to replicate also
+% We have to replicate also due to the AdditionalReplication
+IncreasedDim = 0;
 if( isstruct(AdditionalReplication) )
 	AccessPointSize = [AccessPointSize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) AccessPointSize(AdditionalReplication.DimPos:end)];
+	ArraySize = [ArraySize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) ArraySize(AdditionalReplication.DimPos:end)];
+	IncreasedDim = 1;
 end
 
 sub2indString = 'sub2ind(ArraySize';
-for dim = 1:numel(ArraySize)
+for dim = 1:numel(ArraySize)-IncreasedDim
 	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim) = 1;
 	
 	
@@ -129,7 +150,6 @@ for dim = 1:numel(ArraySize)
 	end
 	
 	% Replicate each of the vectors to an array of the outer products of all vectors
-
 	varargin{dim} = myrepmat(varargin{dim},AccessPointSize,DimCorr);
 	varargin{dim} = reshape(varargin{dim},[1 numel(varargin{dim})]);
 
