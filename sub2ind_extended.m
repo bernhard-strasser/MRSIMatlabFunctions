@@ -36,12 +36,14 @@ function IND = sub2ind_extended(ArraySize,AdditionalReplication,varargin)
 %                                     relative position of Mat to the other original points of dimensions AddToDims,
 %                                     you can achieve this by setting AdditionalReplication.DimPos = n; 
 %                                     AdditionalReplication.AddToDims = AddToDims; AdditionalReplication.Mat = Mat;
+%                                     If this is a little mystic 4 you, write edit sub2ind_extended and go to the
+%                                     bottom, where there is an example from opencaipirinha.
 % -     I1,I2,...,IN           ...    The ranges for which the linear indices should be computed for all the dimensions
 %                                     of ArraySize. Thus, numel(ArraySize) = N must hold.
 %
 % Output:
 % -     IND                    ...    The linear indices of the array which is of size 
-%                                     [1 numel(I1)*numel(I2)*...*numel(IN)*size(AdditionalReplication.Mat,1)
+%                                     [1 numel(I1)*numel(I2)*...*numel(IN)*size(AdditionalReplication.Mat,1)]
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -124,17 +126,14 @@ end
 
 
 % We have to replicate also due to the AdditionalReplication
-IncreasedDim = 0;
 if( isstruct(AdditionalReplication) )
 	AccessPointSize = [AccessPointSize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) AccessPointSize(AdditionalReplication.DimPos:end)];
-	ArraySize = [ArraySize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) ArraySize(AdditionalReplication.DimPos:end)];
-	IncreasedDim = 1;
 end
 
 sub2indString = 'sub2ind(ArraySize';
-for dim = 1:numel(ArraySize)-IncreasedDim
-	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim) = 1;
+for dim = 1:numel(ArraySize)
 	
+	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim) = 1;
 	
 	% Replicate the part of AdditionalReplication and add to varargin.
 	if( isstruct(AdditionalReplication) && sum(dim == AdditionalReplication.AddToDims) > 0 )
@@ -163,6 +162,74 @@ IND = eval(sub2indString);
 
 
 
+
+
+%% Example
+
+% Since the code and its description is complicated and may be obscure for you, I added an example.
+% The function call at the top results in the same as the bulk down (i.e. find(Source_linear2 ~= Source_linear) = empty-matrix, 
+% i.e. find(Target_linear2 ~= Target_linear) = empty-matrix).
+
+
+% AdditionalReplication.DimPos = 2; AdditionalReplication.AddToDims = [2 3]; AdditionalReplication.Mat = int16(SrcRelativeTarg{KernelIndex});
+% Source_linear2 = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
+% 				 AdditionalReplication, ...
+% 				 1:nChannel, kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2), kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
+% Target_linear2 = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
+% 				 0, ...
+% 				 1:nChannel, kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2), kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
+
+% Compute the Source and Target Points as linear indices
+% What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
+% No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
+% (to avoid slow loops). The computation of the linear indices looks quite complicated, and in fact -- it is :)
+% Well in principle the target points are just all points all x- and y-values of all channels. The relative distance of the
+% source points to a target point is computed within the kernel, and this relative information is applied to the target points
+% in order to get the source points. Then the linear indices can be computed.
+%
+% nx_ACS_wo_border = nx_ACS - sum(kernelsize{KernelIndex}(1:2));
+% ny_ACS_wo_border = ny_ACS - sum(kernelsize{KernelIndex}(3:4));
+% 
+% % Source Points
+% % Create channel info
+% Source_Channels = int16(transpose(1:nChannel));
+% Source_Channels = repmat(Source_Channels, [1 no_SourcePoints nx_ACS_wo_border ny_ACS_wo_border]);
+% 
+% % Create spatial info
+% Source_x = int16(kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2));
+% Source_y = int16(kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
+% 
+% % Copy Source to Target Points
+% Target_x = Source_x;
+% Target_y = Source_y;
+% 
+% % Apply Relative Info
+% Source_x = repmat(transpose(Source_x), [1 no_SourcePoints]);
+% Source_y = repmat(transpose(Source_y), [1 no_SourcePoints]);
+% Source_x = Source_x + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,1)),[1 no_SourcePoints]),[size(Source_x,1) 1]);
+% Source_y = Source_y + repmat(reshape(int16(SrcRelativeTarg{KernelIndex}(:,2)),[1 no_SourcePoints]),[size(Source_y,1) 1]);
+% 
+% % Replicate spatial info
+% Source_x = repmat(Source_x, [1 1 nChannel ny_ACS_wo_border]);
+% Source_y = repmat(reshape(Source_y, [ny_ACS_wo_border no_SourcePoints]), [1 1 nChannel nx_ACS_wo_border]);
+% 
+% % Reorder Source Points
+% Source_x = permute(Source_x, [3 2 1 4]);
+% Source_y = permute(Source_y, [3 2 4 1]);
+% 
+% 
+% % Target Points
+% Target_Channels = reshape(Source_Channels(:,1,:,:), [nChannel nx_ACS_wo_border ny_ACS_wo_border]);
+% Target_x = repmat(Target_x,[nChannel 1 ny_ACS_wo_border]);
+% Target_y = repmat(reshape(Target_y,[1 1 numel(Target_y)]),[nChannel nx_ACS_wo_border 1]);
+% 
+% 
+% % Linear Indices
+% Target_linear = sub2ind( ...
+% [nChannel nx_ACS ny_ACS], uint32(reshape(Target_Channels, [1 numel(Target_Channels)])), uint32(reshape(Target_x, [1 numel(Target_x)])), uint32(reshape(Target_y, [1 numel(Target_y)])));    
+% Source_linear = sub2ind( ...
+% [nChannel nx_ACS ny_ACS], uint32(reshape(Source_Channels, [1 numel(Source_Channels)])), uint32(reshape(Source_x, [1 numel(Source_x)])), uint32(reshape(Source_y, [1 numel(Source_y)])));
+% % For Reconstructing MRSI data, uint32 has to be changed to uint64
 
 
 
