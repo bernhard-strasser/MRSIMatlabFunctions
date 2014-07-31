@@ -108,45 +108,12 @@ end
 
 %% 2. Replicate
 
-OrigExpandedSize = ones([1 numel(DesiredSize)]);
-OrigExpandedSize(DimensionCorrespondence > 0) = Size_InArray(DimensionCorrespondence(DimensionCorrespondence>0)); % Now that looks nasty!
-ExpandSizeInArray = [];
-for curoutdim = 1:numel(DesiredSize)
-	
-	if(DesiredSize(curoutdim)/OrigExpandedSize(curoutdim) == 1)
-		ExpandSizeInArray = [ExpandSizeInArray 1];
-		continue;
-	end
-	
-	Size_InArray = size(OutArray) ;
-	if(Size_InArray(end) == 1)
-		Size_InArray = Size_InArray(1);
-	end
-	Size_InArray = [Size_InArray ExpandSizeInArray];
-	ExpandSizeInArray = [];
-	%RepMatTo = cat(2,ones([1 numel(Size_InArray)]),DesiredSize(curoutdim)/OrigExpandedSize(curoutdim));
-	
-	
-	RepMatTo = ones([1 numel(Size_InArray) + 0^DimensionCorrespondence(curoutdim)]);  % 0^... is 1 if DimCorr=0, otherwise 0.
-	if(DimensionCorrespondence(curoutdim) == 0)
-		ReshapeTo = RepMatTo;
-		ReshapeTo(setdiff(1:numel(ReshapeTo),curoutdim)) = Size_InArray;
-		OutArray = reshape(OutArray,ReshapeTo);
-	end
-	RepMatTo(curoutdim) = DesiredSize(curoutdim)/OrigExpandedSize(curoutdim);
-	
-	OutArray = repmat(OutArray,RepMatTo);
-	
-	
-end
 
+ReshapeTo = DesiredSize; ReshapeTo(DimensionCorrespondence == 0) = 1;
+RepmatTo = DesiredSize; RepmatTo(DimensionCorrespondence ~= 0) = 1;
 
-
-
-
-
-
-
+OutArray = reshape(OutArray,ReshapeTo);
+OutArray = repmat(OutArray,RepmatTo);
 
 
 
