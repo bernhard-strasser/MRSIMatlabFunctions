@@ -110,10 +110,20 @@ end
 
 OrigExpandedSize = ones([1 numel(DesiredSize)]);
 OrigExpandedSize(DimensionCorrespondence > 0) = Size_InArray(DimensionCorrespondence(DimensionCorrespondence>0)); % Now that looks nasty!
-
+ExpandSizeInArray = [];
 for curoutdim = 1:numel(DesiredSize)
 	
-	Size_InArray = size(OutArray);
+	if(DesiredSize(curoutdim)/OrigExpandedSize(curoutdim) == 1)
+		ExpandSizeInArray = [ExpandSizeInArray 1];
+		continue;
+	end
+	
+	Size_InArray = size(OutArray) ;
+	if(Size_InArray(end) == 1)
+		Size_InArray = Size_InArray(1);
+	end
+	Size_InArray = [Size_InArray ExpandSizeInArray];
+	ExpandSizeInArray = [];
 	%RepMatTo = cat(2,ones([1 numel(Size_InArray)]),DesiredSize(curoutdim)/OrigExpandedSize(curoutdim));
 	
 	
