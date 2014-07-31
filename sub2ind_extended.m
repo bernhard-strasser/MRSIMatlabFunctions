@@ -130,10 +130,12 @@ if( isstruct(AdditionalReplication) )
 	AccessPointSize = [AccessPointSize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) AccessPointSize(AdditionalReplication.DimPos:end)];
 end
 
+
+AddDim = 0;
 sub2indString = 'sub2ind(ArraySize';
 for dim = 1:numel(ArraySize)
 	
-	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim) = 1;
+	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim+AddDim) = 1;
 	
 	% Replicate the part of AdditionalReplication and add to varargin.
 	if( isstruct(AdditionalReplication) && sum(dim == AdditionalReplication.AddToDims) > 0 )
@@ -142,7 +144,8 @@ for dim = 1:numel(ArraySize)
 		varargin{dim} = myrepmat(varargin{dim},RepmatTo,[1 0]) + AddPts;
 		if(AdditionalReplication.DimPos <= dim)
 			varargin{dim} = transpose(varargin{dim});
-			DimCorr(dim) = 0; DimCorr(dim+1) = 2; DimCorr(AdditionalReplication.DimPos) = 1;
+			AddDim = 1;
+			DimCorr(dim) = 0; DimCorr(dim+AddDim) = 2; DimCorr(AdditionalReplication.DimPos) = 1;
 		else
 			DimCorr(AdditionalReplication.DimPos) = 2;
 		end
