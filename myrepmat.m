@@ -12,7 +12,7 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 % cutting it down)
 %
 %
-% OutArray = myrepmat_1_0(InArray,DesiredSize,DimensionCorrespondence)
+% OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 %
 % Input: 
 % -  InArray                   ...    The input array that should be replicated
@@ -20,8 +20,7 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 % -  DimensionCorrespondence   ...    Matrix with numel(DesiredSize) elements, which tells the function which dimension of the
 %                                     InArray should correspond to which index of the OutArray. zeros mean
 %                                     that the dimension, given by the place in DimensionCorrespondence, should be created totally new.
-%                                     If you dont
-%                                     replicate the array in a dimension that already exists (e.g. from
+%                                     If you dont replicate the array in a dimension that already exists (e.g. from
 %                                     [64 64 8] to [64 64 16] replicates in an already existing dim, but
 %                                     [64 64 8] to [32 64 64 8 2048] or [32 64 2 64 8] does not)
 %                                     you can omit DimensionCorrespondence.
@@ -52,6 +51,12 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 
 
 % 0.1 Preparations
+
+if(numel(size(InArray)) == numel(DesiredSize) && sum(size(InArray) ~= DesiredSize) == 0 )
+	OutArray = InArray;
+	return;
+end
+
 Size_InArray = size(InArray);
 if(Size_InArray(end) == 1)
 	Size_InArray(end) = [];
@@ -64,6 +69,7 @@ OutArray = InArray; clear InArray;
 if(~exist('DesiredSize', 'var'))
     return
 end
+
 
 
 if(~exist('DimensionCorrespondence', 'var'))
@@ -98,9 +104,7 @@ end
 
 DimensionCor_NoZeros = DimensionCorrespondence(DimensionCorrespondence>0);
 if(numel(DimensionCor_NoZeros) > 1)
-	[DimensionCor_NoZeros,Permut] = sort(DimensionCor_NoZeros);
-	DimensionCorrespondence(DimensionCorrespondence>0) = DimensionCor_NoZeros;
-	OutArray = permute(OutArray, Permut);
+	OutArray = permute(OutArray, DimensionCor_NoZeros);
 	Size_InArray = size(OutArray);
 end
 
