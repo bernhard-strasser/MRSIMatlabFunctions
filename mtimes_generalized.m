@@ -11,14 +11,23 @@ function C = mtimes_generalized(A,B, CommonDims)
 % and computes Array C of size a1 x a2 x ... x an x b1 x b2 x ... x bm       by 
 %
 %
-% SearchHistory(SearchString,CaseInsensitive_flag)
+% C = mtimes_generalized(A,B, CommonDims)
 %
 % Input: 
-% -     SearchString                   ...    String you want to search for.
-% -     CaseInsensitive_flag           ...    If you want to search case insensitive, set this flag to true or 1.
+% -     A           ...    The left side Array of A*B. size(A,end) = size(B,1) must hold!
+% -     B           ...    The right side Array of A*B. size(A,end) = size(B,1) must hold!
+% -     CommonDims  ...    If A and B have a common dimension which should not be replicated for B,
+%                          e.g. if size(A) = [2 3 4], size(B) = [4 2 5]. Normally this would lead to
+%                          size(C) = [2 3 2 5], but if you state that the 2 is a common dimension
+%                          by CommonDims = [1     2], it will be replicated to size(C) = [2 3 5].
+%                                           ^     ^
+%                                           |     |
+%                    place of common dim in A  |  place of common dim in B.
+%                          CommonDims can be a whole list with size(CommonDims) = [n 2].
+%                    
 %
 % Output:
-% None
+% -     C           ...    C = A*B (array multiplication, NOT element-wise multiplication).
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -35,9 +44,10 @@ function C = mtimes_generalized(A,B, CommonDims)
 
 % 0.1 Preparations
 if(nargin < 2)
-	fprintf('\nError: You need to state which arrays A and B you want to multiply!\n')
-	C = 0;
-	return
+	error('Err:NotEnoughInput','Not enough input arguments.')
+end
+if(size(A,numel(size(A))) ~= size(B,1))
+	error('Err:ArraySizeIncons','Error using mtimes_generalized:\nInner array dimensions must agree\n(size(A,end) = size(B,1)).')
 end
 if(~exist('CommonDims','var') || sum(sum(CommonDims <= 0)) > 0)
 	CommonDims = [];
