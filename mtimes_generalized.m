@@ -1,11 +1,14 @@
-function C = mtimes_generalized(A,B)
+function C = mtimes_generalized(A,B, CommonDims)
 %
-% SearchHistory Searches the command history. 
+% mtimes_generalized Generalize matrixmultiplication to general Arrays. 
 %
-% This function was written by Bernhard Strasser, July 2014.
+% This function was written by Bernhard Strasser, August 2014.
 %
 %
-% The function searches the command history (file prefdir/history.m) for SearchString.
+% The function takes an Array 
+% A of size a1 x a2 x ... x an x k      and 
+% B of size k x b1 x b2 x ... x bm
+% and computes Array C of size a1 x a2 x ... x an x b1 x b2 x ... x bm       by 
 %
 %
 % SearchHistory(SearchString,CaseInsensitive_flag)
@@ -31,61 +34,51 @@ function C = mtimes_generalized(A,B)
 
 
 % 0.1 Preparations
-if(nargin < 1)
-	fprintf('\nWarning: Thou shalt specify a string to search for!\n')
+if(nargin < 2)
+	fprintf('\nError: You need to state which arrays A and B you want to multiply!\n')
+	C = 0;
 	return
 end
-if(~exist('CaseInsensitive_flag','var'))
-	CaseInsensitive_flag = false;
+if(~exist('CommonDims','var') || sum(sum(CommonDims <= 0)) > 0)
+	CommonDims = [];
 end
-if(CaseInsensitive_flag)
-	SearchFunction = 'regexpi';
-else
-	SearchFunction = 'regexp';
-end
+if( numel(CommonDims) > 0 &&   (size(CommonDims,2) < 2 || size(CommonDims,1) > numel(size(A)) || size(CommonDims,1) > numel(size(B)))   )
+	warning('Warn:InconCommonDims','Warning: Your CommonDims variable is inconsistent (with A and B)!\n')
+	CommonDims = [];
+end	
 	
 
 % 0.2 Declarations
 
 
 % 0.3 Definitions
-    
+sizeA = size(A);
+sizeB = size(B);
 
 
+%% 1. Figure out the DimensionCorrespondence
 
-%% 1. Search
-
-preffy = prefdir;
-
-history_fid = fopen([preffy '/history.m'],'r');
-HistoryString = fscanf(history_fid,'%c');
-
-Daty = regexp(HistoryString,'%{1,2}--.{12,33}--%{1,2}','match');
-HistoryString_DateSplit = regexp(HistoryString,'%{1,2}--.{15,33}--%{1,2}','split');
-search_match = feval(SearchFunction,HistoryString_DateSplit,['[^\n]*' SearchString '[^\n]*\n'],'match');
-
-
-
-
-
-%% 2. Print Out
-
-if( ~iscell(search_match) || ~ismember(0,cellfun(@isempty,search_match)) )
-	fprintf('\n%s not found in history.\n',SearchString)
-	return;
+if(numel(CommonDims) > 1)
+	sizeB(CommonDims(:,2)) = [];
+	AddDims = 1:numel(sizeB)+size(CommonDims(:,2)); AddDims = setdiff(AddDims, CommonDims(:,2));
+	Corry = [ zeros([1 numel(sizeA)-1])   AddDims ];
+	Corry(CommonDims(:,1)) = CommonDims(:,2); 
+else
+	Corry = [ zeros([1 numel(sizeA)-1])   1:numel(sizeB) ];	
 end
 
-for DateIndex = 1:numel(search_match)
-	
-	if(ismember(0,cellfun(@isempty,search_match{DateIndex})))
-		fprintf('\n%s:\n', Daty{DateIndex})
-		for LineIndex = 1:numel(search_match{DateIndex})
-			fprintf('%s',search_match{DateIndex}{LineIndex})
-		end
-		fprintf('\n')
-	end
-	
-end
+
+
+
+%% 2. Replicate, multiply & sum
+
+ARepmat = myrepmat(A,[sizeA(1:end-1) sizeB], [1:numel(sizeA) zeros([1 numel(sizeB)-1])]);
+BRepmat = myrepmat(B,[sizeA(1:end-1) sizeB], Corry);
+
+C = sum(ARepmat .* BRepmat,numel(sizeA));
+C = squeeze_single_dim(C,numel(sizeA));
+
+
 
 
 
