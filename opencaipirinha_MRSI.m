@@ -377,9 +377,14 @@ for KernelIndex = 1:nKernels
 		fprintf('\nDrinking Glass %d\tGUUULLPP . . . UAHHHH . . . ',KernelIndex)
 	end
     
+	if(KernelCorrespondence(KernelIndex) > 0)
+		continue;
+	end
+	
     % Compute all the linear indices of the target points within Reco_dummy of the processed Kernel
-    UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));                  % Mark the current target point in the undersampling cell
+    UndersamplingCell_CurrentTargetPoint = false(size(UndersamplingCell));											% Mark the current target point in the undersampling cell
     UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex)) = true; 
+	UndersamplingCell_CurrentTargetPoint(ElementaryCellLinearIndex(KernelIndex == KernelCorrespondence)) = true;	% And also the points with the same weights
     TargetPoints = false([size(Reco_dummy,2) size(Reco_dummy,3)]);
     
     
@@ -414,7 +419,6 @@ for KernelIndex = 1:nKernels
             Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),SliceIndex,:)=reshape(weights{KernelIndex}(:,:,SliceIndex)*SourcePoints, [nChannel nTime]); 
 		end
 	end
-
 
 end
 
