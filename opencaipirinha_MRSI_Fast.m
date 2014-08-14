@@ -326,7 +326,7 @@ end
 % Prepare the enlarged/extended Reconstruction Matrix
 Reco_dummy = zeros([nChannel, nx+sum(kernelsize(1:2))-(size(UndersamplingCell,1)-1), ny+sum(kernelsize(3:4))-(size(UndersamplingCell,2)-1), nSlice, nTime]); % This has to be changed for "TODO 2)"
 Reco_dummy(:,kernelsize(1)+1:kernelsize(1)+size(OutData,2),kernelsize(3)+1:kernelsize(3)+size(OutData,3),:,:) = OutData;
-
+Reco_dummy_CheckIfRecoNecess = squeeze(abs(Reco_dummy(1,:,:,1,1)) > 0);
 
 if(~quiet_flag)
 	fprintf('\nDrinking Glass\tGUUULLPP . . . UAHHHH . . . ')
@@ -354,11 +354,18 @@ end
 
 
 % Loop over all target points for the processed kernel
-SourcePoints = zeros([nChannel*size(SrcRelativeUpLeCorner,1) nTime]);	
+SourcePoints = zeros([nChannel*size(SrcRelativeUpLeCorner,1) nTime]);
 for xLoopy = kernelsize(1)+1:size(UndersamplingCell,1):size(Reco_dummy,2)-kernelsize(2)
 	for yLoopy = kernelsize(3)+1:size(UndersamplingCell,2):size(Reco_dummy,3)-kernelsize(4)
 	
 		SourceIndices = [xLoopy + SrcRelativeUpLeCorner(:,1), yLoopy + SrcRelativeUpLeCorner(:,2)];
+		
+		if(sum(Reco_dummy_CheckIfRecoNecess(sub2ind(size(Reco_dummy_CheckIfRecoNecess),SourceIndices(:,1),SourceIndices(:,2)))) < 2)
+			continue
+		end
+		
+		
+		
 		TargetIndices = [xLoopy + TrgRelativeUpLeCorner(:,1), yLoopy + TrgRelativeUpLeCorner(:,2)];
 		
 		for SliceIndex = 1:nSlice

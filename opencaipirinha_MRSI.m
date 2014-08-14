@@ -368,6 +368,7 @@ Maxkernelsize = max(reshape(Maxkernelsize, [4 numel(Maxkernelsize)/4]), [], 2);
 % Prepare the enlarged/extended Reconstruction Matrix
 Reco_dummy = zeros([nChannel nx+sum(Maxkernelsize(1:2)) ny+sum(Maxkernelsize(3:4)) nSlice nTime]);              % This has to be changed for "TODO 2)"
 Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:,:) = OutData;
+Reco_dummy_CheckIfRecoNecess = squeeze(abs(Reco_dummy(1,:,:,1,1)) > 0);
 %clear OutData;
 %fprintf('\nInitializing took %4.2f s',toc);
 
@@ -410,6 +411,13 @@ for KernelIndex = 1:nKernels
 	SourcePoints = zeros([nChannel*size(SrcRelativeTarg{KernelIndex},1) nTime]);	
 	for Targetloopy = 1:numel(TargetPoints_x)
         SourceIndices = [TargetPoints_x(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,1), TargetPoints_y(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,2)];
+		
+		if(sum(Reco_dummy_CheckIfRecoNecess(sub2ind(size(Reco_dummy_CheckIfRecoNecess),SourceIndices(:,1),SourceIndices(:,2)))) < 2)
+			continue
+		end
+		
+		
+		
 		for SliceIndex = 1:nSlice
             % Compute the Source Points for that specific TargetIndex
 			for Sourceloopy = 1:size(SourceIndices,1)
