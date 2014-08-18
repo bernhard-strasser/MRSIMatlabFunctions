@@ -197,5 +197,97 @@ BestXPercPatterns.CellSizes = transpose(squeeze(repmat(cell_size,[1 1 size(BestX
 %% 4. Exclude similar patterns
 
 % Not yet done -- Is it really necessary?
+BestPatterns = ExcludeCaipiPatternsByCircshift(BestPatterns,false);
+tic
+BestXPercPatterns = ExcludeCaipiPatternsByCircshift(BestXPercPatterns,false);
+toc
 
 
+
+
+
+
+
+
+
+
+
+end
+
+
+
+
+
+
+
+%% L. Local Functions
+
+
+function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
+
+
+
+
+	PatternIndSimilar = zeros([1 numel(PatternIn.Indices)]);
+	%FoundInd = 0;
+	for PatternNo1 = 1:numel(PatternIn.Indices)
+		CompareMat1 = zeros(squeeze(PatternIn.CellSizes(PatternNo1,:)));
+		CompareMat1(PatternIn.Patterns(:,PatternNo1)) = 1;
+		CompareMat1 = repmat(CompareMat1,[3 3]);
+		if(ismember(PatternNo1,PatternIndSimilar))
+			continue
+		end
+		BreakOut = false;
+		
+		for PatternNo2 = PatternNo1+1:numel(PatternIn.Indices)
+			if(ismember(PatternNo2,PatternIndSimilar))
+				continue
+			end
+			
+			CompareMat2_dummy = zeros(squeeze(PatternIn.CellSizes(PatternNo2,:)));
+			CompareMat2_dummy(PatternIn.Patterns(:,PatternNo2)) = 1;
+			CompareMat2_dummy = repmat(CompareMat2_dummy,[3 3]);			
+			
+			for xshift = 1:PatternIn.CellSizes(PatternNo1,1)
+				for yshift = 1:PatternIn.CellSizes(PatternNo2,2)
+					
+					CompareMat2 = circshift(CompareMat2_dummy,[xshift yshift]);
+					
+					if(DebugMode)
+						fprintf(  '\nSimilar %d: Patt %d and %d with [xshift,yshift] = [%d,%d]', ~ismember(0,CompareMat1 == CompareMat2), PatternNo1, PatternNo2,xshift,yshift  )
+						PatternIndSimilar(~PatternIndSimilar == 0)
+						figure; imagesc(CompareMat1), movegui(gcf,'northwest')
+						figure; imagesc(CompareMat2), movegui(gcf,'northeast')
+						waitforbuttonpress
+						close all;
+					end
+					
+					if(~ismember(0,CompareMat1 == CompareMat2))
+						%FoundInd = FoundInd + 1;					
+						PatternIndSimilar(PatternNo1) = PatternNo2;
+						BreakOut = true;
+						break;
+					end
+					
+					
+					
+					
+					
+					
+				end
+				if(BreakOut), break; end
+			end
+			if(BreakOut), break; end
+		end
+	end
+	PatternIndSimilar(PatternIndSimilar == 0) = [];
+	
+	PatternOut = PatternIn; PatternOut.Indices(PatternIndSimilar) = []; PatternOut.Patterns(:,PatternIndSimilar) = []; PatternOut.CellSizes(PatternIndSimilar,:) = [];
+	
+	
+	
+	
+	
+	
+
+end
