@@ -43,8 +43,11 @@ if(nargin < 3)
 	EachNonMeasPtHasOwnKernel_flag = true;
 end
 
-MinKernelPts = 20;
-
+if(EachNonMeasPtHasOwnKernel_flag)
+	MinKernelPts = 6;
+else
+	MinKernelPts = 20;
+end
 
 
 
@@ -76,14 +79,11 @@ CentralCell = [ floor(BestRep/2) floor(BestRep/2) ];
 
 if(EachNonMeasPtHasOwnKernel_flag)
 	NoKernels = sum(sum(~ElCell));
-	kernelsize_std = [1 1 1 1];	
+	kernelsize_std = [2 2 2 2];	
 	
-	CentralCellMatIndexFirstVoxel = CentralCell .* size(ElCell) + 1;
-	CentralCellLinearIndex = zeros(size(RepCell));
-	CentralCellLinearIndex(CentralCellMatIndexFirstVoxel(1) : CentralCellMatIndexFirstVoxel(1) + size(ElCell,1) - 1, ...
-							   CentralCellMatIndexFirstVoxel(2) : CentralCellMatIndexFirstVoxel(2) + size(ElCell,2) - 1) = ~ElCell;
-	CentralCellLinearIndex = find(CentralCellLinearIndex);
-	[CentralCellMatIndex_x, CentralCellMatIndex_y] = ind2sub(size(RepCell), CentralCellLinearIndex);	
+	[ElCellInd_x, ElCellInd_y] = find(~ElCell);
+	CentralCellMatIndex_x = CentralCell(1) * size(ElCell,1) + ElCellInd_x;
+	CentralCellMatIndex_y = CentralCell(2) * size(ElCell,2) + ElCellInd_y;
 	
 else
 	NoKernels = 1;
@@ -114,21 +114,29 @@ for KernelIndex = 1:NoKernels
 	end
 
 	% Test if the kernel size can be reduced in one direction without losing any Source points
-	for kernelcrop = {[1 0 0 0], [0 1 0 0], [0 0 1 0], [0 0 0 1]}
+	if(~EachNonMeasPtHasOwnKernel_flag)
+		kernel_dummy_sumrow = sum(kernel_dummy,1);
+		kernel_dummy_sumcol = sum(kernel_dummy,2);
+		KernelCropCellLog = ~[kernel_dummy_sumcol(1),kernel_dummy_sumcol(end),kernel_dummy_sumrow(1),kernel_dummy_sumrow(end)];
+		KernelCropCellDummy = {[1 0 0 0],[0 1 0 0],[0 0 1 0],[0 0 0 1]};
+		KernelCropCell = KernelCropCellDummy(KernelCropCellLog);
 
-		for crop_repeat = 1:max(size(ElCell))    % In GRAPPA-like kernels, one has to remove several lines/rows, if R_x > 2 | R_y > 2
-			kernel_dummy_cropped = kernel_dummy(1 + kernelcrop{1}(1) : end - kernelcrop{1}(2), 1 + kernelcrop{1}(3) : end - kernelcrop{1}(4));
+		for kernelcrop = KernelCropCell
+			for crop_repeat = 1:max(size(ElCell))    % In GRAPPA-like kernels, one has to remove several lines/rows, if R_x > 2 | R_y > 2
+				kernel_dummy_cropped = kernel_dummy(1 + kernelcrop{1}(1) : end - kernelcrop{1}(2), 1 + kernelcrop{1}(3) : end - kernelcrop{1}(4));
 
-			no_SourcePoints_cropped = sum(sum(kernel_dummy_cropped));
+				no_SourcePoints_cropped = sum(sum(kernel_dummy_cropped));
 
-			if(no_SourcePoints_cropped == no_SourcePoints)
-				kernel_dummy = kernel_dummy_cropped;
-				kernelsize{KernelIndex} = kernelsize{KernelIndex} - kernelcrop{1};
+				if(no_SourcePoints_cropped == no_SourcePoints)
+					kernel_dummy = kernel_dummy_cropped;
+					kernelsize{KernelIndex} = kernelsize{KernelIndex} - kernelcrop{1};
+				else
+					break;
+				end
 			end
-		end
 
+		end
 	end
-	
 	
 	
 	% Cut out the relevant matrix
@@ -148,20 +156,14 @@ end
 
 
 if(EachNonMeasPtHasOwnKernel_flag)
-% 	MinDist = zeros([1 numel(CutOutCell)]);
-% 	MinDist2 = zeros([1 numel(CutOutCell)]);
+
 	distance_sum3 = zeros([1 numel(CutOutCell)]);
 	for KernelIndex = 1:numel(CutOutCell)
 
-		
+		% Find the x-y coordinates of the measured and not measured points within the cell.
 		[PtsNotMeas_x, PtsNotMeas_y] = find(CutOutCell{KernelIndex} == 2);
 		CutOutCell{KernelIndex}(CutOutCell{KernelIndex} == 2) = 0;
-		PtsMeasKernel = find(CutOutCell{KernelIndex});
-
-		
-
-		% Find the x-y coordinates of the measured and not measured points within the cell.
-		[PtsMeas_x, PtsMeas_y] = ind2sub(size(CutOutCell{KernelIndex}),PtsMeasKernel);
+		[PtsMeas_x, PtsMeas_y] = find(CutOutCell{KernelIndex});
 		
 
 		% Compute the x and y distances
@@ -171,39 +173,9 @@ if(EachNonMeasPtHasOwnKernel_flag)
 		% Compute the Euclidean distance
 		distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
 
-		
-		
-		% OLD
-% 		% Get min distance for each non-meas pt and weight that inversely with the number of occurences
-% 		MinDist_dum = min(distance_mat,[],1);
-% 		MinDist_dum2 = distance_mat; MinDist_dum2(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1])) = Inf;
-% 		MinDist_dum2 = min(MinDist_dum2,[],1); 
-% 
-% 		MinDist_dum = MinDist_dum ./ sqrt(sum(distance_mat == repmat(MinDist_dum,[size(distance_mat,1) 1]),1));
-% 		MinDist_dum2 = MinDist_dum2 ./ sqrt(sum(distance_mat == repmat(MinDist_dum2,[size(distance_mat,1) 1]),1));
-% 		MinDist_dum2 = 0;
-% 		
-% 		MinDist(KernelIndex) = MinDist_dum;
-% 		MinDist2(KernelIndex) = MinDist_dum2;
-		% OLD END
-
-		
-
-		%MinDist1 = min(distance_mat,[],1) ./ 
-
 		% sum distance of closest 3 pts
 		distance_sum3_dum = sort(distance_mat);
 		distance_sum3(KernelIndex) = sum(distance_sum3_dum(1:3));
-
-% 		% And the mean distance (mena over all measured points) 
-% 		distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
-% 
-% 		% And the min distance (min over all measured points) 
-% 		distance_min = min(distance_mat,[],2);	
-
-
-
-
 
 
 	end
@@ -228,30 +200,7 @@ else
 	
 	% Compute the Euclidean distance
 	distance_mat = sqrt(Dist_x.^2 + Dist_y.^2);
-	
-	
-	
-	% OLD
-% 	% Get min distance for each non-meas pt and weight that inversely with the number of occurences
-% 	MinDist = min(distance_mat,[],1);
-% 	MinDist2 = distance_mat; MinDist2(distance_mat == repmat(MinDist,[size(distance_mat,1) 1])) = Inf;
-% 	MinDist2 = min(MinDist2,[],1); 
-% 	
-% 	MinDist = MinDist ./ sqrt(sum(distance_mat == repmat(MinDist,[size(distance_mat,1) 1]),1));
-% 	MinDist2 = MinDist2 ./ sqrt(sum(distance_mat == repmat(MinDist2,[size(distance_mat,1) 1]),1));
-% 	MinDist2 = 0;
-% 	
-	% 	% And the mean distance (mena over all measured points) 
-% 	distance_mean = sum(distance_mat,1)/(numel(PtsMeas_x)^2);
-% 	
-% 	% And the min distance (min over all measured points) 
-% 	distance_min = min(distance_mat,[],2);	
-	
-	%MinDist1 = min(distance_mat,[],1) ./ 
-	% OLD END
-	
-	
-	
+
 	% sum distance of closest 3 pts
 	distance_sum3 = sort(distance_mat,1);
 	distance_sum3 = sum(distance_sum3(1:3,:),1);	
@@ -271,9 +220,6 @@ end
 
 %% 1. Compute the quality measure
 
-% QualityMeasure(1) = max(distance_min);
-% QualityMeasure(2) = max(distance_mean);
-% QualityMeasure(3) = mean(MinDist+MinDist2);
 QualityMeasure(1) = max(distance_sum3);
 
 
