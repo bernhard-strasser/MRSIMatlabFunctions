@@ -84,7 +84,7 @@ if(MatrixSize_GBytes > memfree/2^10)
 end
 
 
-if(no_Patterns > 10^9)
+if(no_Patterns > 10^8)
     fprintf('\nThese are too many. I will quit here.')
     return
 elseif(no_Patterns > 10^7)
@@ -134,12 +134,21 @@ NoQltyMeas = size(QltyMeas_dummy,2);
 QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas],'single');
 clear QltyMeas_dummy NoQltyMeas
 
-for Patt_no = 1:size(AllPatterns,1)
-    
-    QualityMeasure(Patt_no,:) = single(kSpace_DistBtwMeasAndNonMeasPts2(squeeze(AllPatterns(Patt_no,:)), cell_size,1));
-    
+if(size(AllPatterns,1) > 10000)
+	matlabpool 7;
 end
 
+ParallelEnabled = logical(matlabpool('size'));
+if(ParallelEnabled)
+	parfor Patt_no = 1:size(AllPatterns,1)    
+		QualityMeasure(Patt_no,:) = single(kSpace_DistBtwMeasAndNonMeasPts2(squeeze(AllPatterns(Patt_no,:)), cell_size,1));
+	end	
+	matlabpool close;
+else
+	for Patt_no = 1:size(AllPatterns,1)    
+		QualityMeasure(Patt_no,:) = single(kSpace_DistBtwMeasAndNonMeasPts2(squeeze(AllPatterns(Patt_no,:)), cell_size,1));
+	end
+end
 
 
 
