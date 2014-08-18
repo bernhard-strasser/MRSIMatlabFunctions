@@ -233,7 +233,6 @@ function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
 	for PatternNo1 = 1:numel(PatternIn.Indices)
 		CompareMat1 = zeros(squeeze(PatternIn.CellSizes(PatternNo1,:)));
 		CompareMat1(PatternIn.Patterns(:,PatternNo1)) = 1;
-		CompareMat1 = repmat(CompareMat1,[3 3]);
 		if(ismember(PatternNo1,PatternIndSimilar))
 			continue
 		end
@@ -246,7 +245,6 @@ function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
 			
 			CompareMat2_dummy = zeros(squeeze(PatternIn.CellSizes(PatternNo2,:)));
 			CompareMat2_dummy(PatternIn.Patterns(:,PatternNo2)) = 1;
-			CompareMat2_dummy = repmat(CompareMat2_dummy,[3 3]);			
 			
 			for xshift = 1:PatternIn.CellSizes(PatternNo1,1)
 				for yshift = 1:PatternIn.CellSizes(PatternNo2,2)
