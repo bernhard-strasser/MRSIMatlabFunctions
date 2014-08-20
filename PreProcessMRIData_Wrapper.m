@@ -69,7 +69,7 @@ for CurDataSet = DataSetNames
 	% Make String out of Cell
 	CurDataSetString = CurDataSet{:};
 	% Set fredirshift
-	if(~isfield(PreProcessingInfo.(CurDataSetString),'fredir_shift') && size(kSpace.(CurDataSetString),6) == 1)	% Only for imaging data
+	if(~isfield(PreProcessingInfo.(CurDataSetString),'fredir_shift') && size(kSpace.(CurDataSetString){1},6) == 1)	% Only for imaging data
 		PreProcessingInfo.(CurDataSetString).fredir_shift = 2*ReadInInfo.General.Ascconv.Pos_Sag(1)/ (-ReadInInfo.General.Ascconv.FoV_Read(1)/ReadInInfo.(CurDataSetString).nReadEnc );
 	end
 	
@@ -90,12 +90,12 @@ for CurDataSet = DataSetNames
 		% Get data from Noise Prescan
 		if(isfield(kSpace,'NOISEADJSCAN') && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 1)
 			fprintf('\nGet noise from\t...\tNoise Prescan.')    
-			Noise_mat = reshape(kSpace.NOISEADJSCAN,[size(kSpace.NOISEADJSCAN,1) numel(kSpace.NOISEADJSCAN)/size(kSpace.NOISEADJSCAN,1)]);
+			Noise_mat = reshape(kSpace.NOISEADJSCAN{1},[size(kSpace.NOISEADJSCAN{1},1) numel(kSpace.NOISEADJSCAN{1})/size(kSpace.NOISEADJSCAN{1},1)]);
 			Noise_mat = Noise_mat(:,20:end);
 		% Or from end of FID of the outer kSpace
-		elseif(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,6) > 512 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 2)
+		elseif(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE{1},6) > 512 && PreProcessingInfo.(CurDataSetString).NoiseCorrMat == 2)
 			fprintf('\nGet noise from\t...\tONLINE Data Itself.')
-			Noise_mat = GatherNoiseFromCSI(kSpace.ONLINE,ReadInInfo.General.Ascconv.Full_ElliptWeighted_Or_Weighted_Acq);
+			Noise_mat = GatherNoiseFromCSI(kSpace.ONLINE{1},ReadInInfo.General.Ascconv.Full_ElliptWeighted_Or_Weighted_Acq);
 		end
 
 		% Copy NoiseCorrMat
@@ -129,52 +129,62 @@ for CurDataSet = DataSetNames
 	
 	% 1.2. Perform Noise Decorrelation
 	if(isfield(PreProcessingInfo.(CurDataSetString),'NoiseCorrMat') && numel(PreProcessingInfo.(CurDataSetString).NoiseCorrMat) > 1)
-		fprintf('\nPerform Noise Decorrelation.')    		
-		kSpace.(CurDataSetString) = PerformNoiseDecorrelation(kSpace.(CurDataSetString),PreProcessingInfo.(CurDataSetString).NoiseCorrMat);
+		fprintf('\nPerform Noise Decorrelation.')    
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			kSpace.(CurDataSetString){echo} = PerformNoiseDecorrelation(kSpace.(CurDataSetString){echo},PreProcessingInfo.(CurDataSetString).NoiseCorrMat);
+		end
 	end
 
 	
 
 	% 1.2 Hadamard Decoding
-	if(isfield(PreProcessingInfo.(CurDataSetString),'Hadamard_flag') && PreProcessingInfo.(CurDataSetString).Hadamard_flag && size(kSpace.(CurDataSetString),5) > 1)
-		kSpace.(CurDataSetString) = hadamard_decoding(kSpace.(CurDataSetString),5);            
+	if(isfield(PreProcessingInfo.(CurDataSetString),'Hadamard_flag') && PreProcessingInfo.(CurDataSetString).Hadamard_flag && size(kSpace.(CurDataSetString){1},5) > 1)
+		for echo = 1:numel(kSpace.(CurDataSetString))		
+			kSpace.(CurDataSetString){echo} = hadamard_decoding(kSpace.(CurDataSetString){echo},5);    
+		end
 	end
 	
 	
 	
 	% 1.3. Flip in kSpace
 	if(isfield(PreProcessingInfo.(CurDataSetString),'FlipkSpaceAlong') && isfield(PreProcessingInfo.(CurDataSetString),'FlipkSpaceWhileAccessing'))
-		fprintf('\nFlip in kSpace.')    		
-		for FlipAlong = PreProcessingInfo.(CurDataSetString).FlipkSpaceAlong
-			try
-				eval(['kSpace.(CurDataSetString)(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') = flipdim(kSpace.(CurDataSetString)(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') ,FlipAlong);']);
-			catch errie
-				fprintf('\nProblem in PreProcessMRIData_Wrapper: Tried to execute\n[kSpace.%s(%s) = flipdim(kSpace.%s(%s) ,FlipAlong);\nThis resulted in an error:\n''%s'' at line %d.\n', ...
-				CurDataSetString, PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing,CurDataSetString,...
-				PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing,errie.message,errie.stack(1).line);
+		fprintf('\nFlip in kSpace.')
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			for FlipAlong = PreProcessingInfo.(CurDataSetString).FlipkSpaceAlong
+				try
+					eval(['kSpace.(CurDataSetString){echo}(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') = flipdim(kSpace.(CurDataSetString){echo}(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') ,FlipAlong);']);
+				catch errie
+					fprintf('\nProblem in PreProcessMRIData_Wrapper: Tried to execute\n[kSpace.%s(%s) = flipdim(kSpace.%s(%s) ,FlipAlong);\nThis resulted in an error:\n''%s'' at line %d.\n', ...
+					CurDataSetString, PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing,CurDataSetString,...
+					PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing,errie.message,errie.stack(1).line);
+				end
+				if(~exist('errie','var'))
+					CircshiftVec = zeros([1 numel(size(kSpace.(CurDataSetString){echo}))]);
+					CircshiftVec(FlipAlong) = 1; %#ok
+					eval(['kSpace.(CurDataSetString){echo}(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') = circshift(kSpace.(CurDataSetString){echo}(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') ,CircshiftVec);']);
+				end
+				clear errie;
 			end
-			if(~exist('errie','var'))
-				CircshiftVec = zeros([1 numel(size(kSpace.(CurDataSetString)))]);
-				CircshiftVec(FlipAlong) = 1; %#ok
-				eval(['kSpace.(CurDataSetString)(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') = circshift(kSpace.(CurDataSetString)(' PreProcessingInfo.(CurDataSetString).FlipkSpaceWhileAccessing ') ,CircshiftVec);']);
-			end
-			clear errie;
 		end
 	end
 
 
 
 	% 1.3. Circshift in kSpace
-	if(	isfield(PreProcessingInfo.(CurDataSetString),'ShiftkSpace') && sum(~(PreProcessingInfo.(CurDataSetString).ShiftkSpace == 0)) > 0 && numel(PreProcessingInfo.(CurDataSetString).ShiftkSpace) == numel(size(kSpace.(CurDataSetString))))
-		fprintf('\nCircshift in kSpace.')    				
-		kSpace.(CurDataSetString) = circshift(kSpace.(CurDataSetString),PreProcessingInfo.(CurDataSetString).ShiftkSpace);		
+	if(	isfield(PreProcessingInfo.(CurDataSetString),'ShiftkSpace') && sum(~(PreProcessingInfo.(CurDataSetString).ShiftkSpace == 0)) > 0 && numel(PreProcessingInfo.(CurDataSetString).ShiftkSpace) == numel(size(kSpace.(CurDataSetString){1})))
+		fprintf('\nCircshift in kSpace.')   
+		for echo = 1:numel(kSpace.(CurDataSetString))		
+			kSpace.(CurDataSetString){echo} = circshift(kSpace.(CurDataSetString){echo},PreProcessingInfo.(CurDataSetString).ShiftkSpace);		
+		end
 	end
 
 
 	% 1.4 Correct global phase
 	if(isfield(PreProcessingInfo.(CurDataSetString),'GlobalPhase_rad') && ne(PreProcessingInfo.(CurDataSetString).GlobalPhase_rad(1),0)) 
-		fprintf('\nAdd global phase of %f in kSpace.',rad2deg(PreProcessingInfo.(CurDataSetString).GlobalPhase_rad(1)))    						
-		kSpace.(CurDataSetString) = kSpace.(CurDataSetString) * exp(1i*PreProcessingInfo.(CurDataSetString).GlobalPhase_rad(1));
+		fprintf('\nAdd global phase of %f in kSpace.',rad2deg(PreProcessingInfo.(CurDataSetString).GlobalPhase_rad(1)))    
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			kSpace.(CurDataSetString){echo} = kSpace.(CurDataSetString){echo} * exp(1i*PreProcessingInfo.(CurDataSetString).GlobalPhase_rad(1));
+		end
 	end		
 
 
@@ -182,9 +192,11 @@ for CurDataSet = DataSetNames
 	% Strange phenomenon for images: if you shift them in frequency encoding direction, the phase of the image changes. This undoes the phase change.
 	if(isfield(PreProcessingInfo.(CurDataSetString),'fredir_shift') && ne(PreProcessingInfo.(CurDataSetString).fredir_shift(1),0))
 		phase = PreProcessingInfo.(CurDataSetString).fredir_shift(1)*(360/2^nextpow2(size(kSpace.(CurDataSetString),2)));
-		fprintf('\nCorrect global phase of %f deg due to FoV-shift of %f in kSpace.',phase,PreProcessingInfo.(CurDataSetString).fredir_shift(1)) 								
-		kSpace.(CurDataSetString) = kSpace.(CurDataSetString) * exp(1i*deg2rad(phase));												% Is it really 2^nextpow2(fredir_measured) 
-		clear phase;																												% and not just fredir_measured?  
+		fprintf('\nCorrect global phase of %f deg due to FoV-shift of %f in kSpace.',phase,PreProcessingInfo.(CurDataSetString).fredir_shift(1)) 	
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			kSpace.(CurDataSetString){echo} = kSpace.(CurDataSetString){echo} * exp(1i*deg2rad(phase));												% Is it really 2^nextpow2(fredir_measured) 
+			clear phase;																												% and not just fredir_measured?  
+		end
 	end                                                                                        
 
 	
@@ -197,11 +209,20 @@ for CurDataSet = DataSetNames
 	end
 
 	
+	if(isfield(ReadInInfo,'General') && isfield(ReadInInfo.General,'Ascconv') && isfield (ReadInInfo.General.Ascconv,'AsymmetricEcho') && ReadInInfo.General.Ascconv.AsymmetricEcho && strcmpi(CurDataSetString,'ONLINE'))
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			sizzy = size(kSpace.(CurDataSetString){echo});
+			kSpace.(CurDataSetString){echo} = cat(2,zeros([sizzy(1) 2^nextpow2(sizzy(2))-sizzy(2) sizzy(3:end)]),kSpace.(CurDataSetString){echo});
+		end
+	end
+	
 	
 	% 8. Apply Elliptical Filter
 	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize(end) > 0)
-		fprintf('\nApply Elliptical Filter with Filtersize %d.',transpose(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))    				
-		kSpace.(CurDataSetString) = EllipticalFilter_1_1(kSpace.(CurDataSetString),[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
+		fprintf('\nApply Elliptical Filter with Filtersize %d.',transpose(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			kSpace.(CurDataSetString){echo} = EllipticalFilter_1_1(kSpace.(CurDataSetString){echo},[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
+		end
 	end
 
 
@@ -209,29 +230,44 @@ for CurDataSet = DataSetNames
 
 	% 9. Apply Hamming Filter
 	if(isfield(PreProcessingInfo.(CurDataSetString),'Hamming_flag') && PreProcessingInfo.(CurDataSetString).Hamming_flag)
-		fprintf('\nApply Hamming Filter.')    				
-		kSpace.(CurDataSetString) = HammingFilter(kSpace.(CurDataSetString),[2 3],1);
+		fprintf('\nApply Hamming Filter.')
+		if(isfield(PreProcessingInfo.(CurDataSetString),'HammingFactor'))
+			FilterWidth = PreProcessingInfo.(CurDataSetString).HammingFactor;
+		else
+			FilterWidth = 100;
+		end
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			kSpace.(CurDataSetString){echo} = HammingFilter(kSpace.(CurDataSetString){echo},[2 3],FilterWidth,'Radial',1);
+		end
 	end
-
 	
 	% Zerofilling in kSpace
-	if(isfield(PreProcessingInfo.(CurDataSetString),'ZeroFillingDesiredSize') && numel(PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize) > 1)
-		fprintf('\nZerofill in kSpace from size [%s] to [%s]',sprintf('%d ',size(kSpace.(CurDataSetString))),sprintf('%d ',PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize))    						
-		kSpace.(CurDataSetString) = Zerofilling(kSpace.(CurDataSetString), PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize);
+	if(isfield(PreProcessingInfo.(CurDataSetString),'ZeroFillingDesiredSize') && numel(PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{1}) > 1)
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			fprintf('\nEcho %d: Zerofill in kSpace from size [%s] to [%s]',echo,sprintf('%d ',size(kSpace.(CurDataSetString))),sprintf('%d ',PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo}))    						
+			kSpace.(CurDataSetString){echo} = Zerofilling(kSpace.(CurDataSetString){echo}, PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo});
+		end
 	end
 	
 
 	% 1.3 FFT FROM K_SPACE TO DIRECT SPACE
 	if(isfield(PreProcessingInfo.(CurDataSetString), 'NoFFT_flag') && ~PreProcessingInfo.(CurDataSetString).NoFFT_flag)
 		fprintf('\nFFT Data.')    						
-		if(strcmpi(CurDataSetString,'ONLINE') && size(kSpace.(CurDataSetString),6) > 1)
+		if(strcmpi(CurDataSetString,'ONLINE') && size(kSpace.(CurDataSetString){1},6) > 1)
 			ConjFlag = true;
 		else
 			ConjFlag = false;
 		end
-		iSpace.(CurDataSetString) = FFTOfMRIData(kSpace.(CurDataSetString),ConjFlag);
-	else
-		iSpace.(CurDataSetString) = 0;
+		iSpace.(CurDataSetString) = cell([1 numel(kSpace.(CurDataSetString))]);
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			iSpace.(CurDataSetString){echo} = FFTOfMRIData(kSpace.(CurDataSetString){echo},ConjFlag);
+		end
+    else
+        if(nargout >= 4)
+            iSpace.(CurDataSetString){1} = 0;            
+        else
+            iSpace = kSpace;
+        end
 	end
 
 
@@ -239,34 +275,39 @@ for CurDataSet = DataSetNames
 	% Remove spatial oversampling
 	if(isfield(PreProcessingInfo.(CurDataSetString), 'RmOs') && PreProcessingInfo.(CurDataSetString).RmOs == 1)
 		fprintf('\nRemove Spatial Oversampling.')
-		image_center = floor(size(iSpace.(CurDataSetString),2) / 2) + 1;
-		left_border = image_center - ceil(size(iSpace.(CurDataSetString),2) / (2*2));   
-		right_border = image_center + ceil(size(iSpace.(CurDataSetString),2) / (2*2)) - 1;   
-	
-		if(size(iSpace.(CurDataSetString),2) > 1)
-			iSpace.(CurDataSetString) = iSpace.(CurDataSetString)(:,left_border:right_border,:,:,:,:,:);
-		else
-			iSpace.(CurDataSetString) = fftshift(fft(ifftshift(kSpace.(CurDataSetString),2),[],2),2);
-			iSpace.(CurDataSetString) = iSpace.(CurDataSetString)(:,left_border:right_border,:,:,:,:,:);
-		end
-		if(nargout > 3)
-			kSpace.(CurDataSetString) = ifftshift(ifft(fftshift(iSpace.(CurDataSetString),2),[],2),2);
-			if(isfield(kSpace,[CurDataSetString '_Unfiltered']))
-				kSpace.([CurDataSetString '_Unfiltered']) = kSpace.([CurDataSetString '_Unfiltered'])(:,1:2:end,:,:,:,:,:);
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			image_center = floor(size(iSpace.(CurDataSetString){echo},2) / 2) + 1;
+			left_border = image_center - ceil(size(iSpace.(CurDataSetString){echo},2) / (2*2));   
+			right_border = image_center + ceil(size(iSpace.(CurDataSetString){echo},2) / (2*2)) - 1;   
+			if(size(iSpace.(CurDataSetString){echo},2) > 1)
+				iSpace.(CurDataSetString){echo} = iSpace.(CurDataSetString){echo}(:,left_border:right_border,:,:,:,:,:);
+			else
+				iSpace.(CurDataSetString){echo} = fftshift(fft(ifftshift(kSpace.(CurDataSetString){echo},2),[],2),2);
+				iSpace.(CurDataSetString){echo} = iSpace.(CurDataSetString){echo}(:,left_border:right_border,:,:,:,:,:);
 			end
-		end	
+			if(nargout > 3)
+				kSpace.(CurDataSetString){echo} = FFTOfMRIData(iSpace.(CurDataSetString){echo},ConjFlag, [2 3 4],1);
+				if(isfield(kSpace,[CurDataSetString '_Unfiltered']))
+					kSpace.([CurDataSetString '_Unfiltered']){echo} = kSpace.([CurDataSetString '_Unfiltered']){echo}(:,1:2:end,:,:,:,:,:);
+				end
+			end	
+		end
 	end
 	
 
 
 	% 6. Spatial Shift
 	if(isfield(PreProcessingInfo.(CurDataSetString), 'iSpaceShift') && ne(PreProcessingInfo.(CurDataSetString).iSpaceShift(1),0))
-		fprintf('\nSpatial shift data by [%s].', sprintf('%d ',[0 iSpaceShift(1) 0 0 0 0 0]))    								
-		iSpace.(CurDataSetString) = circshift(iSpace.(CurDataSetString), [0 iSpaceShift(1) 0 0 0 0 0]);
+		fprintf('\nSpatial shift data by [%s].', sprintf('%d ',[0 iSpaceShift(1) 0 0 0 0 0]))    		
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			iSpace.(CurDataSetString){echo} = circshift(iSpace.(CurDataSetString){echo}, [0 iSpaceShift(1) 0 0 0 0 0]);
+		end
 	end
 	if(isfield(PreProcessingInfo.(CurDataSetString), 'iSpaceShift') && numel(PreProcessingInfo.(CurDataSetString).iSpaceShift) > 1 && ne(PreProcessingInfo.(CurDataSetString).iSpaceShift(2),0))
-		fprintf('\nSpatial shift data by [%s].', sprintf('%d ',[0 0 iSpaceShift(2) 0 0 0 0]))    								
-		iSpace.(CurDataSetString) = circshift(iSpace.(CurDataSetString), [0 0 iSpaceShift(2) 0 0 0 0]);
+		fprintf('\nSpatial shift data by [%s].', sprintf('%d ',[0 0 iSpaceShift(2) 0 0 0 0]))    	
+		for echo = 1:numel(kSpace.(CurDataSetString))
+			iSpace.(CurDataSetString){echo} = circshift(iSpace.(CurDataSetString){echo}, [0 0 iSpaceShift(2) 0 0 0 0]);
+		end
 	end
 
 
