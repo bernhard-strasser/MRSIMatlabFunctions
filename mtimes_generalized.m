@@ -82,10 +82,12 @@ end
 
 %% 2. Replicate, multiply & sum
 
-ARepmat = myrepmat(A,[sizeA(1:end-1) sizeB], [1:numel(sizeA) zeros([1 numel(sizeB)-1])]);
-BRepmat = myrepmat(B,[sizeA(1:end-1) sizeB], Corry);
+A = myrepmat(A,[sizeA(1:end-1) sizeB], [1:numel(sizeA) zeros([1 numel(sizeB)-1])]);
+B = myrepmat(B,[sizeA(1:end-1) sizeB], Corry);
 
-C = sum(ARepmat .* BRepmat,numel(sizeA));
+C = A; clear A;
+C = C .* B;
+C = sum(C,numel(sizeA));
 C = squeeze_single_dim(C,numel(sizeA));
 
 
