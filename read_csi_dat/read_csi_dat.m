@@ -107,6 +107,16 @@ if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree'
 	Info.ONLINE.nReadEncFinalMatrix = ParList.nFreqEnc_FinalMatrix;
 	Info.ONLINE.nPhasEncFinalMatrix = ParList.nPhasEnc_FinalMatrix;
 	%Info.ONLINE.nPartEncFinalMatrix = ParList.nSLC_FinalMatrix;
+	if(Info.ONLINE.nReadEncFinalMatrix == 0)
+		Info.ONLINE.nReadEncFinalMatrix = Info.ONLINE.nReadEnc;
+	end
+	if(Info.ONLINE.nPhasEncFinalMatrix == 0)
+		Info.ONLINE.nPhasEncFinalMatrix = Info.ONLINE.nPhasEnc;
+	end	
+% 	if(Info.ONLINE.nPartEncFinalMatrix == 0)
+% 		Info.ONLINE.nPartEncFinalMatri = Info.ONLINE.nPartEnc;
+% 	end	
+	
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill = zeros([1 5]);
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
@@ -144,9 +154,8 @@ headersize = fread(file_fid,1, 'uint32');
 fseek(file_fid, headersize,'bof'); 
 
 chak_header = zeros([1 64]);
-chak_header_old = zeros([1 64]);
 
-kSpace.ONLINE{1} = NaN;
+kSpace.ONLINE = NaN;
 ACQEND_flag = false;
 
 
@@ -158,10 +167,9 @@ while(~ACQEND_flag)
 
     % Read first mdh
     chak_header(1:5) = fread(file_fid, 5, 'uint32');
-    chak_header(6:7) = fread(file_fid, 2, 'uint32');
+    EvalInfoMask = fread(file_fid, 64, 'ubit1');
     chak_header(8:64-7) = fread(file_fid, 64-14, 'int16');
     fseek(file_fid, -128,'cof');
-    EvalInfoMask = Interpret_EvalInfoMask(chak_header(6:7));
     
     % Stop if ACQEND was found
     if(EvalInfoMask(1))
@@ -213,7 +221,7 @@ while(~ACQEND_flag)
 	
 
 	Info.(CurrentMeasSet).total_channel_no = chak_header(9);
-	Info.(CurrentMeasSet).Samples = chak_header(8);
+	Info.(CurrentMeasSet).Samples = chak_header(8) - chak_header(38) *2;
 	
 	if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
 		vecSize = Info.(CurrentMeasSet).Samples;
@@ -224,11 +232,11 @@ while(~ACQEND_flag)
 	
 	
 	% Allocate memory
-	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet){1}) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
-		kSpace.(CurrentMeasSet){1} = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc,Info.(CurrentMeasSet).nPhasEnc, ...
-		Info.(CurrentMeasSet).nPartEnc,Info.(CurrentMeasSet).nSLC,vecSize,Info.(CurrentMeasSet).nAverages]);
+	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet)) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
+		kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc * Info.(CurrentMeasSet).nPhasEnc * ...
+		Info.(CurrentMeasSet).nPartEnc * Info.(CurrentMeasSet).nSLC * vecSize * Info.(CurrentMeasSet).nAverages]);
 	end
-	
+	Info.(CurrentMeasSet).mdhInfo = zeros([10 Info.General.total_ADCs*Info.(CurrentMeasSet).total_channel_no]);
 	
 	
 	
@@ -236,8 +244,8 @@ while(~ACQEND_flag)
 	%%%%%%%%	Loop over all measurements	%%%%%%
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     BreakOutOfPrison = false;
-	Echo_Prev = 1;
-    for ADC_MeasNo = 1 : Info.General.total_ADCs;
+	CurPoint = 0;
+	for ADC_MeasNo = 1 : Info.General.total_ADCs;
 		
 		if(BreakOutOfPrison)
 			break;
@@ -246,81 +254,39 @@ while(~ACQEND_flag)
 		for channel_no = 1:Info.(CurrentMeasSet).total_channel_no
 			
 			% Read again EvalInfoMask.
-            chak_header(1:7) = fread(file_fid, 7, 'uint32');
+			fseek(file_fid,+5*4,'cof');	EvalInfoMask_loop = fread(file_fid,64,'ubit1');
+			CurInfoPt = (ADC_MeasNo-1)*Info.(CurrentMeasSet).total_channel_no + channel_no;
 			
 			% If the EvalInfoMask has changed within the loop, break out of loops.
-			EvalInfoMask_loop = Interpret_EvalInfoMask(chak_header(6:7));
 			CurrentMeasSet_loop = Associate_EvalInfoMask(EvalInfoMask_loop);
 			if(~strcmpi(CurrentMeasSet,CurrentMeasSet_loop))
 				fseek(file_fid,-7*4,'cof');
+				Info.(CurrentMeasSet).mdhInfo(:,CurInfoPt:end) = [];
 				BreakOutOfPrison = true;
 				break;
 			end
 			
 			% Read rest of the mdh
 			chak_header(8:57) = fread(file_fid, 50, 'int16');
-            k_x = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);                     
-            k_y = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);  
-			k_z = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);
 			
-			SamplesBeforeEcho = chak_header(38) * 2 * 2;
+			Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt) = chak_header(56) + 1;										% channel
+			Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
+			Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
+			Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
+			Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt) = chak_header(12) + 1;										% slice (also hada step)
+			Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt) = chak_header(14) + 1;										% echo
+			Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt) = chak_header(17) + 1;										% avg
+			Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt) = chak_header(16) + 1;										% rep
+			Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt) = chak_header(8);											% samples
+			Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt) = chak_header(38) *2;										% samples before echo
+
+			% Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
+            chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt)*2, 'float32'); 
+			chak_data = chak_data(Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt)*2+1:end); 
+			chak_data = complex(chak_data(1:2:end),chak_data(2:2:end));
+			kSpace.(CurrentMeasSet)(channel_no,CurPoint+1 : CurPoint+numel(chak_data)) = chak_data;
+
 			
-			Echo = chak_header(14) + 1;
-			if(~(Echo == Echo_Prev))
-				% In case there changes something else than just the vecSize (=Samples) from echo to echo, this would have to be changed in the zeros here too
-				Info.(CurrentMeasSet).Samples = chak_header(8);
-				if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
-					vecSize = Info.(CurrentMeasSet).Samples;
-				else
-					vecSize = 1;
-					Info.(CurrentMeasSet).nReadEnc = Info.(CurrentMeasSet).Samples;
-				end			
-				kSpace.(CurrentMeasSet){Echo} = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc,Info.(CurrentMeasSet).nPhasEnc, ...
-				Info.(CurrentMeasSet).nPartEnc,Info.(CurrentMeasSet).nSLC,vecSize,Info.(CurrentMeasSet).nAverages]);
-			end
-			Echo_Prev = Echo;
-			
-   			Rep = chak_header(16) + 1;
-            slice = chak_header(12) + 1;                                % SAYS WHICH REPETITION FOR HADAMARD ENCODING OF THE SAME K-POINT IS MEASURED
-			Avg = chak_header(17) + 1;									% Averages
-            %channel_no_2 = chak_header(63-7) + 1						% Problematic if Channel IDs are not consecutive (1,2,3,...,8 e.g., but 1,2,3,4,11,12,13,14)
-            
-			
-			% Check if the k-points are alright
-			if(k_x < 1 || k_x > DesiredSize.(CurrentMeasSet)(1))
-				if(k_x < 1)
-					fprintf('\nProblem: Detected mdh with kx < 1. Ignoring this ADC.')
-				end
-                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');
-                continue;
-			end
-			if(k_y < 1 || k_y > DesiredSize.(CurrentMeasSet)(2))
-				if(k_y < 1)
-					fprintf('\nProblem: Detected mdh with ky < 1. Ignoring this ADC.')
-				end
-                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
-                continue;
-			end
-			if(k_z < 1 || k_z > DesiredSize.(CurrentMeasSet)(3))
-				if(k_z < 1)
-					fprintf('\nProblem: Detected mdh with kz < 1. Ignoring this ADC.')
-				end
-                fseek(file_fid,Info.(CurrentMeasSet).Samples*2*4,'cof');                
-                continue;
-			end
-			if(slice < 1)
-                fprintf('\nProblem: Detected mdh with kz < 1. Setting kz = 1.')
-                slice = 1;															% some distinction between multislice/hadamard and real 3d necessary!
-			end
-			
-			% Read & Assign Data
-            chak_data = fread(file_fid, Info.(CurrentMeasSet).Samples*2, 'float32'); % Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-			chak_data = chak_data(SamplesBeforeEcho+1:end);
-			if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
-                kSpace.(CurrentMeasSet){Echo}(channel_no,k_x,k_y,k_z,slice,:,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
-            else
-                kSpace.(CurrentMeasSet){Echo}(channel_no,:,k_x,k_z,slice,1,Avg,Rep) = complex(chak_data(1:2:end),chak_data(2:2:end));
-			end
 			
 			% Check if this was the last measurement of scan
 			% Temporarily disabled because the flag is set for all HadamardSteps. Has to be changed.
@@ -331,8 +297,11 @@ while(~ACQEND_flag)
 			
 
 		end 
-    end
+		CurPoint = CurPoint + numel(chak_data);
+	end
 
+	
+	
 end
 
 if(numel(kSpace.ONLINE) == 1 && isnan(kSpace.ONLINE))
@@ -348,6 +317,67 @@ if(numel(fields(kSpace)) > 1 && numel(fields(Info)) + 1 < numel(fields(kSpace)) 
 	'the sizes of those scans in the wipMemBlock.tFree or wipMemBlock.alFree[50-55]!\n\n'])
 end
 %fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
+
+
+
+%% 3. Reshape Data
+
+tic
+fprintf('\n\nReshaping data\t\t\t...')
+
+for CurrentMeasSet2 = transpose(fields(kSpace))
+	CurrentMeasSet = CurrentMeasSet2{1};
+	fprintf('\nReshape\t%s data.', CurrentMeasSet)
+
+	
+	if(sum(  Info.(CurrentMeasSet).mdhInfo(6,:) ~= Info.(CurrentMeasSet).mdhInfo(5,:)  ) == 0)
+		Info.(CurrentMeasSet).mdhInfo(6,:) = 1;
+	end
+	
+	maxi = max(transpose(Info.(CurrentMeasSet).mdhInfo),[],1);
+	Temp = cell([1 maxi(6)]);
+	
+	% Find out Samples of each echo
+	minecho = min(Info.(CurrentMeasSet).mdhInfo(6,:));
+	samples = zeros([1 maxi(6)-minecho+1]);
+	for echo = minecho : maxi(6)
+		echoplace = find(Info.(CurrentMeasSet).mdhInfo(6,:) == echo);
+		echoplace = echoplace(1);
+		samples(echo) = Info.(CurrentMeasSet).mdhInfo(9,echoplace) - Info.(CurrentMeasSet).mdhInfo(10,echoplace);
+	end
+	
+	% Correct for the problem that in circular encoding e.g. 63 points are measured, but the matrix should be 64!
+	for dim = 2:4
+		if(2^nextpow2(maxi(dim)) - maxi(dim) == 1)
+			maxi(dim) = maxi(dim) + 1;
+		end
+	end
+	
+	% Initialize
+	for echo = minecho:maxi(6)
+		Temp{echo} = zeros([Info.(CurrentMeasSet).total_channel_no maxi(2) maxi(3) maxi(4) maxi(5) samples(echo) maxi(7) maxi(8)]);
+	end
+
+	CurPoint = 0; 
+	for i = 1 : Info.(CurrentMeasSet).total_channel_no : size(Info.(CurrentMeasSet).mdhInfo,2)
+		% {echo}[cha x kx x ky x kz x slc x samples x avg x rep]
+		Temp{Info.(CurrentMeasSet).mdhInfo(6,i)}(:,Info.(CurrentMeasSet).mdhInfo(2,i), ...
+		Info.(CurrentMeasSet).mdhInfo(3,i),Info.(CurrentMeasSet).mdhInfo(4,i),Info.(CurrentMeasSet).mdhInfo(5,i),:,Info.(CurrentMeasSet).mdhInfo(7,i),Info.(CurrentMeasSet).mdhInfo(8,i)) = ...
+		kSpace.(CurrentMeasSet)(:,CurPoint+1:CurPoint+Info.(CurrentMeasSet).mdhInfo(end-1,i)-Info.(CurrentMeasSet).mdhInfo(end,i)); 
+		CurPoint = CurPoint + (Info.(CurrentMeasSet).mdhInfo(end-1,i)-Info.(CurrentMeasSet).mdhInfo(end,i));
+	end
+	
+	for echo = minecho:maxi(6)
+		if(size(Temp{echo},3) == 1 && (size(Temp{echo},2) > 1 || size(Temp{echo},4) > 1) )			% This should basically mean: If data is imaging data. However it is a little cheated
+			Temp{echo} = permute(Temp{echo},[1 6 2 4 5 3 7 8]);
+		end
+	end
+	
+	kSpace.(CurrentMeasSet) = Temp;		
+	
+end
+fprintf('\n\t\t\t\t...took\t%10.6f seconds',toc)       
+
 
 
 

@@ -67,21 +67,26 @@ if(numel(strfind(file, '.dat')) > 0)
     
     % Read Raw Data
     [kSpace,ReadInInfo] = read_csi_dat(file,0,ReadInDataSets);
-	
-	
-      
     
 else   
    
     if(nargout == 5 || ONLINEkSpaceNecessary)
-        [iSpace.ONLINE,kSpace.ONLINE] = read_csi_dicom(file);
+        [iSpace.ONLINE{1},kSpace.ONLINE{1}] = read_csi_dicom(file);
     else
-        kSpace.ONLINE = read_csi_dicom(file);      	% This is in fact iSpace, but to make it work with PreProcessMRIData_Wrapper it is just renamed wrongly
-		PreProcessingInfo.ONLINE.NoFFT_flag = true;
+        if(isfield(PreProcessingInfo.ONLINE,'NoiseCorrMat') && numel(PreProcessingInfo.ONLINE.NoiseCorrMat) > 1)
+            kSpace.ONLINE{1} = read_csi_dicom(file);      	% This is in fact iSpace, but to make it work with PreProcessMRIData_Wrapper it is just renamed wrongly. 
+            PreProcessingInfo.ONLINE.NoFFT_flag = true;
+        else
+            iSpace.ONLINE{1} = read_csi_dicom(file);
+            Noise.CorrMat = 0;
+            Noise.Mat = 0;
+            ReadInInfo = 0;
+            return;
+        end
     end
     Noise.CorrMat = 0;
     Noise.Mat = 0;
-	ReadInInfo = 0;
+    ReadInInfo = 0;
     
 end
 
@@ -107,7 +112,7 @@ PreProcessingInfo_Standard.ONLINE.Hamming_flag = false;
 PreProcessingInfo_Standard.PATREFANDIMASCAN.Hamming_flag = false;
 
 % Remove Oversampling
-if(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,6) > 1)
+if(isfield(kSpace,'ONLINE') && size(kSpace.ONLINE{1},6) > 1)
 	PreProcessingInfo_Standard.ONLINE.RmOs = false;		% CSI
 else
 	PreProcessingInfo_Standard.ONLINE.RmOs = true;		% Imaging
@@ -115,24 +120,26 @@ end
 PreProcessingInfo_Standard.PATREFANDIMASCAN.RmOs = true;
 OversamplingFactor_PATREFANDIMASCAN = 2;
 OversamplingFactor_ONLINE = 2;
-if(isfield(ReadInInfo,'PATREFANDIMASCAN') && isfield(ReadInInfo.PATREFANDIMASCAN, 'nReadEnc') && size(kSpace.PATREFANDIMASCAN,2) == size(kSpace.PATREFANDIMASCAN,3))  % This is really really bad...
+if(isfield(ReadInInfo,'PATREFANDIMASCAN') && isfield(ReadInInfo.PATREFANDIMASCAN, 'nReadEnc') && size(kSpace.PATREFANDIMASCAN{1},2) == size(kSpace.PATREFANDIMASCAN{1},3))  % This is really really bad...
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.RmOs = false;
 	OversamplingFactor_PATREFANDIMASCAN = 1;
 end	
-if(isfield(kSpace,'ONLINE') && isfield(ReadInInfo,'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && size(kSpace.ONLINE,2) == size(kSpace.ONLINE,3))  % This is really really bad...
+if(isfield(kSpace,'ONLINE') && isfield(ReadInInfo,'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && size(kSpace.ONLINE{1},2) == size(kSpace.ONLINE{1},3))  % This is really really bad...
 	PreProcessingInfo_Standard.ONLINE.RmOs = false;
 	OversamplingFactor_ONLINE = 1;
 end	
 
 % Zerofilling
-if(isfield(kSpace,'PATREFANDIMASCAN') && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
-	bla = size(kSpace.ONLINE); bla = [bla(1:4) size(kSpace.PATREFANDIMASCAN,5) 1 size(kSpace.PATREFANDIMASCAN,7)];
-	PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize = bla; clear bla;
+if(isfield(kSpace,'PATREFANDIMASCAN') && isfield(kSpace,'ONLINE') && size(kSpace.ONLINE{1},2) > 1)
+	for echo = 1:numel(kSpace.ONLINE)
+		bla = size(kSpace.ONLINE{echo}); bla = [bla(1:4) size(kSpace.PATREFANDIMASCAN{echo},5) 1 size(kSpace.PATREFANDIMASCAN{echo},7)];
+		PreProcessingInfo_Standard.PATREFANDIMASCAN.ZeroFillingDesiredSize{echo} = bla; clear bla;
+	end
 end
 
 % Elliptical Filtering
 if(exist('ReadInInfo','var') && isfield(ReadInInfo, 'ONLINE') && isfield(ReadInInfo.ONLINE, 'nReadEnc') && ~(ReadInInfo.ONLINE.nReadEnc == 1) ...
-	&& isfield(kSpace,'ONLINE') && size(kSpace.ONLINE,2) > 1)
+	&& isfield(kSpace,'ONLINE') && size(kSpace.ONLINE{1},2) > 1)
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end
 
@@ -172,7 +179,9 @@ if(isfield(PreProcessingInfo,'PATREFANDIMASCAN'))
 		end
 	end
 	if(isfield(PreProcessingInfo.PATREFANDIMASCAN, 'ZeroFillingDesiredSize'))
-		PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize(2) = PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize(2) * OversamplingFactor_PATREFANDIMASCAN;
+		for echo = 1:numel(PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize)
+			PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize{echo}(2) = PreProcessingInfo.PATREFANDIMASCAN.ZeroFillingDesiredSize{echo}(2) * OversamplingFactor_PATREFANDIMASCAN;
+		end
 	end
 end
 

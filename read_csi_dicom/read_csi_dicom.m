@@ -93,15 +93,15 @@ csi_imag=csi_data(2:2:end);                           % Even imaginary
 csi_complex=complex(csi_real,csi_imag);
 
 
-% Reshape to 5D-Matrix
-csi = zeros(total_channel_no,ROW,COL,SLC,vecSize);
+% Reshape to 6D-Matrix
+csi = zeros(total_channel_no,ROW,COL,SLC,1,vecSize);
 
 k=-1;
 for z=1:SLC
     for y=1:ROW
         for x=1:COL
             k=k+1;
-            csi(1,x,y,z,:) = csi_complex(k*vecSize+1:(k+1)*vecSize);	% total channel number not yet implemented, since ICE always creates 1 fiile per channel
+            csi(1,x,y,z,1,:) = csi_complex(k*vecSize+1:(k+1)*vecSize);	% total channel number not yet implemented, since ICE always creates 1 fiile per channel
         end                                                             % there is anyway only one channel in the DICOM file.
     end
 end
