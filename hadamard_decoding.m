@@ -60,7 +60,7 @@ if(numel(InArray)*8*2*2/2^20 > MemFree)
 	LoopOverIndex(ApplyAlongDim) = NaN;
 	LoopOverIndex = find(nanmin(LoopOverIndex));
 	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
-	AccessString = [	repmat(':,',[1 LoopOverIndex-1]) First repmat(':,',[1 numel(size_InArray)-LoopOverIndex])	];
+	AccessString = [	repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_InArray)-LoopOverIndex])	];
 	AccessString(end) = [];
 end
 
@@ -74,8 +74,11 @@ HadamardMatrix = hadamard(size_InArray(ApplyAlongDim));
 if(numel(InArray)*8*2*2/2^20 > MemFree)
 	
 	
-	for LoopIndex = 1:size_InData(LoopOverIndex)
+	for LoopIndex = 1:size_InArray(LoopOverIndex)
 
+		tic_loop = tic;
+		fprintf('\nHadamard Decoding Part %d\t...\tof %d', LoopIndex, size(InArray,LoopOverIndex))
+		
 		TempData = eval(['InArray(' AccessString ')']);
 
 		% 2.1. Shift the Hadamard-Dimension to Position 1 & Reshape
@@ -96,10 +99,11 @@ if(numel(InArray)*8*2*2/2^20 > MemFree)
 
 		% Shift the dimensions of InArray so that size(InArray) = size_InArray. 
 		TempData = shiftdim(TempData,numel(size_InArray) - (ApplyAlongDim - 1)); %#ok
-
+		
 		% To restore singleton dimensions, reshape again
-		eval(['InArray(' AccessString ') = reshape(TempData, size_InArray);']);
+		eval(['InArray(' AccessString ') = reshape(TempData,size(InArray(' AccessString ')));']);
 
+		fprintf('\ttook\t%10.6f seconds', toc(tic_loop))       
 
 
 	end
