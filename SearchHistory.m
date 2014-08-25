@@ -1,4 +1,4 @@
-function SearchHistory(SearchString,CaseInsensitive_flag)
+function SearchHistory(SearchString,CaseInsensitive_flag,PrintBeforeAndAfter)
 %
 % SearchHistory Searches the command history. 
 %
