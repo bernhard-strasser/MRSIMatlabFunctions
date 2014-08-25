@@ -50,12 +50,10 @@ function [Flags,FlagNamesSet] = Interpret_EvalInfoMask(EvalInfoMask_2xuint32)
 try
 	FlagsString1 = dec2bin(EvalInfoMask_2xuint32(1),32);
 	FlagsString2 = dec2bin(EvalInfoMask_2xuint32(2),32);
-catch errie
-	if(exist('errie','var'))
-		Flags = 0;
-		FlagNamesSet = '0';
-		return;
-	end
+catch
+	Flags = 0;
+	FlagNamesSet = 'Unknown';
+	return;
 end
 
 Flags1 = zeros([1 numel(FlagsString1)]);
@@ -72,7 +70,7 @@ always_zeros = [7,8,10,34,35,36,37,38,39,40,44,45,54,55,56,57,58,59,60,61,62,63,
 
 if(sum(Flags(always_zeros) == 1))
 	Flags = 0;
-	FlagNamesSet = '0';
+	FlagNamesSet = 'Unknown';
 	return;
 end
 Flags(always_zeros) = [];
@@ -93,7 +91,7 @@ ContradictoryFlags = {...
 for FlagLoop = ContradictoryFlags
 	if(sum(Flags(FlagLoop{:})) == 2)
 		Flags = 0;
-		FlagNamesSet = '0';
+		FlagNamesSet = 'Unknown';
 		return;
 	end
 end
@@ -102,7 +100,7 @@ end
 % This is a little fishy, but why would anyone set so many flags at once?
 if(sum(Flags) > 14)
 	Flags = 0;
-	FlagNamesSet = '0';
+	FlagNamesSet = 'Unknown';
 	return;	
 end
 
