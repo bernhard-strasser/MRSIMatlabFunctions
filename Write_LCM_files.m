@@ -1,6 +1,6 @@
 function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %
-% Write_LCM_files_x_y Write the files necessary for LCModel fittting.
+% Write_LCM_files Write the files necessary for LCModel fittting.
 %
 % This function was written by Bernhard Strasser, 2011 and 2012, revised August 2012.
 %
@@ -12,10 +12,9 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 % "bash bash_file_1 & bash bash_file_2 ...") the fitting process is split to several cores (LCModel normally uses only 1 core).
 % 
 %
-% Write_LCM_files_1_8(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
+% Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %
 % InArray:              Complex array with time domain data, e.g. [64x64x1x2048] CSI Matrix
-% mask:                 Only write files for voxels with 1 in mask; If all should be processed: mask = ones(...) (same size as InArray but no vecSize dim)
 % Paths:                Struct with Path info:
 %                       -   Paths.out_dir 
 %                       -   Paths.basis_file 
@@ -31,6 +30,9 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %                       -   MetaInfo.dwelltime:      The dwelltime, i.e. the duration between two consecutive time points.
 % ControlInfo:          Struct or a string referring .m file with control parameters for LCModel fitting. This file / struct is executed at the end of the Control-Parameter settings,
 %                       and can thus overwrite ALL control parameters. Be careful!
+% mask:                 Only write files for voxels with 1 in mask; If all should be processed: mask = ones(...) (same size as InArray but no vecSize dim)
+%
+% CPU_cores:            Determines to how many batch scripts the individual voxels are split, so that those batch scripts can be run in parallel.
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -52,8 +54,8 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 % out_dir:              Path to where all files should be written
 % basis_file:           Path of basis file with which LCModel should fit the spectra
 % pat_name:             Name of Patient
-% MetInfo.LarmorFreq:      Frequency where the scanner detected the water-resonance
-% MetInfo.dwelltime:            Time interval between two consecutive FID-points
+% MetaInfo.LarmorFreq:  Frequency where the scanner detected the water-resonance
+% MetaInfo.dwelltime:   Time interval between two consecutive FID-points
 % zero_order_phase:     Prior Knowledge about the zero order phase of the spectra
 % sddegz:               (StandardDeviationDegreeZero: StandardDeviation controlling how much LCModel is allowed to deviate from zero_order_phase
 % first_order_phase:    Prior Knowledge about the first order phase of the spectra
@@ -243,8 +245,9 @@ for core = 1:CPU_cores
         delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
     end
     batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
+	fprintf(batch_fids(core), 'echo -e ''Starting batch %d, pid = $$, ppid = $PPID''\nsleep 1\n',core);  
 end
-fprintf(batch_fids(1), 'echo -e ''LCModel Processing\t...\t0 %%''\n');  
+fprintf(batch_fids(1), 'echo -e ''\nLCModel Processing\t...\t0 %%''\n');  
 
 % Find out the dimensions of InArray over which should be looped (e.g. for [size(InArray) = [32 32 1 1024] these dimensions would be [1 2 3 5 6]
 % The dimensions 5 and 6 will be ignored because size(InArray,5) = 1 = size(InArray,6) with the above InArray)
