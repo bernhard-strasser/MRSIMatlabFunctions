@@ -386,7 +386,7 @@ end
 
 
 
-OutData = Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),:,:);                                           %Crop out the good data.
+OutData = Reco_dummy(:,kernelsize(1)+1:end-(kernelsize(2)-size(UndersamplingCell,1)+1),kernelsize(3)+1:end-(kernelsize(4)-size(UndersamplingCell,2)+1),:,:);                                           %Crop out the good data.
 
 if(~quiet_flag)
 	fprintf('... %f sec \n',toc)
