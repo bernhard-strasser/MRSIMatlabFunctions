@@ -1,4 +1,4 @@
-function IND = sub2ind_extended(ArraySize,AdditionalReplication,varargin)
+function IND = sub2ind_extended(ArraySize,AdditionalReplication,EntangledDims,varargin)
 %
 % sub2ind_extended Compute the linear indices of an array with extended features w.r.t. sub2ind.
 %
@@ -76,34 +76,34 @@ end
 
 
 
-% Consistency Checks
-if(isstruct(AdditionalReplication))
-	AddRepNotWorking = ~isfield(AdditionalReplication,'DimPos') || ~isfield(AdditionalReplication,'Mat') || ~isfield(AdditionalReplication,'AddToDims') ...
-	|| size(AdditionalReplication.Mat,2) ~= numel(AdditionalReplication.AddToDims);
-
-	% If this is ok test if there would be non-positive indices
-	if(~AddRepNotWorking)
-		AddRepMin = min(AdditionalReplication.Mat,[],1);
-		AddRepMax = max(AdditionalReplication.Mat,[],1);
-		for dim = 1:numel(AdditionalReplication.AddToDims)
-			if(min(varargin{AdditionalReplication.AddToDims(dim)}) + AddRepMin(dim) < 0 ||  ...
-			max(varargin{AdditionalReplication.AddToDims(dim)}) + AddRepMax(dim) > ArraySize(AdditionalReplication.AddToDims(dim)))
-				AddRepNotWorking = true;
-				break;
-			end
-		end
-	end
-	if(AddRepNotWorking)
-		fprintf('\n\nWARNING: AdditionalReplication has wrong properties, see help sub2ind_extended.\nIgnore AdditionalReplication variable.\n\n')
-		AdditionalReplication = 0;
-	end
-end
+% % Consistency Checks
+% if(isstruct(AdditionalReplication))
+% 	AddRepNotWorking = ~isfield(AdditionalReplication,'DimPos') || ~isfield(AdditionalReplication,'Mat') || ~isfield(AdditionalReplication,'AddToDims') ...
+% 	|| size(AdditionalReplication.Mat,2) ~= numel(AdditionalReplication.AddToDims);
+% 
+% 	% If this is ok test if there would be non-positive indices
+% 	if(~AddRepNotWorking)
+% 		AddRepMin = min(AdditionalReplication.Mat,[],1);
+% 		AddRepMax = max(AdditionalReplication.Mat,[],1);
+% 		for dim = 1:numel(AdditionalReplication.AddToDims)
+% 			if(min(varargin{AdditionalReplication.AddToDims(dim)}) + AddRepMin(dim) < 0 ||  ...
+% 			max(varargin{AdditionalReplication.AddToDims(dim)}) + AddRepMax(dim) > ArraySize(AdditionalReplication.AddToDims(dim)))
+% 				AddRepNotWorking = true;
+% 				break;
+% 			end
+% 		end
+% 	end
+% 	if(AddRepNotWorking)
+% 		fprintf('\n\nWARNING: AdditionalReplication has wrong properties, see help sub2ind_extended.\nIgnore AdditionalReplication variable.\n\n')
+% 		AdditionalReplication = 0;
+% 	end
+% end
 
 
 % Make Input as wanted
 % Make all input vectors to size N x 1
 for cellno = 1:numel(varargin)
-	varargin{cellno} = int16(reshape(varargin{cellno},[numel(varargin{cellno}) 1]));
+	varargin{cellno} = int16(reshape(varargin{cellno},[max(size(varargin{cellno})) min(size(varargin{cellno}))]));
 end
 
 
@@ -122,7 +122,18 @@ end
 % source points to a target point is computed within the kernel, and this relative information is applied to the target points
 % in order to get the source points. Then the linear indices can be computed.
 
-[AccessPointSize, sizes_y] = cellfun(@size,varargin); clear sizes_y;
+[AccessPointSize, sizes_y] = cellfun(@size,varargin);
+
+% % Find out where varargin has a negative value
+% NegValuePos = double(and(AccessPointSize == 1,varargin{AccessPointSize == 1} < 0)); NegValuePos(NegValuePos > 0) = -varargin{NegValuePos > 0};
+% % Copy that varargin-element that is indicated by the absolute value of the negative, to the position of the negative values
+% varargin{NegValuePos > 0} = varargin{NegValuePos(NegValuePos > 0)};
+% % 
+% AccessPartOfvararginMat = NegValuePos; AccessPartOfvararginMat(AccessPartOfvararginMat > 0) = 2:sum(AccessPartOfvararginMat > 0); AccessPartOfvararginMat(
+
+if(numel(EntangledDims) > 1)
+	AccessPointSize(EntangledDims(2:end)) = 1;
+end
 
 
 % We have to replicate also due to the AdditionalReplication
@@ -130,12 +141,16 @@ if( isstruct(AdditionalReplication) )
 	AccessPointSize = [AccessPointSize(1:AdditionalReplication.DimPos-1) size(AdditionalReplication.Mat,1) AccessPointSize(AdditionalReplication.DimPos:end)];
 end
 
-
 AddDim = 0;
 sub2indString = 'sub2ind(ArraySize';
 for dim = 1:numel(ArraySize)
 	
-	DimCorr = zeros([1 numel(AccessPointSize)]); DimCorr(dim+AddDim) = 1;
+	DimCorr = zeros([1 numel(AccessPointSize)]); 
+	if(numel(EntangledDims) > 1 && sum(dim == EntangledDims(2:end)) > 0)
+		DimCorr(EntangledDims(1)+AddDim) = 1;	
+	else
+		DimCorr(dim+AddDim) = 1;
+	end
 	
 	% Replicate the part of AdditionalReplication and add to varargin.
 	if( isstruct(AdditionalReplication) && sum(dim == AdditionalReplication.AddToDims) > 0 )
@@ -145,7 +160,12 @@ for dim = 1:numel(ArraySize)
 		if(AdditionalReplication.DimPos <= dim)
 			varargin{dim} = transpose(varargin{dim});
 			AddDim = 1;
-			DimCorr(dim) = 0; DimCorr(dim+AddDim) = 2; DimCorr(AdditionalReplication.DimPos) = 1;
+			if(numel(EntangledDims) > 1 && sum(dim == EntangledDims(2:end)) > 0)
+				DimCorr(EntangledDims(1)+AddDim) = 2;				
+			else
+				DimCorr(dim+AddDim) = 2;
+			end
+			DimCorr(AdditionalReplication.DimPos) = 1;
 		else
 			DimCorr(AdditionalReplication.DimPos) = 2;
 		end
