@@ -1,4 +1,4 @@
-function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
+function OutArray = myrepmat(OutArray,DesiredSize,DimensionCorrespondence)
 %
 % myrepmat Replicate matrix to desired size
 %
@@ -15,7 +15,7 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 % OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 %
 % Input: 
-% -  InArray                   ...    The input array that should be replicated
+% -  InArray                   ...    The input array that should be replicated. For memory reasons: InArray = OutArray;
 % -  DesiredSize               ...    The desired size of the replicated array. size(InArray) must occur somewhere in this var.
 % -  DimensionCorrespondence   ...    Matrix with numel(DesiredSize) elements, which tells the function which dimension of the
 %                                     InArray should correspond to which index of the OutArray. zeros mean
@@ -52,19 +52,17 @@ function OutArray = myrepmat(InArray,DesiredSize,DimensionCorrespondence)
 
 % 0.1 Preparations
 
-if(numel(size(InArray)) == numel(DesiredSize) && sum(size(InArray) ~= DesiredSize) == 0 )
-	OutArray = InArray;
+if(numel(size(OutArray)) == numel(DesiredSize) && sum(size(OutArray) ~= DesiredSize) == 0 )
 	return;
 end
 
-Size_InArray = size(InArray);
+Size_InArray = size(OutArray);
 if(Size_InArray(end) == 1)
 	Size_InArray(end) = [];
 end
 if(numel(Size_InArray) == 2 && Size_InArray(1) == 1)
 	Size_InArray(1) = [];
 end
-OutArray = InArray; clear InArray;
 
 if(~exist('DesiredSize', 'var'))
     return
@@ -117,8 +115,10 @@ ReshapeTo = DesiredSize; ReshapeTo(DimensionCorrespondence == 0) = 1;
 RepmatTo = DesiredSize; RepmatTo(DimensionCorrespondence ~= 0) = 1;
 
 OutArray = reshape(OutArray,ReshapeTo);
-OutArray = repmat(OutArray,RepmatTo);
 
+if( sum(RepmatTo ~= 1) > 0 )
+	OutArray = repmat(OutArray,RepmatTo);
+end
 
 
 
