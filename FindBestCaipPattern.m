@@ -198,9 +198,11 @@ BestXPercPatterns.CellSizes = transpose(squeeze(repmat(cell_size,[1 1 size(BestX
 
 % Not yet done -- Is it really necessary?
 BestPatterns = ExcludeCaipiPatternsByCircshift(BestPatterns,false);
-tic
-BestXPercPatterns = ExcludeCaipiPatternsByCircshift(BestXPercPatterns,false);
-toc
+
+if(numel(BestXPercPatterns.Indices) < 500)
+	BestXPercPatterns = ExcludeCaipiPatternsByCircshift(BestXPercPatterns,false);
+end
+
 
 
 
@@ -228,20 +230,21 @@ function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
 
 
 
-	PatternIndSimilar = zeros([1 numel(PatternIn.Indices)]);
-	%FoundInd = 0;
+	PatternIndSimilar = zeros(numel(PatternIn.Indices));
+	FoundInd = 0;
 	for PatternNo1 = 1:numel(PatternIn.Indices)
 		CompareMat1 = zeros(squeeze(PatternIn.CellSizes(PatternNo1,:)));
 		CompareMat1(PatternIn.Patterns(:,PatternNo1)) = 1;
 		if(ismember(PatternNo1,PatternIndSimilar))
 			continue
 		end
-		BreakOut = false;
 		
 		for PatternNo2 = PatternNo1+1:numel(PatternIn.Indices)
 			if(ismember(PatternNo2,PatternIndSimilar))
 				continue
 			end
+			BreakOut = false;
+
 			
 			CompareMat2_dummy = zeros(squeeze(PatternIn.CellSizes(PatternNo2,:)));
 			CompareMat2_dummy(PatternIn.Patterns(:,PatternNo2)) = 1;
@@ -261,8 +264,8 @@ function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
 					end
 					
 					if(~ismember(0,CompareMat1 == CompareMat2))
-						%FoundInd = FoundInd + 1;					
-						PatternIndSimilar(PatternNo1) = PatternNo2;
+						FoundInd = FoundInd + 1;
+						PatternIndSimilar(FoundInd) = PatternNo2;
 						BreakOut = true;
 						break;
 					end
@@ -275,7 +278,6 @@ function PatternOut = ExcludeCaipiPatternsByCircshift(PatternIn,DebugMode)
 				end
 				if(BreakOut), break; end
 			end
-			if(BreakOut), break; end
 		end
 	end
 	PatternIndSimilar(PatternIndSimilar == 0) = [];
