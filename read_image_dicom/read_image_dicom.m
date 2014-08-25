@@ -1,4 +1,4 @@
-function [image_dicom, image_dicom_kspace] = read_image_dicom_1_2(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
+function [image_dicom, image_dicom_kspace] = read_image_dicom(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, phase_encod_dir)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -60,7 +60,7 @@ Image_MagPha_file = regexp(image_path,' ','split');
 % Read ascconv header
 
 
-ParList_asc = read_ascconv_1_3(Image_MagPha_file{1});
+ParList_asc = read_ascconv(Image_MagPha_file{1});
 %RemoveOversampling = ParList_asc.RemoveOversampling;
 ROW = ParList_asc.ROW_raw;
 COL = ParList_asc.COL_raw;

@@ -1,4 +1,4 @@
-function [image, image_kspace] = read_image_1_4(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize,NoiseCorrMat,phase_encod_dir, sum_averages_flag)
+function [image, image_kspace] = read_image(image_path,DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize,NoiseCorrMat,phase_encod_dir, sum_averages_flag)
 %
 % read_image_x_x Read in csi-data
 %
@@ -54,12 +54,12 @@ function [image, image_kspace] = read_image_1_4(image_path,DesiredSize,interpol_
 Image_MagPha_file = regexp(image_path,' ','split');
 
 % Read ascconv header
-ParList_asc = read_ascconv_1_3(Image_MagPha_file{1});
+ParList_asc = read_ascconv(Image_MagPha_file{1});
 
 % Assign standard values to variables if nothing is passed to function.
 if(~exist('DesiredSize','var') || DesiredSize(1) == 0)
-    DesiredSize(1) = ParList_asc.ROW_raw;           % There is some problem with the read_ascconv function. For image files, the FinalMatrixSize
-    DesiredSize(2) = ParList_asc.COL_raw;           % Is written where for CSI files the raw-sizes are written...
+    DesiredSize(1) = ParList_asc.nFreqEnc;           % There is some problem with the read_ascconv function. For image files, the FinalMatrixSize
+    DesiredSize(2) = ParList_asc.nPhasEnc;           % Is written where for CSI files the raw-sizes are written...
 end
 if(numel(DesiredSize) == 1)
     DesiredSize(2) = DesiredSize;                   % If only one size is inputted, assume that both sizes should be the same.

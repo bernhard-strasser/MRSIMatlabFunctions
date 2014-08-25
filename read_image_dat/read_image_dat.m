@@ -1,4 +1,4 @@
-function [image,image_kspace] = read_image_dat_2_5(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, NoiseCorrMat, phase_encod_dir,sum_averages_flag)
+function [image,image_kspace] = read_image_dat(image_path, DesiredSize,interpol_method,flip,fredir_shift,Hamming_flag,EllipticalFilterSize, NoiseCorrMat, phase_encod_dir,sum_averages_flag)
 %
 % read_image_dat_x_x Read in image-data in raw format
 %
@@ -37,7 +37,7 @@ function [image,image_kspace] = read_image_dat_2_5(image_path, DesiredSize,inter
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0, read_ascconv_1_3, Analyze_image_mdh_1_2, EllipticalFilter_1_0, HammingFilter_1_3
+% File dependancy: memused_linux_1_0, read_ascconv, Analyze_image_mdh_1_2, EllipticalFilter_1_0, HammingFilter_1_3
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -58,16 +58,16 @@ memused_before = memused_linux_1_0(1);
 
 
 % Read ascconv header
-ParList_asc = read_ascconv_1_3(image_path);
+ParList_asc = read_ascconv(image_path);
 %RemoveOversampling = ParList_asc.RemoveOversampling;
 AsymmetricEcho = ParList_asc.AsymmetricEcho;                                     
-BaseResolution = ParList_asc.ROW_raw;
-SLC = ParList_asc.SLC;
+BaseResolution = ParList_asc.nFreqEnc;
+SLC = ParList_asc.nSLC;
 
 % Assign standard values to variables if nothing is passed to function.
 if(~exist('DesiredSize','var') || DesiredSize(1) == 0)
-    DesiredSize(1) = ParList_asc.ROW_raw;           % There is some problem with the read_ascconv function. For image files, the FinalMatrixSize
-    DesiredSize(2) = ParList_asc.COL_raw;           % Is written where for CSI files the raw-sizes are written...
+    DesiredSize(1) = ParList_asc.nFreqEnc;           % There is some problem with the read_ascconv function. For image files, the FinalMatrixSize
+    DesiredSize(2) = ParList_asc.nPhasEnc;           % Is written where for CSI files the raw-sizes are written...
 end
 if(numel(DesiredSize) == 1)
     DesiredSize(2) = DesiredSize;                   % If only one size is inputted, assume that both sizes should be the same.
@@ -261,7 +261,7 @@ end
 
 %% 7. Reorder Multislice Data if Necessary
 
-if(SLC > 1 && ParList_asc.InterleavedAcquisition)
+if(SLC > 1 && ParList_asc.InterleavedSliceAcquisition)
     image_kspace = reorder_multislice_image_1_0(image_kspace,4);
 end
 
