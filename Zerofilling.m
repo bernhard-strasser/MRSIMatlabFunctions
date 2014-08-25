@@ -15,16 +15,16 @@ function OutArray = Zerofilling(OutArray,Zerofill_To,PerformFFT_flag)
 %
 % Input: 
 % -     OutArray                     ...    Input array to which the filter should be applied
-% -     ApplyAlongDims              ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
+% -     ApplyAlongDims               ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %                                          Filter is applied. Otherwise, a 3d filter is used.
-% -     EllipsoidCoefficients       ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
+% -     EllipsoidCoefficients        ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
 %                                          Filter, set c = 1;
-% -     PerformFFT_flag          ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
+% -     PerformFFT_flag              ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
 %                                          and transformed back to image domain afterwards
 %
 % Output:
-% -     OutArray                    ...     The filtered/masked output array
-% -     mask                        ...     The mask of the filter
+% -     OutArray                     ...     The filtered/masked output array
+% -     mask                         ...     The mask of the filter
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -58,6 +58,7 @@ end
 % 0.3 Definitions
     
 size_OutArray = size(OutArray);
+size_OutArray = [size_OutArray ones([1 numel(Zerofill_To)-numel(size_OutArray)])];
 AppendZeros = round(Zerofill_To - size_OutArray);
 %AppendZeros(AppendZeros < 0) = 0;
 ApplyAlongDims = find(ne(AppendZeros,0));
