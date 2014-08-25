@@ -56,7 +56,6 @@ uid = regexp(regexp(uid,'uid=\d+','match'),'\d+','match');
 uid = uid{:}; uid = str2num(uid{:});
 
 [stat,memused] = unix(['ps aux | grep "' uname '\|' uid '" | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1']);     % unix just performs the unix-command.
-clear stat
 memused = sum(str2num(memused));                                                               % str2double does not work
 
 [stat,memfree] = unix('free -m | awk ''NR==3'' | awk ''{print $4}''');                         % unix just performs the unix-command. perform free -g command, take 3rd line of that, and 4th column.
