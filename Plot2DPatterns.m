@@ -1,4 +1,4 @@
-function rad = Plot2DPatterns(deg)
+function figure_handle_out = Plot2DPatterns(Pattern,figure_handle_in,repmat_flag)
 %
 % deg2rad Convert from degree to radians.
 %
@@ -25,15 +25,67 @@ function rad = Plot2DPatterns(deg)
 %% 0. Preparations
 
 % Assign standard values to variables if nothing is passed to function.
-if(nargin < 1)
-	fprintf('\nError in deg2rad: No Input.\n')
-	rad = 0;
-	return;
+if(nargin < 2 || figure_handle_in == 0)
+	figure_handle_out = figure;
+else
+	figure_handle_out = figure_handle_in;
+end
+
+Pattern = rot90(Pattern,-1);
+
+if(repmat_flag)
+	Pattern = repmat(Pattern,[3 3]);
+	Pattern_Center = zeros(size(Pattern));
+	Pattern_Center( size(Pattern,1)/3+1 : 2*size(Pattern,1)/3, size(Pattern,2)/3+1 : 2*size(Pattern,2)/3 ) = ...
+	Pattern(size(Pattern,1)/3+1 : 2*size(Pattern,1)/3, size(Pattern,2)/3+1 : 2*size(Pattern,2)/3);
+	NotPattern_Center = zeros(size(Pattern));
+	NotPattern_Center( size(Pattern,1)/3+1 : 2*size(Pattern,1)/3, size(Pattern,2)/3+1 : 2*size(Pattern,2)/3 ) = ...
+	~Pattern(size(Pattern,1)/3+1 : 2*size(Pattern,1)/3, size(Pattern,2)/3+1 : 2*size(Pattern,2)/3);	
 end
 
 
+[Ax, Ay, Az] = ind2sub(size(Pattern), find(Pattern));
+[notAx, notAy, notAz] = ind2sub(size(~Pattern), find(~Pattern));
+
+if(repmat_flag)
+	[Axctr, Ayctr, Azctr] = ind2sub(size(Pattern_Center), find(Pattern_Center));
+	[notAxctr, notAyctr, notAzctr] = ind2sub(size(NotPattern_Center), find(NotPattern_Center));
+end
+
+% Pattern itself
+scatter(Ax, Ay, 150,'r','fill','LineWidth',1.5);
+hold on
+%scatter(notAx, notAy, 150,'r','LineWidth',1.5);
+
+if(repmat_flag)
+	
+	scatter(Axctr,Ayctr,150,'b','fill','LineWidth',1.5)
+	%scatter(notAxctr,notAyctr,150,'b','LineWidth',1.5)
+
+end
+
+hold off;
+
+% Semi-thick Grid Lines
+grid on
+axh = gca;
+set(axh,'GridLineStyle','--')
+set(axh,'LineWidth',1.5)
+
+% ticks
+%set(axh,'XTickMode','manual','FontSize',14,'ticklength',[0.03 0.007]);
+set(axh,'YTickMode','manual');
+set(axh,'XTick',1:size(Pattern,1),'FontSize',20)
+set(axh,'YTick',1:size(Pattern,2),'FontSize',20)
+set(axh,'YTickLabel',size(Pattern,2):-1:1)
+set(axh,'xaxisLocation','top')
 
 
-%% 1. Convert
+axis([0.5 size(Pattern,1)+0.5 0.5 size(Pattern,2)+0.5])
+box on
+axis square
+xlabel('x','FontSize',20)
+ylabel('y','FontSize',20)
 
-rad = pi*deg/180;
+
+
