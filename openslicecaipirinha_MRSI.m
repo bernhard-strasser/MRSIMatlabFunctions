@@ -291,26 +291,37 @@ end
 Reco_dummy = zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) nSlice nTime]);
 Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),:,:) = InData;
 InPlane_UndersamplingPattern = abs(squeeze(Reco_dummy(1,:,:,1,1))) > 0;
-[TargetPoints_x TargetPoints_y] = find(InPlane_UndersamplingPattern);   % Find the target points that should be reconstructed.
+[TargetPoints_x, TargetPoints_y] = find(InPlane_UndersamplingPattern);   % Find the target points that should be reconstructed.
 
-
+weights = cat(1,weights{:});
 % Create the OutData which has to have as many slices as the ACS data because we want to reconstruct all those slices.
-OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
+OutData = zeros([nChannel nx ny nSlice_ACS nTime]); OutData2 = zeros([nChannel nx ny nSlice_ACS nTime]); 
 for SourceSliceIndex = 1:nSlice
 	if(~quiet_flag)
 		fprintf('\nDrinking Caipirinha with lemon slice %d\tGUUULLPP . . . UAHHHH . . . ',SourceSliceIndex)   
 	end
     % Loop over all target points for the processed kernel
+	
+	for xloopy = kernelsize(1)+1:kernelsize(1)+size(OutData,2)
+		for yloopy = kernelsize(3)+1:kernelsize(3)+size(OutData,3)
+			% Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
+			SourcePoints = reshape(Reco_dummy(:,xloopy-kernelsize(1):xloopy+kernelsize(2), ...
+			yloopy-kernelsize(3):yloopy+kernelsize(4),SourceSliceIndex,:), [nChannel*kernelsize_x*kernelsize_y nTime]);        
+
+			OutData_dummy = reshape(weights*SourcePoints, [nChannel 1 1 size(AliasedSlices,2) nTime]);
+			OutData2(:,xloopy-kernelsize(1),yloopy-kernelsize(3),AliasedSlices(SourceSliceIndex,:),:) = OutData_dummy;	
+	
+		end
+	end
+	
+	
     for Targetloopy = 1:numel(TargetPoints_x)   
         % Sourcepoints are the points of all channels and all x and y points within the kernel around the target point.
         SourcePoints = reshape(Reco_dummy(:,TargetPoints_x(Targetloopy)-kernelsize(1):TargetPoints_x(Targetloopy)+kernelsize(2), ...
         TargetPoints_y(Targetloopy)-kernelsize(3):TargetPoints_y(Targetloopy)+kernelsize(4),SourceSliceIndex,:), [nChannel*kernelsize_x*kernelsize_y nTime]);        
-          
-        for TargetSliceIndex = AliasedSlices(SourceSliceIndex,:)
-            % Reconstruct data by applying weights to Sourcepoints.
-            OutData(:,TargetPoints_x(Targetloopy)-kernelsize(1),TargetPoints_y(Targetloopy)-kernelsize(3),TargetSliceIndex,:) = ...
-            reshape(weights{TargetSliceIndex}*SourcePoints, [nChannel 1 1 1 nTime]);         
-        end
+         
+		OutData_dummy = reshape(weights*SourcePoints, [nChannel 1 1 size(AliasedSlices,2) nTime]);
+		OutData(:,TargetPoints_x(Targetloopy)-kernelsize(1),TargetPoints_y(Targetloopy)-kernelsize(3),AliasedSlices(SourceSliceIndex,:),:) = OutData_dummy;
         
     end
          
