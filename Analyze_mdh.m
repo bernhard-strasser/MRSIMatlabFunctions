@@ -63,9 +63,10 @@ chak_header = zeros([1 64]);
 
 
 % Read first mdh
-chak_header(1:7) = fread(fid, 7, 'uint32');
+chak_header(1:5) = fread(fid, 5, 'uint32');
+EvalInfoMask = fread(fid, 64, 'ubit1');
 chak_header(8:57) = fread(fid, 50, 'int16');
-EvalInfoMask_First = Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7)));
+EvalInfoMask_First = Associate_EvalInfoMask(EvalInfoMask);
 
 
 % VectorSize & Total Channel Number
@@ -80,23 +81,13 @@ ParList.(EvalInfoMask_First).vecSize = chak_header(8);
 fseek(fid, -256,'eof');
 chak_header = fread(fid, 64, 'uint16');
 
-% total measured k-space points & Number of Slices
-
-% if(chak_header(19) > 0)
-%     ParList.SLC = chak_header(19)+1;
-% else
-%     ParList.SLC = 1;
-% end
-% ParList.Averages = chak_header(24) + 1;
-%ParList.total_k_points = (chak_header(5)-1) / ParList.Averages;			% This is wrong! If there are more ADCs in the file (e.g. from Prescans) the kPoints cannot be computed like that!
 ParList.General.total_ADC_meas = chak_header(5)-1;
-%%ParList.total_channel_no = chak_header(16);
 
 
 
 %% Find out which Datasets are in the file
 
-if(AnalyzeWholeMDH == 1)
+if(mod(AnalyzeWholeMDH,2) == 1)
 	
 	
 	
@@ -159,11 +150,20 @@ end
 
 %% 3. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
 
-if(AnalyzeWholeMDH == 2)
+if(AnalyzeWholeMDH > 1)
     
     fseek(fid,headersize,'bof');
-    kline_max = 0; kphase_max = 0; kline_min = 99999; kphase_min = 99999; 
-
+    kline_max = 0; kline_min = 99999; 
+	kphase_max = 0; kphase_min = 99999;
+	kpart_max = 0; kpart_min = 99999;
+	slice_max = 0; slice_min = 99999;
+	echo_max = 0; echo_min = 99999;
+	avg_max = 0; avg_min = 99999;
+	rep_max = 0; rep_min = 99999;
+	
+	SampleList = zeros([1 10^5]);
+	InfoList = zeros([8 10^5]);
+	
     for i = 1:ParList.total_k_points*ParList.Averages
             chak_header = fread(fid, 64, 'uint16');
             if(chak_header(17) > kline_max)
