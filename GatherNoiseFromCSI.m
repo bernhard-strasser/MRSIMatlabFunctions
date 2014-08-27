@@ -33,7 +33,7 @@ function Noise_mat = GatherNoiseFromCSI(InData,Full_ElliptWeighted_Or_Weighted_A
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
+% File dependancy: memused_linux,Analyze_csi_mdh, read_ascconv, hadamard_encoding.m
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -72,8 +72,8 @@ Noise_csi = InData(:,:,:,:,:,end - (nFIDendpoints - 1) : end); Noise_csi = Noise
 
 % Take only csi-points which are farest away from k-space center (so a circle with radius 31 k-space points)
 if(Full_ElliptWeighted_Or_Weighted_Acq == 2)
-	[Elliptical_dummy,OuterkSpace_mask1] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
-	[Elliptical_dummy,OuterkSpace_mask2] = EllipticalFilter_1_1(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
+	[Elliptical_dummy,OuterkSpace_mask1] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
+	[Elliptical_dummy,OuterkSpace_mask2] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
 	OuterkSpace_mask = OuterkSpace_mask1 - OuterkSpace_mask2;
 else
 	OuterkSpace_mask = zeros([size(InData,2), size(InData,3)]);
