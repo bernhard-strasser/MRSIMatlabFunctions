@@ -36,7 +36,7 @@ function [csi,csi_kspace] = read_csi_dat_2_1(csi_path, zerofill_to_nextpow2_flag
 
 %% 0. Preparations
 
-memused = memused_linux_1_0(1); 
+memused = memused_linux(1); 
 display([char(10) 'At start of read_csi_dat ' num2str(memused) '% of memory is used' char(10)])
 whos
 
@@ -155,7 +155,7 @@ fclose(csi_fid);
 fprintf('took\t\t\t\t%10.6f seconds',toc)       
 
 
-    memused = memused_linux_1_0(1);  
+    memused = memused_linux(1);  
     display([char(10) 'After Readin ' num2str(memused) '% memory is used']) 
     whos
 
@@ -169,7 +169,7 @@ if(size(csi_kspace,2) > 1 || size(csi_kspace,3) > 1)                    % In cas
     toc_sum = 0;
     csi = csi_kspace;
     
-    memused = memused_linux_1_0(1);  
+    memused = memused_linux(1);  
     display([char(10) 'Before clearing csi_kspace ' num2str(memused) '% memory is used'])   
     whos
     
@@ -177,7 +177,7 @@ if(size(csi_kspace,2) > 1 || size(csi_kspace,3) > 1)                    % In cas
         clear csi_kspace;
     end    
     
-    memused = memused_linux_1_0(1);  
+    memused = memused_linux(1);  
     display([char(10) 'After clearing csi_kspace ' num2str(memused) '% memory is used'])   
     whos    
     
@@ -192,7 +192,7 @@ if(size(csi_kspace,2) > 1 || size(csi_kspace,3) > 1)                    % In cas
         csi_channel = csi(channel_no,:,:,:,:,:);                    % This extra assignment proved to be faster than using always csi(channel_no,:,:,:,:,:). Seems that indexing is rather slow.
         
         if(channel_no == 1 || channel_no == 14)
-            memused = memused_linux_1_0(1); 
+            memused = memused_linux(1); 
             display([char(10) 'While FFT ' num2str(memused) '% memory is used']) 
             whos
         end
@@ -222,7 +222,7 @@ end
 
 
 
-        memused = memused_linux_1_0(1); 
+        memused = memused_linux(1); 
         display([char(10) 'After FFT & Before Hadamard ' num2str(memused) '% memory is used'])
         whos
 
@@ -254,7 +254,7 @@ if(Hadamard_flag == 1 && SLC>1)
     end
 end
 
-        memused = memused_linux_1_0(1); 
+        memused = memused_linux(1); 
         display([char(10) 'After Hadamard ' num2str(memused) '% memory is used'])
         whos
 

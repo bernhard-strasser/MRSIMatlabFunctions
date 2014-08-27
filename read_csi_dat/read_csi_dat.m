@@ -30,7 +30,7 @@ function [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
+% File dependancy: memused_linux,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -43,7 +43,7 @@ function [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 
 
 % Find out memory used by MATLAB
-memused_before = memused_linux_1_0(1); 
+memused_before = memused_linux(1); 
 
 if(exist('DesiredSize','var') && numel(DesiredSize) == 1 && DesiredSize == 0)
 	clear DesiredSize;
@@ -383,7 +383,7 @@ fprintf('\n\t\t\t\t...took\t%10.6f seconds',toc)
 
 %% 7. Postparations
 
-memused_after = memused_linux_1_0(1); 
+memused_after = memused_linux(1); 
 display([char(10) 'The function used ' num2str(memused_after-memused_before) '% of the total memory.'])
 
 
