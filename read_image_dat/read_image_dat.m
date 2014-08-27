@@ -8,7 +8,7 @@ function [image,image_kspace] = read_image_dat(image_path, DesiredSize,interpol_
 % The function can read in MR images (or at least some of them...) in Siemens raw data format.
 %
 %
-% [image,image_kspace] = read_image_dat_2_1(image_path, DesiredSize,interpol_method,flip,fredir_shift,phase_encod_dir)
+% [image,image_kspace] = read_image_dat(image_path, DesiredSize,interpol_method,flip,fredir_shift,phase_encod_dir)
 %
 % Input: 
 % -         image_path                  ...     Path of MRI file.
@@ -37,7 +37,7 @@ function [image,image_kspace] = read_image_dat(image_path, DesiredSize,interpol_
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0, read_ascconv, Analyze_image_mdh_1_2, EllipticalFilter_1_0, HammingFilter_1_3
+% File dependancy: memused_linux, read_ascconv, Analyze_image_mdh, EllipticalFilter, HammingFilter
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -52,7 +52,7 @@ function [image,image_kspace] = read_image_dat(image_path, DesiredSize,interpol_
 tic
 
 % Find out memory used by MATLAB
-memused_before = memused_linux_1_0(1); 
+memused_before = memused_linux(1); 
 
 
 
@@ -101,7 +101,7 @@ end
 
 
 % READ MDH INFORMATION
-ParList = Analyze_image_mdh_1_3(image_path);
+ParList = Analyze_image_mdh(image_path);
 phadir_measured = ParList.phadir_measured;
 if(AsymmetricEcho)
     fredir_measured = 2^nextpow2(ParList.fredir_measured);  % When Gradient echo image with asymmetric echo is acquired, the k-space has to be either 
@@ -262,7 +262,7 @@ end
 %% 7. Reorder Multislice Data if Necessary
 
 if(SLC > 1 && ParList_asc.InterleavedSliceAcquisition)
-    image_kspace = reorder_multislice_image_1_0(image_kspace,4);
+    image_kspace = reorder_multislice_image(image_kspace,4);
 end
 
 
@@ -270,7 +270,7 @@ end
 %% 8. Apply Elliptical Filter
 
 if(EllipticalFilterSize > 0)
-    image_kspace = EllipticalFilter_1_1(image_kspace,[2 3],[OversamplingFactor 1 1 EllipticalFilterSize],1);               % Apply Elliptical Filter in directions 2,3 
+    image_kspace = EllipticalFilter(image_kspace,[2 3],[OversamplingFactor 1 1 EllipticalFilterSize],1);               % Apply Elliptical Filter in directions 2,3 
 end
 
 
@@ -279,7 +279,7 @@ end
 %% 9. Apply Hamming Filter
 
 if(Hamming_flag)
-    image_kspace = HammingFilter_1_3(image_kspace,[2 3],1);
+    image_kspace = HammingFilter(image_kspace,[2 3],1);
 end
     
 
@@ -365,7 +365,7 @@ end
 
 %% 14. Postparations
 
-memused_after = memused_linux_1_0(1); 
+memused_after = memused_linux(1); 
 display([char(10) 'The function used ' num2str(memused_after-memused_before) '% of the total memory.'])
 
 fprintf('\nExecution of the function took %10.6f seconds.\n',toc) 
