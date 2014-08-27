@@ -51,7 +51,7 @@ size_InArray = size(InArray);
 %% 1. Memory Considerations - Find best Looping
 
 
-[dummy, MemFree] = memused_linux_1_1(1);
+[dummy, MemFree] = memused_linux(1);
 MemNecessary = numel(InArray)*8*2*2/2^20;							% every entry of InArray is double --> 8 bytes. *2 because complex. *2 as safety measure (so InArray fits 2 times in memory,
 																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
 if(numel(InArray)*8*2*2/2^20 > MemFree)
