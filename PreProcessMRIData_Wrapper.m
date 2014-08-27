@@ -33,7 +33,7 @@ function [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kS
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
+% File dependancy: memused_linux,Analyze_csi_mdh, read_ascconv, hadamard_encoding.m
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -46,7 +46,7 @@ function [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kS
 
 
 % Find out memory used by MATLAB
-memused_before = memused_linux_1_0(1); 
+memused_before = memused_linux(1); 
 
 
 % % Assign standard values to variables if nothing is passed to function.
@@ -221,7 +221,7 @@ for CurDataSet = DataSetNames
 	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize(end) > 0)
 		fprintf('\nApply Elliptical Filter with Filtersize %d.',transpose(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))
 		for echo = 1:numel(kSpace.(CurDataSetString))
-			kSpace.(CurDataSetString){echo} = EllipticalFilter_1_1(kSpace.(CurDataSetString){echo},[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
+			kSpace.(CurDataSetString){echo} = EllipticalFilter(kSpace.(CurDataSetString){echo},[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
 		end
 	end
 
@@ -244,7 +244,7 @@ for CurDataSet = DataSetNames
 	% Zerofilling in kSpace
 	if(isfield(PreProcessingInfo.(CurDataSetString),'ZeroFillingDesiredSize') && numel(PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{1}) > 1)
 		for echo = 1:numel(kSpace.(CurDataSetString))
-			fprintf('\nEcho %d: Zerofill in kSpace from size [%s] to [%s]',echo,sprintf('%d ',size(kSpace.(CurDataSetString))),sprintf('%d ',PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo}))    						
+			fprintf('\nEcho %d: Zerofill in kSpace from size [%s] to [%s]',echo,sprintf('%d ',size(kSpace.(CurDataSetString){echo})),sprintf('%d ',PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo}))    						
 			kSpace.(CurDataSetString){echo} = Zerofilling(kSpace.(CurDataSetString){echo}, PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo});
 		end
 	end
@@ -328,7 +328,7 @@ if(nargout > 3 && ~exist('PreProcessingInfo','var'))
 	PreProcessingInfo = 0;
 end
 
-memused_after = memused_linux_1_0(1); 
+memused_after = memused_linux(1); 
 display([char(10) 'The function used ' num2str(memused_after-memused_before) '% of the total memory.'])
 
 
