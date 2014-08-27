@@ -33,7 +33,7 @@ function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag)
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: memused_linux_1_0,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
+% File dependancy: memused_linux,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
 
 % Further remarks: This function uses FFTs to get from k- to image-space. This is mathematically wrong, but Siemens seems to do the same when
 % creating DICOMS. The only difference is that the images are flipped left/right and up/down.
@@ -80,7 +80,7 @@ end
 
 size_InData = size(InData);
 
-[dummy, MemFree] = memused_linux_1_1(1);
+[dummy, MemFree] = memused_linux(1);
 MemNecessary = numel(InData)*8*2*2/2^20;							% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 2 times in memory,
 																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
 if(MemNecessary > MemFree)
