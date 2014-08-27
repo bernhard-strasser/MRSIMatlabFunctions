@@ -56,7 +56,7 @@ end
 
 size_OutData = size(OutData);
 
-[dummy, MemFree] = memused_linux_1_1(1);
+[dummy, MemFree] = memused_linux(1);
 MemNecessary = numel(OutData)*8*2*4/2^20;							% every entry of OutData is double --> 8 bytes. *2 because complex. *4 as safety measure (so OutData fits 2 times in memory,
 																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
 ApplyAlongDims = [2 3];
