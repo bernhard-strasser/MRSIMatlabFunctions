@@ -245,7 +245,7 @@ for core = 1:CPU_cores
         delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
     end
     batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
-	fprintf(batch_fids(core), 'echo -e ''Starting batch %d, pid = $$, ppid = $PPID''\nsleep 1\n',core);  
+	fprintf(batch_fids(core), 'echo -e "Starting batch %d, pid = $$, ppid = $PPID"\nsleep 1\n',core);  
 end
 fprintf(batch_fids(1), 'echo -e ''\nLCModel Processing\t...\t0 %%''\n');  
 
