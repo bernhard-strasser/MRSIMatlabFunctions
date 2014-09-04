@@ -219,7 +219,7 @@ for CurDataSet = DataSetNames
 	
 	% 8. Apply Elliptical Filter
 	if(isfield(PreProcessingInfo.(CurDataSetString),'EllipticalFilterSize') && PreProcessingInfo.(CurDataSetString).EllipticalFilterSize(end) > 0)
-		fprintf('\nApply Elliptical Filter with Filtersize %d.',transpose(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))
+		fprintf('\nApply Elliptical Filter with Filtercoefficients [a b c R] = [%s].',num2str(PreProcessingInfo.(CurDataSetString).EllipticalFilterSize))
 		for echo = 1:numel(kSpace.(CurDataSetString))
 			kSpace.(CurDataSetString){echo} = EllipticalFilter(kSpace.(CurDataSetString){echo},[2 3],PreProcessingInfo.(CurDataSetString).EllipticalFilterSize,1);
 		end
