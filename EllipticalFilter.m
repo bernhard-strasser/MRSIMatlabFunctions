@@ -30,7 +30,7 @@ function [OutArray,mask] = EllipticalFilter(InArray,ApplyAlongDims,EllipsoidCoef
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: myrepmat_1_0
+% File dependancy: myrepmat
 
 % Further remarks: 
 
@@ -96,7 +96,7 @@ else
 end
 
 mask = ( (x_grid - kSpaceCenter(1)) / EllipsoidCoefficients(1) ).^2 + ( (y_grid - kSpaceCenter(2)) / EllipsoidCoefficients(2) ).^2 + ( (z_grid - kSpaceCenter(3)) / EllipsoidCoefficients(3) ).^2 <= EllipsoidCoefficients(4)^2;
-mask = myrepmat_1_0(mask,size(OutArray),ApplyAlongDims(1));
+mask = myrepmat(mask,size(OutArray));
 
 
 
