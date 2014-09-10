@@ -24,7 +24,7 @@ function [csi, csi_kspace] = read_csi_dicom(csi_path, zerofilling_fact, x_shift,
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: read_ascconv_1_2
+% File dependancy: read_ascconv
 
 % Further remarks: This function uses IFFTs in ROW-dimension to get from image to k-space. This is mathematically wrong, but Siemens seems
 % to do the same when creating DICOMS. The only difference is that the k-space is flipped up/down by that. In COL dimension it uses FFT. This was
@@ -48,7 +48,7 @@ end
 
 
 % Read info from ascconv header
-ParList = read_ascconv_1_8(csi_path);
+ParList = read_ascconv(csi_path);
 total_channel_no = ParList.total_channel_no_reco;
 
 if(not(isnan(ParList.nFreqEnc_FinalMatrix)))

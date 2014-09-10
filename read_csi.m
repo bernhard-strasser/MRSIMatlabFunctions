@@ -5,15 +5,17 @@ function [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreP
 % This function was written by Bernhard Strasser, July 2012.
 %
 %
-% The function only decides if input file is .dat file or DICOM according to its ending. It then calls the read_csi_dat_x_x or read_csi_dicom_x_x
-% functions. Refer to these for more info
+% The function sets default values for PreProcessingInfo and decides if input file is .dat file or DICOM according to its ending. 
+% It then calls the read_csi_dat or read_csi_dicom functions. Refer to these for more info.
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,csi_kspace] = read_csi(file,zerofill_to_nextpow2_flag,zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag,NoiseCorrMat)
+% [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreProcessingInfo,ReadInDataSets)
 %
 % Input: 
 % -         file                        ...     Path of MR(S)(I) file.
 % -         PreProcessingInfo           ...     Info about how the read in data should be pre-processed. See help PreProcessMRIData_Wrapper.
+% -         ReadInDataSets              ...     Only read in those datasets, e.g. 'ONLINE', 'NOISEADJSCAN', 'PATREFANDIMASCAN'. These are compared to
+%                                               the EvalInfoMask of the raw-data, and only if it matches, that data set is read in.
 %
 % Output:
 % -         iSpace                      ...     Structure of data in image domain. Its fieldnames are according to the EvalInfoMask information (e.g. 'ONLINE', 'PATREFANDIMASCAN', etc.)
@@ -201,7 +203,6 @@ end
 
 
 %% 5. PreProcess Data
-
 
 % PreProcess Data
 if(nargout >= 5)

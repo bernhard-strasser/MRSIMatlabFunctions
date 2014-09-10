@@ -9,22 +9,17 @@ function [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [kSpace, Info] = read_dat(file, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+% [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
 % -         file                    ...     Path of MRS(I) file.
-% -         zerofill_to_nextpow2_flag   ...     Flag, if the MRSI data should be zerofilled to the next power of 2 in k-space (e.g. 42x42 sampled --> zf to 64x64?)
-% -         zerofilling_fact            ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
-% -         Hadamard_flag               ...     If data is multislice hadamard encoded, perform hadamard-decoding function
-% -         x_shift                     ...     Shift the MRSI data in the left-right direction ( = row direction of matrix) by x_shift voxels
-% -         y_shift                     ...     Shift the MRSI data in anterior-posterior direction ( = column direction of matrix) by y_shift voxels
-% -         NoFFT_flag                  ...     If this is true, don't perform any fft.
-% -         NoiseCorrMat                ...     If size(NoiseCorrMat) = [cha cha]: the k-space Data gets decorrelated with this matrix. 
-%                                               If NoiseCorrMat = 1: the end of the FIDs of the outermost k-space/image points are used for noise decorrelation.
-%                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
+% -         DesiredSize             ...     If you want to perform zerofilling or use only a part of the kspace, set
+%                                           DesiredSize to your wanted [kx,ky,kz], e.g. [64 64 1].
+% -         ReadInDataSets          ...     
 %
 % Output:
 % -         kSpace                      ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x Samples x Averages
+% -         Info                        ...     
 %
 %
 % Feel free to change/reuse/copy the function. 
