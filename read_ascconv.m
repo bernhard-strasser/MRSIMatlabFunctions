@@ -1,6 +1,6 @@
 function [ParList,ascconv] = read_ascconv(file_path)
 %
-% read_ascconv_x_x Read ascconv header part of DICOM and Siemens raw data
+% read_ascconv Read ascconv header part of DICOM and Siemens raw data
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
@@ -8,23 +8,28 @@ function [ParList,ascconv] = read_ascconv(file_path)
 % The function cuts out the ascconv header part of DICOM and Siemens raw data and searches for Parameters within this header. These
 %
 %
-% [ParList,ascconv] = read_ascconv_1_2(file_path)
+% [ParList,ascconv] = read_ascconv(file_path)
 %
 % Input: 
 % -         file_path                     ...     Path of file.
 %
 % Output:
-% -         ParList                       ...     Structure giving all the Parameters. It contains:
-%           -- ParList.total_channel_no         - Number of receive-channels
-%           -- ParList.ROW_raw                  - Number of measured rows (lines)
-%           -- ParList.COL_raw                  - Number of measured columns (phase_encoding)
-%           -- ParList.ROW                      - Number of rows (lines) AFTER zerofilling
-%           -- ParList.COL                      - Number of columns (phase_encoding) AFTER zerofilling
-%           -- ParList.SLC                      - Number of Slices
-%           -- ParList.vecSize                  - VectorSize in spectroscopic dimension
-%           -- ParList.RemoveOversampling       - Flag that determines if oversampling in spectroscopic / frequency encoding direction is removed
-%           -- ParList.AsymmetricEcho           - If e.g. a GRE was measured with asymmetric echo.
-%           -- ParList.InterleavedSliceAcquisitionn  - If multiple slices were measured in interleaved acquisition mode.
+% -         ParList                       ...     Structure giving all the Parameters. It contains among many others:
+%
+%           -- ParList.total_channel_no_measured         - Number of receive-channels that were measured            
+%           -- ParList.total_channel_no_reco             - Number of receive-channels that were are in the file (DICOM)             
+%           -- ParList.Dwelltimes                        - Dwelltime             
+%           -- ParList.LarmorFreq                        - LarmorFrequency                
+%           -- ParList.ThreeD_flag                       - flag telling you if measurement is real 3D measurement or 2D/Multislice                     
+%           -- ParList.AsymmetricEcho                    - If AssymetricEcho was allowed                    
+%           -- ParList.InterleavedSliceAcquisition       - If Slices were not measured consecutively like 1,2,3,4,... but e.g. 1,3,2,4         
+%           -- ParList.nFreqEnc                          - Number of measured points in frequency encoding direction       
+%           -- ParList.nPhasEnc                          - Number of measured points in phase encoding direction           
+%           -- ParList.nPartEnc                          - Number of measured points in partition encoding direction (only for 3D)
+%           ...
+%           ...
+%           ...
+%
 %
 % -         ascconv                       ...     cell array of the ascconv header: ascconv{:,1} = ParameterName, ascconv{:,2} = ParameterValue 
 %
