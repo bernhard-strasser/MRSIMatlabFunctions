@@ -62,7 +62,7 @@ end
 CopyFlag = ~isempty(strfind(GitRepo,'Copy'));
 
 % mkdir if path to AutoCloningFile does not exists
-PathToAutoCloningFile = regexprep(AutoCloningFile,'/\w*\.\w*','');
+PathToAutoCloningFile = regexprep(AutoCloningFile,'/[^/]*$','');
 if(~exist(PathToAutoCloningFile,'dir'))
 	mkdir(PathToAutoCloningFile);
 end
