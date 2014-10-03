@@ -1,4 +1,4 @@
-function ParList = Analyze_csi_mdh(csi_path,AnalyzeWholeMDH)
+function ParList = Analyze_mdh(csi_path,AnalyzeWholeMDH)
 %
 % Analyze_csi_mdh_x_x Analyze measurement data header of Siemens csi raw data
 %
@@ -93,7 +93,8 @@ if(mod(AnalyzeWholeMDH,2) == 1)
 	
 	fseek(fid, headersize,'bof');
 	EvalInfoMask_Cur = EvalInfoMask_First;
-	step = 12;
+	step_big = 12;
+	step = step_big;
 	while(~strcmpi(EvalInfoMask_Cur,'ACQEND') || ~feof(fid))
 
 
@@ -105,21 +106,21 @@ if(mod(AnalyzeWholeMDH,2) == 1)
 		end
 		
 		
-		
-		chak_header(1:7) = fread(fid, 7, 'uint32');
+		chak_header(1:5) = fread(fid, 5, 'uint32');
+		EvalInfoMask = fread(fid, 64, 'ubit1');
 		chak_header(8) = fread(fid, 1, 'uint16');		
-		fseek(fid, -7*4-1*2,'cof');
+		fseek(fid, -5*4-64*1/8-1*2,'cof');
 
 
-
-		if(strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),'0'))
+		Assoc = Associate_EvalInfoMask(EvalInfoMask);
+		if(strcmp(Assoc,'None') || strcmp(Assoc,'Other'))
 			fseek(fid, -step*(64*2 + ParList.(EvalInfoMask_Cur).vecSize*2*4),'cof');
 			step = 1;
-		elseif(strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),'ACQEND'))
+		elseif(strcmp(Assoc,'ACQEND'))
 			break;
-		elseif(~strcmp(Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7))),EvalInfoMask_Cur))
-			EvalInfoMask_Cur = Associate_EvalInfoMask(Interpret_EvalInfoMask(chak_header(6:7)));
-			step = 12;
+		elseif(~strcmp(Assoc,EvalInfoMask_Cur))
+			EvalInfoMask_Cur = Assoc;
+			step = step_big;
 			ParList.(EvalInfoMask_Cur).vecSize = chak_header(8);
 		end
 
