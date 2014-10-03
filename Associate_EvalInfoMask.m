@@ -49,7 +49,7 @@ function Association = Associate_EvalInfoMask(EvalInfoMask_logical)
 
 always_zeros = [7,8,10,34,35,36,37,38,39,40,44,45,54,55,56,57,58,59,60,61,62,63,64];
 
-if(sum(EvalInfoMask_logical(always_zeros) == 1))
+if(numel(EvalInfoMask_logical) < 64 || sum(EvalInfoMask_logical(always_zeros)) == 1)
 	Association = 'None';
 	return;
 end
