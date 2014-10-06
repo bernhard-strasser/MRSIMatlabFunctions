@@ -1,4 +1,4 @@
-function [Phase_new Read_new] = compute_dircos_1_3(Slice_new,Rot_angle_around_Slice_new)
+function [Phase_new, Read_new] = compute_dircos_1_3(Slice_new,Rot_angle_around_Slice_new)
 
 Phase_new = [0 Slice_new(3) -Slice_new(2)] * 1/sqrt(Slice_new(2)^2+Slice_new(3)^2);
 Read_new = cross(Slice_new,Phase_new);
