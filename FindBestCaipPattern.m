@@ -134,7 +134,7 @@ NoQltyMeas = size(QltyMeas_dummy,2);
 QualityMeasure = zeros([size(AllPatterns,1) NoQltyMeas],'single');
 clear QltyMeas_dummy NoQltyMeas
 
-if(size(AllPatterns,1) > 10000)
+if(~logical(matlabpool('size')) && size(AllPatterns,1) > 10000)
 	matlabpool 7;
 end
 
