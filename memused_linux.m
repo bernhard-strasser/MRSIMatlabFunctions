@@ -1,6 +1,6 @@
 function [memused,memfree] = memused_linux(quiet_flag)
 %
-% memused_linux_1_1 Show memory usage of MATLAB and free memory in GiB.
+% memused_linux Show memory usage of MATLAB and free memory in GiB.
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
@@ -9,7 +9,7 @@ function [memused,memfree] = memused_linux(quiet_flag)
 % 
 %
 %
-% memused = memused_linux_1_0(quiet_flag)
+% memused = memused_linux(quiet_flag)
 %
 % Input: 
 % -         quiet_flag                  ...    If 1, nothing is printed to display.
