@@ -146,7 +146,21 @@ for CurDataSet = DataSetNames
 	
 	
 	
-	% 1.3. Flip in kSpace
+	% 1.3. Circshift in kSpace
+	if(	isfield(PreProcessingInfo.(CurDataSetString),'ShiftkSpace') && sum(~(PreProcessingInfo.(CurDataSetString).ShiftkSpace == 0)) > 0)
+		if(numel(PreProcessingInfo.(CurDataSetString).ShiftkSpace) == numel(size(kSpace.(CurDataSetString){1})))
+			fprintf('\nCircshift in kSpace.')   
+			for echo = 1:numel(kSpace.(CurDataSetString))		
+				kSpace.(CurDataSetString){echo} = circshift(kSpace.(CurDataSetString){echo},PreProcessingInfo.(CurDataSetString).ShiftkSpace);		
+			end
+		else
+			fprintf('\nError: Cannot shift in kSpace, please specify PreProcessingInfo.%s.ShiftkSpace with numel(...) = %d',CurDataSetString,numel(size(kSpace.(CurDataSetString){1})))
+		end
+	end
+	
+	
+	
+	% 1.4. Flip in kSpace
 	if(isfield(PreProcessingInfo.(CurDataSetString),'FlipkSpaceAlong') && isfield(PreProcessingInfo.(CurDataSetString),'FlipkSpaceWhileAccessing'))
 		fprintf('\nFlip in kSpace.')
 		for echo = 1:numel(kSpace.(CurDataSetString))
@@ -169,14 +183,18 @@ for CurDataSet = DataSetNames
 	end
 
 
-
 	% 1.3. Circshift in kSpace
-	if(	isfield(PreProcessingInfo.(CurDataSetString),'ShiftkSpace') && sum(~(PreProcessingInfo.(CurDataSetString).ShiftkSpace == 0)) > 0 && numel(PreProcessingInfo.(CurDataSetString).ShiftkSpace) == numel(size(kSpace.(CurDataSetString){1})))
-		fprintf('\nCircshift in kSpace.')   
-		for echo = 1:numel(kSpace.(CurDataSetString))		
-			kSpace.(CurDataSetString){echo} = circshift(kSpace.(CurDataSetString){echo},PreProcessingInfo.(CurDataSetString).ShiftkSpace);		
+	if(	isfield(PreProcessingInfo.(CurDataSetString),'ShiftkSpacePostFlip') && sum(~(PreProcessingInfo.(CurDataSetString).ShiftkSpace == 0)) > 0)
+		if(numel(PreProcessingInfo.(CurDataSetString).ShiftkSpace) == numel(size(kSpace.(CurDataSetString){1})))
+			fprintf('\nCircshift in kSpace.')   
+			for echo = 1:numel(kSpace.(CurDataSetString))		
+				kSpace.(CurDataSetString){echo} = circshift(kSpace.(CurDataSetString){echo},PreProcessingInfo.(CurDataSetString).ShiftkSpace);		
+			end
+		else
+			fprintf('\nError: Cannot shift in kSpace, please specify PreProcessingInfo.%s.ShiftkSpace with numel(...) = %d',CurDataSetString,numel(size(kSpace.(CurDataSetString){1})))
 		end
 	end
+
 
 
 	% 1.4 Correct global phase
