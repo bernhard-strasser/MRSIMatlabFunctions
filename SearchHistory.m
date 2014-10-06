@@ -21,7 +21,7 @@ function SearchHistory(SearchString,CaseInsensitive_flag,PrintBeforeAndAfter)
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
-% File dependancy: myrepmat_1_0
+% File dependancy: myrepmat
 
 % Further remarks: 
 
