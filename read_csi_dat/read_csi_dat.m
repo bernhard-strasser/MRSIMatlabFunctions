@@ -342,13 +342,9 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	end
 	
 	% Correct for the problem in 2D-GRAPPA and certain 2D-CAIPI Patterns, where the border voxels are not measured and therefore the matrix has a wrong size.
-	for dim = 2:3
-		if(isfield(Info.General.Ascconv.WipMemBlockInterpretation,'TwoDCaipi') && isfield(Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi,'Skip_Matrix'))
-			Missing0s = min(sum(~Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi.Skip_Matrix,dim-1));		% -1 because the first dimension of maxi are channels, but the Skip_Matrix is 2D
-			if(2^nextpow2(maxi(dim)) - maxi(dim) == Missing0s || 2^nextpow2(maxi(dim)) - maxi(dim) == Missing0s+1)	% +1 because of the check below, i.e. problem with circular encoding
-				maxi(dim) = maxi(dim) + Missing0s;
-			end
-		end
+	if(isfield(Info.General.Ascconv.WipMemBlockInterpretation,'TwoDCaipi') && isfield(Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi,'Skip_Matrix') && strcmp(CurrentMeasSet,'ONLINE'))
+		maxi(2:4) = [Info.ONLINE.nReadEnc Info.ONLINE.nPhasEnc Info.ONLINE.nPartEnc];
+
 	end
 	
 	% Correct for the problem that in circular encoding e.g. 63 points are measured, but the matrix should be 64!
