@@ -207,7 +207,7 @@ while(sLine > -1)
     if(not(begin_found))                                          % If begin of ascconv not yet found
         
         
-        if(not(isempty(strfind(sLine,'### ASCCONV BEGIN ###'))))
+        if(not(isempty(strfind(sLine,'### ASCCONV BEGIN'))))
             begin_found = true;                                   % If current line is begin of ascconv
         else
             continue                                              % If current line is not begin of ascconv --> read next line
