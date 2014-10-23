@@ -89,7 +89,8 @@ ParList_Search =  { ...
 'lAverages',													...		% 37
 'sWiPMemBlock\.alFree\[(\d){1,2}\]',							...		% 38	All variables set in Special Card + those from above
 'sKSpace.ucPhasePartialFourier',								...		% 39
-'sKSpace.ucSlicePartialFourier'									...		% 40
+'sKSpace.ucSlicePartialFourier',								...		% 40
+'tProtocolName'													...		% 41	How the "Sequence" at the scanner when it was measured was named
 };
 
 
@@ -135,7 +136,9 @@ ParList_Assign = { ...
 'nAverages',														...		% 37
 'WipMemBlock_alFree',												...		% 38
 'PhasePartialFourier',												...		% 39
-'SlicePartialFourier'												...		% 40
+'SlicePartialFourier',												...		% 40
+'tProtocolName'														...		% 41
+
 };
 
 
@@ -180,7 +183,8 @@ ParList_Convert = { ...
 'str2double',														...		% 37
 'str2double',														...		% 38
 'char',																...		% 39
-'char'																...		% 40
+'char',																...		% 40
+'char'																...		% 41
 };
 
 
