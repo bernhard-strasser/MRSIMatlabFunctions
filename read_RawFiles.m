@@ -5,7 +5,7 @@
 
 
 
-function image = read_RawFiles_1_1(RawFile,precision,ROW,COL,SLC)
+function image = read_RawFiles(RawFile,precision,ROW,COL,SLC)
 
 
 
