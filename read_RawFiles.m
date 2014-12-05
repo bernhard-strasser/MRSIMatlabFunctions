@@ -5,7 +5,7 @@
 
 
 
-function image = read_RawFiles(RawFile,precision,ROW,COL,SLC)
+function image = read_RawFiles(RawFile,ROW,COL,SLC,precision)
 
 
 
@@ -14,9 +14,17 @@ function image = read_RawFiles(RawFile,precision,ROW,COL,SLC)
 
 %% 0. Preparations
 
+Info = dir(RawFile);
+if(numel(Info) < 1 || Info.bytes == 0)
+	fprintf('\nScusi, but the file you gave me is zero-sized. Why should I even try to eat that?')
+	image = [];
+	return;
+end
 
-pause on
 
+if(~exist('precision','var'))
+	precision = 'float32';
+end
 
 if(~exist('ROW','var'))
     % determine size and compute from that ROWxROWx1
@@ -33,7 +41,12 @@ end
 raw_fid = fopen(RawFile,'r');
 image = zeros(ROW,COL,SLC);
 for Slice_no = 1:SLC
-    image(:,:,Slice_no) = fread(raw_fid, [ROW,COL], precision);
+	try
+		image(:,:,Slice_no) = fread(raw_fid, [ROW,COL], precision);
+	catch err
+		image = [];
+		fprintf('\nSome Error occurred when reading the raw file:\n%s',err.message)
+	end
 end
 
 fclose(raw_fid);
