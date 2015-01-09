@@ -38,7 +38,19 @@ function IND = sub2ind_extended(ArraySize,AdditionalReplication,EntangledDims,va
 %                                     AdditionalReplication.AddToDims = AddToDims; AdditionalReplication.Mat = Mat;
 %                                     If this is a little mystic 4 you, write edit sub2ind_extended and go to the
 %                                     bottom, where there is an example from opencaipirinha.
-% -     I1,I2,...,IN           ...    The ranges for which the linear indices should be computed for all the dimensions
+% -      EntangledDims         ...    The array of the entangled dimensions.
+%                                     If this option is used, e.g.
+%                                     EntangledDims = [2 3], the inputs of varargin{2} and varargin{3}
+%                                     will be considered 'entangled'. This means that those inputs will
+%                                     be treated as encoding already the positions in the matrix of
+%                                     ArraySize(2:3), e.g. if          
+%                                     varargin{2} = [1 3 4] and varargin{3} = [6 7 7], then it will be
+%                                     considered that the matrix elements (1,6), (3,7), (4,7) should be
+%                                     encoded by varargin{2:3}. If the option was not used, the    
+%                                     matrix elements
+%                                     (1,6), (1,7), (4,7), (3,6), (3,7), (3,7), (4,6),(4,7),(4,7)
+%                                     would be encoded instead.
+% -     I1,I2,...,IN (varargin)       ...    The ranges for which the linear indices should be computed for all the dimensions
 %                                     of ArraySize. Thus, numel(ArraySize) = N must hold.
 %
 % Output:
