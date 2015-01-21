@@ -12,6 +12,8 @@ function GetMatlabToolbox(toolboxname,pauselength)
 %
 % Input: 
 % -         toolboxname               ...          Name of the toolbox you want to check out.
+% -                                                USE THE PROPER NAMES, IF A WRONG NAME IS GIVEN, IT WILL TRY TO CHECKOUT SOMETHING FOR INFINITY!
+%                                                  Examples: 'statistics_toolbox', 'image_toolbox'
 % -         pauselength               ...          Length of pause in seconds between trying to check out the toolbox (default: 5s).
 %
 % Output:
@@ -33,7 +35,7 @@ function GetMatlabToolbox(toolboxname,pauselength)
 % 0.1 Preparations
 
 if(~exist('toolboxname','var'))
-    fprintf('Which toolbox do you want to check out?')
+    fprintf('\nWhich toolbox do you want to check out?\nExamples: ''statistics_toolbox'', ''image_toolbox''\n')
 	return;
 end
 if(~exist('pauselength','var'))
@@ -55,7 +57,7 @@ checked_out = 0;
 pause on;
 
 while(checked_out == 0)
-    checked_out = license('checkout',toolboxname)
+    checked_out = license('checkout',toolboxname) %#ok
     pause(pauselength);
 end
 
