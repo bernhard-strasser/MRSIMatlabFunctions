@@ -1,4 +1,4 @@
-function GetMatlabToolbox(toolboxname)
+function GetMatlabToolbox(toolboxname,pauselength)
 % template_1_0 Do nothing specific
 %
 % This function was written by Bernhard Strasser, [month] [year].
@@ -12,6 +12,7 @@ function GetMatlabToolbox(toolboxname)
 %
 % Input: 
 % -         toolboxname               ...          Name of the toolbox you want to check out.
+% -         pauselength               ...          Length of pause in seconds between trying to check out the toolbox (default: 5s).
 %
 % Output:
 % -         None
@@ -35,7 +36,9 @@ if(~exist('toolboxname','var'))
     fprintf('Which toolbox do you want to check out?')
 	return;
 end
-
+if(~exist('pauselength','var'))
+	pauselength = 5;
+end
 
 
 % 0.3 Definitions
@@ -53,7 +56,7 @@ pause on;
 
 while(checked_out == 0)
     checked_out = license('checkout',toolboxname)
-    pause(5);
+    pause(pauselength);
 end
 
 pause off;
