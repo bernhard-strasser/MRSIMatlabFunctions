@@ -1,22 +1,22 @@
 function Info_pooled_updated = AddCaipiInfo(InfoPath,Info_pooled)
 %
-% template_1_0 Do nothing specific
+% AddCaipiInfo Add Info of FindBest21DCaipPattern_ByArtifactPower-scripts to existing ones.
 %
-% This function was written by Bernhard Strasser, [month] [year].
-%
-%
-% The function can really do nothing, and more specifically, exactly nothing.
-% 
+% This function was written by Bernhard Strasser, Jannuary 2015.
 %
 %
-% [A,B] = read_csi_dat_1_10(inputvar1,inputvar2)
+% The function takes the Path to some Info-output of a FindBest21DCaipPattern_ByArtifactPower-script,
+% checks if there is something that is not already existing, and adds the additional info if there is.
+%
+%
+% Info_pooled_updated = AddCaipiInfo(InfoPath,Info_pooled)
 %
 % Input: 
-% -         InfoPath                               ...    This is the first input
-% -         Info_pooled                            ...    And this the second
+% -         InfoPath                               ...    Path to the Info which should be added.
+% -         Info_pooled                            ...    The already existing Info.
 %
 % Output:
-% -         Info_pooled_updated                    ...     This is output A
+% -         Info_pooled_updated                    ...    The updated pooled Info.
 %
 %
 % Feel free to change/reuse/copy the function. 
