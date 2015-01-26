@@ -35,10 +35,12 @@ function Info_pooled_updated = AddCaipiInfo(InfoPath,Info_pooled)
 
 if(~exist('InfoPath','var'))
     fprintf('\nMissing InfoPath.')
+    Info_pooled_updated = Info_pooled;
     return
 end
 if(~exist(InfoPath,'file'))
-    fprintf('\nFile %s does not exist.',InfoPath)
+    fprintf('\nFile\n%s\ndoes not exist.',InfoPath)
+    Info_pooled_updated = Info_pooled;
     return
 end
 
@@ -57,7 +59,9 @@ end
 try
     load(InfoPath)
 catch err
-    fprintf('\nCould not load %s due to the following error:\n%s',InfoPath,err.message)
+    fprintf('\nCould not load\n%s\ndue to the following error:\n%s',InfoPath,err.message)
+    Info_pooled_updated = Info_pooled;
+    return;
 end
 
 
@@ -84,8 +88,8 @@ Rtotals = fields(Info);
 Info_pooled_updated = Info_pooled;
 
 for RTotal = transpose(Rtotals)
-    WholeMatrixAddedFlag = false;
     for Slcflag = 1:2
+        WholeMatrixAddedFlag = false;
         Slcstr = ['RSlc_' num2str(Slcflag)];
         
         % If the RSlc doesnt exist in the Info, we dont need to add it
@@ -93,20 +97,49 @@ for RTotal = transpose(Rtotals)
             continue
         end
         
-        % Check for existence in Info_pooled of the Data which should be added
-        if(isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}),Slcstr) && numel(Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr)) > 0) % If exists and has elements, continue
-            fprintf('\n''Info_pooled_updated'' contains already field %s.%s.%s. Skip adding.',VolInPooled,RTotal{:},Slcstr)
-        else
-            fprintf('\nAdding field %s.%s.%s to Info_pooled_updated.',VolInPooled,RTotal{:},Slcstr);
-            Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr) = Info.(RTotal{:}).(Slcstr);
-        end
         
-        if(sum(Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix(:,4) == Slcflag) == 0 && ~WholeMatrixAddedFlag)
-            fprintf('\nAdding entries with RSlc = %f in Info_pooled_updated.%s.%s.WholeMatrix to Info_pooled_updated.',Slcflag,VolInPooled,RTotal{:});
-            Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix = cat(1,Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix, Info.(RTotal{:}).WholeMatrix);
-            WholeMatrixAddedFlag = true;            
-        else
-            fprintf('\n''Info_pooled_updated.%s.%s.WholeMatrix'' contains already entries with RSlc = %f. Skip adding.',VolInPooled,RTotal{:},Slcflag)
+        for RInPlaneRealiz = transpose(fields(Info.(RTotal{:}).(Slcstr)))
+            RInPlaneRealizStr = RInPlaneRealiz{:};
+
+            
+            
+            % Add Whole Slices If Possible
+            if( (~isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}),Slcstr) || ...
+               (isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}),Slcstr) && isempty(Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr)) ) ) && ...
+               sum(Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix(:,4) == Slcflag) == 0 )
+
+                fprintf('\nAdding field %s.%s.%s to Info_pooled_updated.',VolInPooled,RTotal{:},Slcstr);
+                Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr) = Info.(RTotal{:}).(Slcstr);
+                fprintf('\nAdding entries with RSlc = %f in Info_pooled_updated.%s.%s.WholeMatrix to Info_pooled_updated.',Slcflag,VolInPooled,RTotal{:});
+                Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix = cat(1,Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix, Info.(RTotal{:}).WholeMatrix);        
+                break
+            end
+            
+            
+            
+            % Add all RInPlaneRealiz
+            if(isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr),RInPlaneRealizStr) && ~isempty(Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr).(RInPlaneRealizStr)) ) % If exists and has elements, continue
+                fprintf('\n''Info_pooled_updated'' contains already field %s.%s.%s.%s. Skip adding.',VolInPooled,RTotal{:},Slcstr,RInPlaneRealizStr)
+            else
+                 fprintf('\nAdding field %s.%s.%s.%s to Info_pooled_updated.',VolInPooled,RTotal{:},Slcstr,RInPlaneRealizStr);
+                 Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr).(RInPlaneRealizStr) = Info.(RTotal{:}).(Slcstr).(RInPlaneRealizStr);               
+            end
+            
+            
+            % Check if Pooled WholeMatrix contains already the Matrix which should be added
+            if( ~WholeMatrixAddedFlag && (~isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}), 'WholeMatrix') || isempty(Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix) || ...
+            sum(ismember(Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix(:,7), Info.(RTotal{:}).WholeMatrix(:,7))) < size(Info.(RTotal{:}).WholeMatrix,1)) )
+                fprintf('\nAdding entries with %s in Info_pooled_updated.%s.%s.WholeMatrix to Info_pooled_updated.',RInPlaneRealizStr,VolInPooled,RTotal{:});
+                Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix = cat(1,Info_pooled_updated.(VolInPooled).(RTotal{:}).WholeMatrix, Info.(RTotal{:}).WholeMatrix);
+                WholeMatrixAddedFlag = true;
+            else
+                fprintf('\n''Info_pooled_updated.%s.%s.%s.WholeMatrix'' contains already entries with %s. Skip adding.',VolInPooled,RTotal{:},Slcstr,RInPlaneRealizStr)
+            end            
+            
+        
+        
+        
+        
         end
         
         
