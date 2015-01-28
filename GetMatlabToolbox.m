@@ -1,10 +1,10 @@
 function GetMatlabToolbox(toolboxname,pauselength)
-% template_1_0 Do nothing specific
+% GetMatlabToolbox Grab Matlab Toolboxes.
 %
-% This function was written by Bernhard Strasser, [month] [year].
+% This function was written by Bernhard Strasser, Jannuary, 2015.
 %
 %
-% The function can really do nothing, and more specifically, exactly nothing.
+% The function periodically checks for matlab toolbox and checks it out if possible.
 % 
 %
 %
