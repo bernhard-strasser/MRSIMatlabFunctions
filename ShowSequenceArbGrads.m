@@ -50,21 +50,50 @@ end
 
 GradValues = importdata(PathToTxtFile,'\t');
 
+
+size_Data = size(GradValues.data);
 GradValues.data(isnan(GradValues.data)) = [];
+GradValues.data = reshape(GradValues.data,[size_Data(1) numel(GradValues.data)/size_Data(1)]);
 
 
 
 
 
+%% 2. Plot gradient values
 
-%% 2. Compute B
+% Time Plot
+
+% Open Figure
+TimePlotFig = figure;
+
+% Set Axis
+MaxValues = max(abs(GradValues.data));
+%Plot_Lims = [min(min(GradValues.data(:,1)),-0.1*MaxValues(1)) max(max(GradValues.data(:,1)),0.1*MaxValues(1))];
+%Plot_Lims = cat(2,Plot_Lims,[min(min(GradValues.data(:,2)),-0.1*MaxValues(2)) max(max(GradValues.data(:,2)),0.1*MaxValues(2))]);
+Plot_Lims = 1.1 * [-max(MaxValues) max(MaxValues) -max(MaxValues) max(MaxValues)];
+axis(Plot_Lims)
+
+% Labels on axes
+xlabel('GradStrength x [mT/m]')
+ylabel('GradStrength y [mT/m]')
 
 
+
+% Plot in a Loop
+hold on
+pause on
+for i = 1:size(GradValues.data,1)
+    scatter(GradValues.data(i,1),GradValues.data(i,2),'filled','b')
+    pause(1)
+end
+hold off
+pause off
 
 
 
 %% 3. Postparations
 
+close all;
 % fclose(fid)
 
 
