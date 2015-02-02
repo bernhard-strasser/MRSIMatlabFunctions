@@ -33,14 +33,14 @@ function Info_pooled_updated = AddCaipiInfo(InfoPath,Info_pooled)
 
 % 0.1 Preparations
 
+Info_pooled_updated = Info_pooled;
+
 if(~exist('InfoPath','var'))
     fprintf('\nMissing InfoPath.')
-    Info_pooled_updated = Info_pooled;
     return
 end
 if(~exist(InfoPath,'file'))
     fprintf('\nFile\n%s\ndoes not exist.',InfoPath)
-    Info_pooled_updated = Info_pooled;
     return
 end
 
@@ -78,6 +78,9 @@ if(sum(VolInPooled) > 0)
     VolInPooled = VolsPooled{VolInPooled};
 else
     VolInPooled = ['Vol' Vol];
+    fprintf('\nAdding whole volunteer %s to Info_pooled_updated.',VolInPooled);
+    Info_pooled_updated.(VolInPooled) = Info;
+    return
 end
 
 
@@ -85,9 +88,16 @@ end
 %% 3. Add Info
 
 Rtotals = fields(Info);
-Info_pooled_updated = Info_pooled;
 
 for RTotal = transpose(Rtotals)
+    
+    % If field doesn't exist in Info_pooled, add whole RTotal
+    if(~isfield(Info_pooled_updated.(VolInPooled),RTotal{:}))
+        fprintf('\nAdding field %s.%s to Info_pooled_updated.',VolInPooled,RTotal{:});
+        Info_pooled_updated.(VolInPooled).(RTotal{:}) = Info.(RTotal{:});
+        continue
+    end
+    
     for Slcflag = 1:2
         WholeMatrixAddedFlag = false;
         Slcstr = ['RSlc_' num2str(Slcflag)];
