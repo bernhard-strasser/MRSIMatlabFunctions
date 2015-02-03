@@ -64,7 +64,7 @@ if(MemNecessary > MemFree)
 	LoopOverIndex = MemFree ./ (MemNecessary./size_OutData(1:end));
 	LoopOverIndex(LoopOverIndex < 1) = NaN;
 	LoopOverIndex(ApplyAlongDims) = NaN;
-	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = find(min(LoopOverIndex));
 	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
 	AccessString = [repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_OutData)-LoopOverIndex])];
 	AccessString(end) = [];
