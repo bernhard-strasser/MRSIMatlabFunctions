@@ -528,7 +528,7 @@ function ParList = InterpretWipMemBlock(ParList)
 
 		% Check if info is available in wipmemblock
 		OneDCaipiInfoAvail = numel(ParList.WipMemBlock_alFree) > 31 && ParList.WipMemBlock_alFree(31) < 9999 ...
-		&& ParList.WipMemBlock_alFree(32) < 56 && ~(numel(ParList.WipMemBlock_alFree) > 39 && ParList.WipMemBlock_alFree(40) == -1) && sum(ParList.WipMemBlock_alFree(31:40));
+		&& ~(numel(ParList.WipMemBlock_alFree) > 39 && ParList.WipMemBlock_alFree(40) == -1) && sum(ParList.WipMemBlock_alFree(31:40));
 	
 		if(~OneDCaipiInfoAvail)
 			OneDCaipiInterpretation = 0;
