@@ -69,7 +69,7 @@ end
 
 % Check if too many patterns are possible
 no_Patterns = nchoosek(prod(cell_size)-1,no_measured_points-1);
-MatrixSize_GBytes = 2*no_Patterns*(no_measured_points-1)*8/2^30;
+MatrixSize_GBytes = 3*no_Patterns*(no_measured_points-1)*1/2^30;		% *1: uin8 use 8 bits = 1 byte; 3*: security measure.
 fprintf('\n\n%d possible patterns.', no_Patterns)
 
 try
@@ -84,7 +84,7 @@ if(MatrixSize_GBytes > memfree/2^10)
 end
 
 
-if(no_Patterns > 10^8)
+if(no_Patterns > 10^10)
     fprintf('\nThese are too many. I will quit here.')
     return
 elseif(no_Patterns > 10^7)
@@ -118,11 +118,22 @@ fprintf('\n Use %10.8f %% for the BestXPercPatterns.\n', PercentageBestPatterns*
 
 %% 1. Create All Possible Patterns of the Measured Points.
 
+if(prod(cell_size) > 255)
+	fprintf('\nProblem in FindBestCaipPattern.m occurred: AllPatterns can encode numbers 0-255.\nHowever higher numbers are needed in AllPatterns. Abort')
+	return
+end
 
+AllPatterns = uint8(nchoosek(uint8(2:prod(cell_size)),uint8(no_measured_points-1)));    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
 
-AllPatterns = nchoosek(2:prod(cell_size),no_measured_points-1);    % nchoosek: Binomial combinations. Distribute 1 point less, because one can always choose the point (1,1) w.l.o.g.
-AllPatterns = cat(2, ones(size(AllPatterns,1),1), AllPatterns);          % Add the point (1,1) to all Patterns.
-
+% if(no_Patterns > 10^9)
+% 	AllPatterns2 = zeros([size(AllPatterns,1) size(AllPatterns,2)+1],'int16');
+% 	for PattNo = 1:size(AllPatterns,1)
+% 		AllPatterns2(PattNo,:) = cat(2,1,AllPatterns(PattNo,:));
+% 	end
+% 	clear AllPatterns; AllPatterns = AllPatterns2; clear AllPatterns2;
+% else
+	AllPatterns = cat(2, ones(size(AllPatterns,1),1,'uint8'), AllPatterns);          % Add the point (1,1) to all Patterns.
+% end
 
 
 
