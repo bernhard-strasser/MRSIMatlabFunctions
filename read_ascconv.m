@@ -90,7 +90,8 @@ ParList_Search =  { ...
 'sWiPMemBlock\.alFree\[(\d){1,2}\]',							...		% 38	All variables set in Special Card + those from above
 'sKSpace.ucPhasePartialFourier',								...		% 39
 'sKSpace.ucSlicePartialFourier',								...		% 40
-'tProtocolName'													...		% 41	How the "Sequence" at the scanner when it was measured was named
+'tProtocolName',												...		% 41	How the "Sequence" at the scanner when it was measured was named
+'tSequenceFileName'												...		% 42	Which sequence was used
 };
 
 
@@ -138,7 +139,7 @@ ParList_Assign = { ...
 'PhasePartialFourier',												...		% 39
 'SlicePartialFourier',												...		% 40
 'tProtocolName'														...		% 41
-
+'tSequenceFileName'													...		% 42
 };
 
 
@@ -185,6 +186,7 @@ ParList_Convert = { ...
 'char',																...		% 39
 'char',																...		% 40
 'char'																...		% 41
+'char'																...		% 42
 };
 
 
@@ -555,21 +557,48 @@ function ParList = InterpretWipMemBlock(ParList)
 			NumTemp1 = ParList.WipMemBlock_alFree(wipNo);
 			NumTemp2 = ParList.WipMemBlock_alFree(wipNo+1);
 			NumTemp3 = ParList.WipMemBlock_alFree(wipNo+2);
+			
+			
+			
+			
+			% Find out version
+			VerNumber = regexpi(regexpi(ParList.tSequenceFileName,'bs_gh_ghsi_2plus1DCaip_v\d+_\d+_\d+','match'),'\d+_\d+_\d+','match');
+			VerNumber = VerNumber{:};
+			Underscores = strfind(VerNumber,'_'); 
+			FeatureNumber = VerNumber{1}(Underscores{1}(1)+1:Underscores{1}(2)-1);
+			NewVer = str2double(FeatureNumber) > 32; clear Underscores VerNumber FeatureNumber
 
 			% The info for the Slicealiasing is given as 1000*SliceID1 + 100*SliceID2 + 10 * SliceID3 + 1 * SliceID4
-			for BlockNo = 3:-1:0
-				SliceAliasingIDs_temp(4-BlockNo) = floor(NumTemp1/10^BlockNo);
-				FoVShifts_x_temp(4-BlockNo) = floor(NumTemp2/10^BlockNo);
-				FoVShifts_y_temp(4-BlockNo) = floor(NumTemp3/10^BlockNo);
+			% The info about the FoV shifts is given by 10000*FoVShift[SliceID1] + 1000*FoVShift[SliceID2] + 100*FoVShift[SliceID3] + 10*FoVShift[SliceID4]		(OLD VERSION)
+			% The info about the FoV shifts is given by 100000000*FoVShift[SliceID1] + 1000000*FoVShift[SliceID2] + 10000*FoVShift[SliceID3] + 100*FoVShift[SliceID4]		(NEW VERSION)
 
-				NumTemp1 = NumTemp1 - floor(NumTemp1/10^BlockNo) * 10^BlockNo;
-				NumTemp2 = NumTemp2 - floor(NumTemp2/10^BlockNo) * 10^BlockNo;
-				NumTemp3 = NumTemp3 - floor(NumTemp3/10^BlockNo) * 10^BlockNo;
+			if(NewVer)
+				for BlockNo = 3:-1:0
+					SliceAliasingIDs_temp(4-BlockNo) = floor(NumTemp1/10^BlockNo);
+					FoVShifts_x_temp(4-BlockNo) = floor(NumTemp2/10^(2*BlockNo));
+					FoVShifts_y_temp(4-BlockNo) = floor(NumTemp3/10^(2*BlockNo));
+
+					NumTemp1 = NumTemp1 - floor(NumTemp1/10^BlockNo) * 10^BlockNo;
+					NumTemp2 = NumTemp2 - floor(NumTemp2/10^(2*BlockNo)) * 10^(2*BlockNo);
+					NumTemp3 = NumTemp3 - floor(NumTemp3/10^(2*BlockNo)) * 10^(2*BlockNo);
+				end
+				FoVShifts_x_temp = FoVShifts_x_temp / 100; FoVShifts_y_temp = FoVShifts_y_temp / 100;
+			else
+				for BlockNo = 3:-1:0
+					SliceAliasingIDs_temp(4-BlockNo) = floor(NumTemp1/10^BlockNo);
+					FoVShifts_x_temp(4-BlockNo) = floor(NumTemp2/10^BlockNo);
+					FoVShifts_y_temp(4-BlockNo) = floor(NumTemp3/10^BlockNo);
+
+					NumTemp1 = NumTemp1 - floor(NumTemp1/10^BlockNo) * 10^BlockNo;
+					NumTemp2 = NumTemp2 - floor(NumTemp2/10^BlockNo) * 10^BlockNo;
+					NumTemp3 = NumTemp3 - floor(NumTemp3/10^BlockNo) * 10^BlockNo;
+				end
+				FoVShifts_x_temp = FoVShifts_x_temp / 10; FoVShifts_y_temp = FoVShifts_y_temp / 10;
 			end
 
 			SliceAliasingIDs = cat(2,SliceAliasingIDs,SliceAliasingIDs_temp);
-			FoVShifts_x = cat(2,FoVShifts_x,FoVShifts_x_temp/10);
-			FoVShifts_y = cat(2,FoVShifts_y,FoVShifts_y_temp/10);
+			FoVShifts_x = cat(2,FoVShifts_x,FoVShifts_x_temp);
+			FoVShifts_y = cat(2,FoVShifts_y,FoVShifts_y_temp);
 
 			wipNo = wipNo + 3;
 
