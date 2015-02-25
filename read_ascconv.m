@@ -537,6 +537,19 @@ function ParList = InterpretWipMemBlock(ParList)
 			return;
 		end
 
+		
+		% Find out version
+		VerNumber = regexpi(regexpi(ParList.tSequenceFileName,'bs_gh_ghsi_2plus1DCaip_v\d+_\d+_?\d*','match'),'\d+_\d+_?\d*','match');
+		if(isempty(VerNumber))
+			NewVer = 1;
+		else
+			VerNumber = VerNumber{:};
+			Underscores = strfind(VerNumber,'_'); Fromm = Underscores{1}(1)+1; if(numel(Underscores{1} < 2)); To = Fromm+1; else To = Underscores{1}(2)-1; end
+			FeatureNumber = VerNumber{1}(Fromm:To);
+			NewVer = str2double(FeatureNumber) > 32; clear Underscores VerNumber FeatureNumber
+		end
+		
+		
 		StopLoop = false;
 		wipNo = 31;
 		SliceAliasingIDs = [];
@@ -558,15 +571,6 @@ function ParList = InterpretWipMemBlock(ParList)
 			NumTemp2 = ParList.WipMemBlock_alFree(wipNo+1);
 			NumTemp3 = ParList.WipMemBlock_alFree(wipNo+2);
 			
-			
-			
-			
-			% Find out version
-			VerNumber = regexpi(regexpi(ParList.tSequenceFileName,'bs_gh_ghsi_2plus1DCaip_v\d+_\d+_\d+','match'),'\d+_\d+_\d+','match');
-			VerNumber = VerNumber{:};
-			Underscores = strfind(VerNumber,'_'); 
-			FeatureNumber = VerNumber{1}(Underscores{1}(1)+1:Underscores{1}(2)-1);
-			NewVer = str2double(FeatureNumber) > 32; clear Underscores VerNumber FeatureNumber
 
 			% The info for the Slicealiasing is given as 1000*SliceID1 + 100*SliceID2 + 10 * SliceID3 + 1 * SliceID4
 			% The info about the FoV shifts is given by 10000*FoVShift[SliceID1] + 1000*FoVShift[SliceID2] + 100*FoVShift[SliceID3] + 10*FoVShift[SliceID4]		(OLD VERSION)
