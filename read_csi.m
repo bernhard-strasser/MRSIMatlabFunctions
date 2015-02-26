@@ -21,7 +21,9 @@ function [iSpace,Noise,PreProcessingInfo,ReadInInfo,kSpace] = read_csi(file,PreP
 % -         iSpace                      ...     Structure of data in image domain. Its fieldnames are according to the EvalInfoMask information (e.g. 'ONLINE', 'PATREFANDIMASCAN', etc.)
 %                                               size of each field: channel x nFreqEnc x nPhasEnc x nPartEnc x nSlc x SpectroVecSize x Averages.
 % -         Noise                       ...     Structure of Noise gathered from the Prescan or CSI data. Noise = 0, if not gathered. It is scaled individually for each measurement set.
-% -         kSpace                      ...     Structure of data in k-space.
+% -         PreProcessingInfo           ...     The updated PreProcessingInfo, as it is changed when reading in.
+% -         ReadInInfo                  ...     The info of the mdh.
+% -         kSpace                      ...     Structure of data in k-space, see iSpace.
 %                                               size of each field: channel x nFreqEnc x nPhasEnc x nPartEnc x nSlc x SpectroVecSize x Averages.
 %
 %
@@ -75,7 +77,7 @@ else
     if(nargout == 5 || ONLINEkSpaceNecessary)
         [iSpace.ONLINE{1},kSpace.ONLINE{1}] = read_csi_dicom(file);
     else
-        if(isfield(PreProcessingInfo.ONLINE,'NoiseCorrMat') && numel(PreProcessingInfo.ONLINE.NoiseCorrMat) > 1)
+        if(exist('PreProcessingInfo','var') && isfield(PreProcessingInfo.ONLINE,'NoiseCorrMat') && numel(PreProcessingInfo.ONLINE.NoiseCorrMat) > 1)
             kSpace.ONLINE{1} = read_csi_dicom(file);      	% This is in fact iSpace, but to make it work with PreProcessMRIData_Wrapper it is just renamed wrongly. 
             PreProcessingInfo.ONLINE.NoFFT_flag = true;
         else
@@ -199,6 +201,12 @@ if(isfield(PreProcessingInfo,'ONLINE'))
 		PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) = PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) * OversamplingFactor_ONLINE;
 	end
 end
+
+% if(PreProcessingInfo.ONLINE.NoFFT_flag)
+% 	
+% 	
+% 	
+% end
 
 
 
