@@ -379,11 +379,19 @@ end
 
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
-% PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING IF NON-3D-ACQUISITION. BUT THIS IS A HACK.
-if(numel(strfind(file_path, '.dat')) > 0 || (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ~ParList.ThreeD_flag))
+% PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
+if(numel(strfind(file_path, '.dat')) > 0 ...
+	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
  	ParList.vecSize = 2 * ParList.vecSize;   
 end
-
+if( numel(strfind(file_path, '.IMA') > 0) )
+	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1)	% WITH THAT I ASSUME THAT DATASET IS NOT SPIRAL! THIS IS A HACK! 
+	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes; 
+	else
+		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
+		fprintf('\nIF YOUR DATASET IS A CONVENTIONAL, FULLY SAMPLED (no elliptical or acquisition weighting) DATASET,\nTHE RESULTS WILL BE WRONG!')
+	end
+end
 
 
 % In case of Single-Slice and Multi-slice, the Partitions and the FinalMatrixSizeSlice are always set to 8, which is quite wrong.
