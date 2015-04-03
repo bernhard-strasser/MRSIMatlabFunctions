@@ -55,9 +55,9 @@ end
 size_InData = size(InData);
 
 [dummy, MemFree] = memused_linux(1);
-MemNecessary = numel(InData)*8*2*2/2^20;						% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 2 times in memory,
+MemNecessary = numel(InData)*8*3*2/2^20;						% every entry of InData is double --> 8 bytes. *2 because complex. *3 as safety measure (so InData fits 2 times in memory,
 																% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
-if(numel(InData)*8*2*2/2^20 > MemFree)
+if(MemNecessary > MemFree)
 	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(2:end));	% Because the 1st index is the coil. We can never loop over the coils.
 	LoopOverIndex(LoopOverIndex < 1) = NaN;
 	LoopOverIndex = find(nanmin(LoopOverIndex));
@@ -73,7 +73,7 @@ end
 NoiseCorrMat_Chol = chol(NoiseCorrMat/2,'lower');
 
 % Decorrelate within Loop due to memory usage
-if(numel(InData)*8*2*2/2^20 > MemFree)			
+if(MemNecessary > MemFree)			
 	
 	%InData = zeros(size_InData);
 	% Perform Noise Decorrelation Slice by Slice and Part by Part to avoid extensive memory usage 
