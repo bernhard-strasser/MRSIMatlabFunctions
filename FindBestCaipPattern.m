@@ -84,7 +84,7 @@ if(MatrixSize_GBytes > memfree/2^10)
 end
 
 
-if(no_Patterns > 10^10)
+if(no_Patterns > 10^8)
     fprintf('\nThese are too many. I will quit here.')
     return
 elseif(no_Patterns > 10^7)
