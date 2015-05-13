@@ -105,7 +105,16 @@ for RTotal = transpose(Rtotals)
         % If the RSlc doesnt exist in the Info, we dont need to add it
         if(~isfield(Info.(RTotal{:}),Slcstr))
             continue
-        end
+		end
+		% If field doesn't exist in Info_pooled, add whole RTotal
+		if(~isfield(Info_pooled_updated.(VolInPooled).(RTotal{:}),Slcstr))
+			Info_pooled_updated.(VolInPooled).(RTotal{:}).(Slcstr) = Info.(RTotal{:}).(Slcstr);
+			fprintf('\nAdding field %s.%s.%s to Info_pooled_updated.',VolInPooled,RTotal{:},Slcstr);
+			continue
+		end	
+
+
+		
         
         
         for RInPlaneRealiz = transpose(fields(Info.(RTotal{:}).(Slcstr)))
