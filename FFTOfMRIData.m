@@ -63,6 +63,7 @@ end
 
 if(size(InData,2) == 1 && size(InData,3) == 1 && size(InData,4) == 1)
 	InData = conj(InData);
+	fprintf('\nDid only conj, no fft.')
 	return;
 end
 
