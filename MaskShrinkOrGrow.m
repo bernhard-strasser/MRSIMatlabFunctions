@@ -1,4 +1,4 @@
-function mask_grown = MaskGrow(mask,NoOfVoxels,SliceBySlice_flag)
+function mask_ShrunkOrGrown = MaskShrinkOrGrow(mask,NoOfVoxels,MaskGrow_flag,SliceBySlice_flag)
 %
 % read_image_x_x Read in csi-data
 %
@@ -50,11 +50,14 @@ function mask_grown = MaskGrow(mask,NoOfVoxels,SliceBySlice_flag)
 %% 0. Assign standard values
 
 if(~exist('mask','var'))
-    mask_grown = 0;
+    mask_ShrunkOrGrown = 0;
 	fprintf('Input needed.')
 	return
 end
 
+if(~exist('MaskGrow_flag','var'))
+    MaskGrow_flag = true;
+end
    
 if(~exist('NoOfVoxels','var') || NoOfVoxels < 1)
     NoOfVoxels = 1;
@@ -68,7 +71,11 @@ end
 %% Grow
 
 % Very slow implementation but works
-mask_grown = mask;
+if(~MaskGrow_flag)
+	mask = ~mask;
+end
+mask_ShrunkOrGrown = mask;	
+
 
 if(SliceBySlice_flag)
 	mask2 = EllipticalFilter(ones(size(mask(:,:,1))), [1 2], [1 1 1 NoOfVoxels],1);
@@ -91,7 +98,7 @@ for z = 1:size(mask,3)
 			ShiftBy = ShiftBy(1:numel(size(mask2)));
 			mask3 = NonCircShift(mask2,ShiftBy);
 			if(~isempty(find(mask4(logical(mask3)),1)))
-				mask_grown(x,y,z) = 1;
+				mask_ShrunkOrGrown(x,y,z) = 1;
 			end
 
 		end
@@ -99,7 +106,9 @@ for z = 1:size(mask,3)
 end
 
 	
-
+if(~MaskGrow_flag)
+	mask_ShrunkOrGrown = ~mask_ShrunkOrGrown;
+end
 
 
    
