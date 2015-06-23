@@ -15,6 +15,8 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 % Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %
 % InArray:              Complex array with time domain data, e.g. [64x64x1x2048] CSI Matrix
+%						OR
+%                       Struct with fields .csi and .watref
 % Paths:                Struct with Path info:
 %                       -   Paths.out_dir 
 %                       -   Paths.basis_file 
@@ -74,12 +76,21 @@ if(nargin < 4)
     display('You must at least input InArray, Paths and MetaInfo.')
     return
 end
+
+% if InArray contains WaterReference
+if(isstruct(InArray))
+	WaterReference = InArray.watref;
+	InArray = InArray.csi;
+end
+
 % The function can only handle Input Array with 6 dimensions. Quit function if input is larger.
 DimNumber_Input = numel(size(InArray));
 if(DimNumber_Input > 6)
     display('Dimension of Input Array too large. Rewrite function ''Write_LCM_files'' or shrink Input Array. char(10) Program quitted without output.')
     return
 end
+
+
 
 
 %% 0.2 Assign standard values to MetaInfo, mask and CPUcores if nothing is passed to the function.
@@ -242,7 +253,7 @@ TotalVoxelNo = sum(reshape(mask,1,[]));
 batch_fids = zeros([1 CPU_cores]);
 for core = 1:CPU_cores
     if(exist(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'file'))
-        delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
+        %delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
     end
     batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
 	fprintf(batch_fids(core), 'echo -e "Starting batch %d, pid = $$, ppid = $PPID"\nsleep 1\n',core);  
@@ -298,6 +309,8 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                         continue
                     end
                     single_voxel = eval([ 'squeeze(InArray(' InArray_AccessStr '));' ]);
+					
+
 
                     % Create the names for control files, e.g. ROW1_COL3 to get the right names for the output_files
                     Filename = MetaInfo.pat_name;
@@ -320,7 +333,37 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     
                     %% 1.2 write one RAW file per voxel %%%%%
 
+					
+					% Water Reference
+					if( exist('WaterReference','var') && (~exist('single_voxel_watref','var') || sum(size(WaterReference)>1) > 1) )	 % If WaterReference does not exist --> immediately jump over
+																																	 % If it exists and this is first time it would be called.
+						single_voxel_watref = eval([ 'squeeze(WaterReference(' InArray_AccessStr '));' ]);							 % (single_voxel_watref does not exist yet), do it.
+																																	 % If it exists, and this is not first time, only do it if
+						% Metabo																									 % if WaterReference has more than 1 dimension with size > 1
+						voxel_raw_out_watref = sprintf('%s/%s_watref.RAW', Paths.out_dir, Filename);								 % (i.e. not just a vector with 1 dim and singleton dims).
+						fid = fopen(voxel_raw_out_watref,'w+');
 
+						%write some header info
+						fprintf(fid, ' $SEQPAR\n');
+						fprintf(fid, ' hzpppm=%d\n',MetaInfo.LarmorFreq/1000000);
+						fprintf(fid, ' $END\n');
+						fprintf(fid, ' $NMID\n');
+						fprintf(fid, ' fmtdat=''(2e14.5)''\n');
+						fprintf(fid, ' $END\n');
+
+						%write data into file
+						single_voxel_watref = reshape(single_voxel_watref,[vecSize 1]);
+						single_voxel_sep_watref=[real(single_voxel_watref)'; imag(single_voxel_watref)'];
+						fprintf(fid, '%14.5e%14.5e\n', single_voxel_sep_watref);
+
+						fclose(fid);
+						
+					end
+					
+					
+					
+					
+					% Metabo
                     voxel_raw_out = sprintf('%s/%s.RAW', Paths.out_dir, Filename);
                     fid = fopen(voxel_raw_out,'w+');
 
@@ -392,11 +435,15 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     
                     
                     % Water Scaling, Absolute Quantification
-                    fprintf(control_fid, ' %s\n',ControlWrite.WSMET);         
-                    fprintf(control_fid, ' %s\n',ControlWrite.WSPPM);                                          
-                    fprintf(control_fid, ' %s\n',ControlWrite.N1HMET);
                     
-                    
+					if(exist('WaterReference','var'))
+						fprintf(control_fid, ' DOWS = T\n');								% DO Water Scaling         
+						fprintf(control_fid, ' FILH2O=''%s''\n',voxel_raw_out_watref);		% Path of water scaling raw file
+					else
+	                    fprintf(control_fid, ' %s\n',ControlWrite.WSMET);					% If water referencing is done, this is not so useful. The defaults are ok (use Cr at 3.027 with 3 1H's)    
+						fprintf(control_fid, ' %s\n',ControlWrite.WSPPM);                                          
+						fprintf(control_fid, ' %s\n',ControlWrite.N1HMET);					
+					end
                     
                     
                     % Plotting Parameters
