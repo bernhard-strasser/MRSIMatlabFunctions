@@ -73,6 +73,9 @@ ParList_Search =  { ...
 'sSliceArray\.asSlice\[\d+\]\.dPhaseFOV',                       ...     % 13
 'sSliceArray\.asSlice\[\d+\]\.dReadoutFOV',                     ...     % 14
 'FOV_Partition_dumms',                                          ...     % 22	Just a Dummy to have the parameter in the right place
+'sSpecPara\.sVoI\.sPosition\.dSag',								...     % 43    Sagittal = forehead-backhead direction = "Read"-direction (normally)
+'sSpecPara\.sVoI\.sPosition\.dCor',								...     % 44    Coronal = left-right directions = "Phase"-direction (normally)
+'sSpecPara\.sVoI\.sPosition\.dTra',								...     % 45    Transversal = up-down direction = "Partition or Slice"-direction (normally)
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dSag',                 ...     % 15    Sagittal = forehead-backhead direction = "Read"-direction (normally)
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dCor',                 ...     % 16    Coronal = left-right directions = "Phase"-direction (normally)
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dTra',                 ...     % 17    Transversal = up-down direction = "Partition or Slice"-direction (normally)
@@ -121,6 +124,9 @@ ParList_Assign = { ...
 'FoV_Phase',                                                        ...     % 13
 'FoV_Read',                                                         ...     % 14
 'FoV_Partition',                                                    ...     % 22
+'PosVOI_Sag',                                                       ...     % 43
+'PosVOI_Cor',                                                       ...     % 44
+'PosVOI_Tra',                                                       ...     % 45
 'Pos_Sag',                                                          ...     % 15
 'Pos_Cor',                                                          ...     % 16
 'Pos_Tra',                                                          ...     % 17
@@ -168,6 +174,9 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 13
 'str2double',                                                       ...     % 14
 'str2double',                                                       ...     % 22
+'str2double',                                                       ...     % 43
+'str2double',                                                       ...     % 44
+'str2double',                                                       ...     % 45
 'str2double',                                                       ...     % 15
 'str2double',                                                       ...     % 16
 'str2double',                                                       ...     % 17
