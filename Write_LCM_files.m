@@ -32,6 +32,9 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %                       -   MetaInfo.dwelltime:      The dwelltime, i.e. the duration between two consecutive time points.
 % ControlInfo:          Struct or a string referring .m file with control parameters for LCModel fitting. This file / struct is executed at the end of the Control-Parameter settings,
 %                       and can thus overwrite ALL control parameters. Be careful!
+%						You can also pass over a path with control parameters and additional parameters. The path is passed over by field .Path. The other parameters normal, e.g. .Others1 = ...
+%						In this case, specify which one should have priority by providing
+%						ControlInfo.Priority = 'Fields' or [...] = 'File'.
 % mask:                 Only write files for voxels with 1 in mask; If all should be processed: mask = ones(...) (same size as InArray but no vecSize dim)
 %
 % CPU_cores:            Determines to how many batch scripts the individual voxels are split, so that those batch scripts can be run in parallel.
@@ -206,20 +209,41 @@ ControlWrite.LCOORD =  'LCOORD = 9';         % Create a Coord file
 
 
 % OVERWRITE VARIABLES GIVEN BY ControlInfo
-if(ischar(ControlInfo) && exist(ControlInfo,'file'))  
-    
-    % Run the file with path ControlParameters if it is a file.
-    eval(['run ' ControlInfo]);
-    
-elseif(isstruct(ControlInfo))
-    
-    % Copy existing fields of ControlInfo to ControlWrite struct.
-    struct_fieldnames = fieldnames(ControlInfo);
-    for field_no = 1:numel(struct_fieldnames); 
-        eval(['ControlWrite.' struct_fieldnames{field_no} ' = ControlInfo.' struct_fieldnames{field_no} ';']);
-    end
+if(exist('ControlInfo','var'))
+	if(isstruct(ControlInfo))
+		struct_fieldnames = fieldnames(ControlInfo);
+		struct_fieldnames = struct_fieldnames(cellfun('isempty',regexp(struct_fieldnames,'Path|Priority')));  % Exclude Path and Priority, they should never be given 
+		if(isfield(ControlInfo,'Priority') && strcmpi(ControlInfo.Priority,'File'))		% Run first the fields, because then the file can overwrite those values 	
+			% Copy existing fields of ControlInfo to ControlWrite struct.
+			for field_no = 1:numel(struct_fieldnames); 
+				eval(['ControlWrite.' struct_fieldnames{field_no} ' = ControlInfo.' struct_fieldnames{field_no} ';']);
+			end
+			% Run the file with path ControlParameters if it is a file.
+			if(isfield(ControlInfo,'Path') && exist(ControlInfo.Path,'file'))
+				eval(['run ' ControlInfo.Path]);	
+			end
 
+		else																			% even if Priority is not defined, do it this way as default behavior.
+			% Run the file with path ControlParameters if it is a file.
+			if(isfield(ControlInfo,'Path') && exist(ControlInfo.Path,'file'))
+				eval(['run ' ControlInfo.Path]);	
+			end
+			% Copy existing fields of ControlInfo to ControlWrite struct.
+			for field_no = 1:numel(struct_fieldnames); 
+				eval(['ControlWrite.' struct_fieldnames{field_no} ' = ControlInfo.' struct_fieldnames{field_no} ';']);
+			end				
+		end
+		
+	else
+		if(exist(ControlInfo,'file'))
+			% Run the file with path ControlParameters if it is a file.
+			eval(['run ' ControlInfo]);	
+		end
+		
+	end
+	
 end
+
 
 clear ControlInfo
 
