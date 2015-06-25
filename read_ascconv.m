@@ -76,6 +76,10 @@ ParList_Search =  { ...
 'sSpecPara\.sVoI\.sPosition\.dSag',								...     % 43    Sagittal = forehead-backhead direction = "Read"-direction (normally)
 'sSpecPara\.sVoI\.sPosition\.dCor',								...     % 44    Coronal = left-right directions = "Phase"-direction (normally)
 'sSpecPara\.sVoI\.sPosition\.dTra',								...     % 45    Transversal = up-down direction = "Partition or Slice"-direction (normally)
+'sSpecPara\.sVoI\.sNormal\.dSag',								...     % 46    The x-component of the normal vector of the measured slice
+'sSpecPara\.sVoI\.sNormal\.dCor',								...     % 47    y-component
+'sSpecPara\.sVoI\.sNormal\.dTra',								...     % 48    z-component
+'sSpecPara\.sVoI\.dInPlaneRot',									...     % 49    The InPlane (InSlice) rotation, so the rotation around the normal vector given by the upper three components
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dSag',                 ...     % 15    Sagittal = forehead-backhead direction = "Read"-direction (normally)
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dCor',                 ...     % 16    Coronal = left-right directions = "Phase"-direction (normally)
 'sSliceArray\.asSlice\[\d+\]\.sPosition\.dTra',                 ...     % 17    Transversal = up-down direction = "Partition or Slice"-direction (normally)
@@ -127,6 +131,10 @@ ParList_Assign = { ...
 'PosVOI_Sag',                                                       ...     % 43
 'PosVOI_Cor',                                                       ...     % 44
 'PosVOI_Tra',                                                       ...     % 45
+'SliceNormalVector_VOI_x',                                          ...     % 46
+'SliceNormalVector_VOI_y',                                          ...     % 47
+'SliceNormalVector_VOI_z',                                          ...     % 48
+'InPlaneRotation_VOI',                                              ...     % 49
 'Pos_Sag',                                                          ...     % 15
 'Pos_Cor',                                                          ...     % 16
 'Pos_Tra',                                                          ...     % 17
@@ -177,6 +185,10 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 43
 'str2double',                                                       ...     % 44
 'str2double',                                                       ...     % 45
+'str2double',                                                       ...     % 46
+'str2double',                                                       ...     % 47
+'str2double',                                                       ...     % 48
+'str2double',                                                       ...     % 49
 'str2double',                                                       ...     % 15
 'str2double',                                                       ...     % 16
 'str2double',                                                       ...     % 17
