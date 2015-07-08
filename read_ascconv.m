@@ -406,7 +406,7 @@ if(numel(strfind(file_path, '.dat')) > 0 ...
  	ParList.vecSize = 2 * ParList.vecSize;   
 end
 if( numel(strfind(file_path, '.IMA') > 0) )
-	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1)	% WITH THAT I ASSUME THAT DATASET IS NOT SPIRAL! THIS IS A HACK! 
+	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4)	% WITH THAT I ASSUME THAT DATASET IS NOT SPIRAL! THIS IS A HACK! 
 	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes; 
 	else
 		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
