@@ -38,7 +38,7 @@ if(~exist('quiet_flag','var'))
 end
 
 % Check if we are on a linux system
-UnixSystem = unix('free -g');
+[UnixSystem,memfree] = unix('free -g');
 if(~UnixSystem)
 	if(~quiet_flag)
 		fprintf('\nWarning: memused_linux cannot run on non-linux systems')
