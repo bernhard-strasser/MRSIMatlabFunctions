@@ -114,7 +114,9 @@ end
 if(~exist('CPU_cores','var'))
     CPU_cores = 8;
 end
-
+if(exist('ControlInfo','var') && isnumeric(ControlInfo))
+	clear ControlInfo;				% Easier to handle this way
+end
 
 
 
