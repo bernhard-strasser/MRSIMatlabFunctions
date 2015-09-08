@@ -65,6 +65,9 @@ else
 	
 end
 
+if(numel(RefVox) < 3)
+	RefVox(3) = 1;
+end
 
 
 if(isfield(PeakSearchSettingsOrShiftMap,'PeakSearchPPM'))
@@ -108,7 +111,7 @@ SearchForPeak_LeftPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM - Set
 SearchForPeak_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM));
 SearchForPeak_Center_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM));
 
-ReferenceSpecMat_Spec = squeeze(SearchArray(33,33,1,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
+ReferenceSpecMat_Spec = squeeze(SearchArray(RefVox(1),RefVox(2),RefVox(3),SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
 ReferenceSpecMat = zeros(size(ReferenceSpecMat_Spec,1));
 
 
@@ -121,7 +124,7 @@ for x = 1:size(OutArray,1)
 	for y = 1:size(OutArray,2)
 		for z = 1:size(OutArray,3)
 			
-			if(mask(x,y,z) == 0 || (x==33 && y == 33 && z == 1))
+			if(mask(x,y,z) == 0 || (x==RefVox(1) && y == RefVox(2) && z == RefVox(3)))
 				continue
 			end
 			
@@ -144,6 +147,9 @@ for x = 1:size(OutArray,1)
 	for y = 1:size(OutArray,2)
 		for z = 1:size(OutArray,3)
 			
+			if( mask(x,y,z) == 0 )
+				continue
+			end
 			OutArray(x,y,z,:) = circshift(squeeze(OutArray(x,y,z,:)),[ShiftMap(x,y,z) 1]);
 			
 		end
