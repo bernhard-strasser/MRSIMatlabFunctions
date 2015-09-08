@@ -119,7 +119,9 @@ CircShiftVec = SearchForPeak_LeftPt_Pts-SearchForPeak_Center_Pts :1: SearchForPe
 for i = 1:abs(SearchForPeak_RightPt_Pts-SearchForPeak_LeftPt_Pts+1)
 	ReferenceSpecMat(i,:) = circshift(ReferenceSpecMat_Spec,CircShiftVec(i));
 end
-	
+
+OutArray = fftshift(fft(OutArray,[],ApplyAlongDim),ApplyAlongDim);
+
 for x = 1:size(OutArray,1)
 	for y = 1:size(OutArray,2)
 		for z = 1:size(OutArray,3)
@@ -128,35 +130,22 @@ for x = 1:size(OutArray,1)
 				continue
 			end
 			
+			% Calculate ShiftMap
 			DotProd = abs(ReferenceSpecMat) * abs(squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts)));
 			ShiftMap(x,y,z) = -round( CircShiftVec(DotProd == max(DotProd)) / ZerofillingFactor); % - because we shifted the reference, but below we want to shift the other spectra
 			
-		end
-	end
-end
-
-
-
-
-%% 4. Perform Shift in Spectral Domain
-
-
-OutArray = fftshift(fft(OutArray,[],ApplyAlongDim),ApplyAlongDim);
-
-for x = 1:size(OutArray,1)
-	for y = 1:size(OutArray,2)
-		for z = 1:size(OutArray,3)
-			
-			if( mask(x,y,z) == 0 )
-				continue
-			end
+			% Apply ShiftMap
 			OutArray(x,y,z,:) = circshift(squeeze(OutArray(x,y,z,:)),[ShiftMap(x,y,z) 1]);
+
 			
 		end
 	end
 end
 
 OutArray = ifft(fftshift(OutArray,ApplyAlongDim),[],ApplyAlongDim);
+
+
+
 
 
 
