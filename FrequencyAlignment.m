@@ -92,24 +92,6 @@ SearchArray = InArray;
 
 
 
-
-%% Perform Zero Order Phasing
-
-
-
-%SearchArray = SearchArray .* exp(1i*pi);
-
-
-
-
-
-%% 2. Exp Filtering
-
-%SearchArray = ExponentialFilter(SearchArray, Settings.Dwelltime,12,4);
-
-
-
-
 %% 1. Zerofilling & FFT SearchArray
 
 SearchArray = Zerofilling_Spectral(SearchArray,size_SearchArray,0);
@@ -149,73 +131,6 @@ for x = 1:size(OutArray,1)
 		end
 	end
 end
-
-
-%% 2. Prepare searching for shift / Translate shiftmap to ShiftNoOfPointsMap
-
-% % dwelltime gets not increased with zero_filling: zeroes get just added at the END of vector
-% CS_vec_zf = compute_chemshift_vector_1_1(Settings.LarmorFreq,Settings.Dwelltime/10^9,Settings.vecsize*ZerofillingFactor); 
-% 
-% %SeekRef_BasisRegionWidth_SP = find(min(abs(CS_vec_zf(1) - SeekRef_BasisRegionWidth_CS - CS_vec_zf)) == abs(CS_vec_zf(1) - SeekRef_BasisRegionWidth_CS - CS_vec_zf));
-% SearchForPeak_Center_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM));
-% SearchForPeak_LeftPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM));
-% SearchForPeak_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM));
-% PolyfitRegion_LeftPt_Pts = find(min(abs(CS_vec_zf - Settings.PolyfitRegion(1))) == abs(CS_vec_zf - Settings.PolyfitRegion(1)));
-% PolyfitRegion_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PolyfitRegion(2))) == abs(CS_vec_zf - Settings.PolyfitRegion(2)));
-% 
-% 
-% 
-% %NoOfPts = SearchForPeak_RightPt_Pts - SearchForPeak_LeftPt_Pts + 1;
-% %MaximumSize = size_SearchArray; MaximumSize(ApplyAlongDim) = NoOfPts;
-% 
-% 
-% %% 3. Compute Shift
-% 
-% 
-% SeekPeakSettings.SeekPeakRegion = [SearchForPeak_LeftPt_Pts, SearchForPeak_RightPt_Pts];
-% SeekPeakSettings.PolyfitRegion = [PolyfitRegion_LeftPt_Pts, PolyfitRegion_RightPt_Pts];
-% SeekPeakSettings.PolyfitOrder = 0;
-% SeekPeakSettings.seek_criteria = 'findpeaks';
-% SeekPeakSettings.seek_criteria_values{1} = 0.0051;
-% SeekPeakSettings.seek_criteria_values{2} = 15000;
-% SeekPeakSettings.seek_criteria_values{3} = 1;
-% SeekPeakSettings.seek_criteria_values{4} = 3;
-% SeekPeakSettings.seek_criteria_values{5} = 3;
-% 
-% ShiftMap = NaN([size(OutArray,1) size(OutArray,2) size(OutArray,3)]);
-% 
-% for x = 1:size(OutArray,1)
-% 	for y = 1:size(OutArray,2)
-% 		for z = 1:size(OutArray,3)
-% 			
-% 			if(mask(x,y,z) == 0)
-% 				continue
-% 			end
-% 			x,y
-% 			if( (x == 12 && y == 34) || (x == 41 && y == 29) || (x== 20 && y == 41) || (x == 41 && y == 45))
-% 				fprintf('sdfasdf')
-% 			end
-% 			
-% 			
-% 			
-% 			[NoPeakFound,Results] = seek_peak(reshape(squeeze(SearchArray(x,y,z,:)),[1 size_SearchArray(ApplyAlongDim)]),SeekPeakSettings);
-% 			if(~NoPeakFound)
-% 				ShiftMap(x,y,z) = Results.Peak_Point - SearchForPeak_Center_Pts;
-% 			end
-% 			
-% 		end
-% 	end
-% end
-% 
-% 
-
-
-
-% % Find maximum
-% [Maximum,Maximum_Location] = max(real(SearchArray(:,:,:,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts)),[],ApplyAlongDim);
-% % Imagine Maximum_Location = 1, i.e. the most-left point is the max. This 1 corresponds to SearchForPeak_LeftPt_Pts, i.e. 1 + SearchForPeak_LeftPt_Pts - 1 = SearchForPeak_LeftPt_Pts;
-% ShiftMap = -(Maximum_Location + SearchForPeak_LeftPt_Pts - 2 - SearchForPeak_Center_Pts);  % And then we need to calculate the difference to the center, i.e. subtracting SearchForPeak_Center_Pts
-
 
 
 
