@@ -79,6 +79,7 @@ if(isfield(PeakSearchSettingsOrShiftMap,'PeakSearchPPM'))
 	
 else
 	ShiftMap = PeakSearchSettingsOrShiftMap;
+	OnlyApplyShiftMap_flag = true;
 end
 
 
@@ -105,19 +106,23 @@ SearchArray = fftshift(fft(SearchArray,[],ApplyAlongDim),ApplyAlongDim);
 
 %% 2. Calculate ShiftMap with Scalar Product of abs(waterpeak)
 
-CS_vec_zf = compute_chemshift_vector_1_1(Settings.LarmorFreq,Settings.Dwelltime/10^9,Settings.vecsize*ZerofillingFactor); 
-ShiftMap = zeros([size(OutArray,1) size(OutArray,2) size(OutArray,3)]);
-SearchForPeak_LeftPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM));
-SearchForPeak_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM));
-SearchForPeak_Center_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM));
+if(~OnlyApplyShiftMap_flag)
+	
+	CS_vec_zf = compute_chemshift_vector_1_1(Settings.LarmorFreq,Settings.Dwelltime/10^9,Settings.vecsize*ZerofillingFactor); 
+	ShiftMap = zeros([size(OutArray,1) size(OutArray,2) size(OutArray,3)]);
+	SearchForPeak_LeftPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM - Settings.PeakSearchRangePPM));
+	SearchForPeak_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM));
+	SearchForPeak_Center_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM));
 
-ReferenceSpecMat_Spec = squeeze(SearchArray(RefVox(1),RefVox(2),RefVox(3),SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
-ReferenceSpecMat = zeros(size(ReferenceSpecMat_Spec,1));
+	ReferenceSpecMat_Spec = squeeze(SearchArray(RefVox(1),RefVox(2),RefVox(3),SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
+	ReferenceSpecMat = zeros(size(ReferenceSpecMat_Spec,1));
 
 
-CircShiftVec = SearchForPeak_LeftPt_Pts-SearchForPeak_Center_Pts :1: SearchForPeak_RightPt_Pts-SearchForPeak_Center_Pts;
-for i = 1:abs(SearchForPeak_RightPt_Pts-SearchForPeak_LeftPt_Pts+1)
-	ReferenceSpecMat(i,:) = circshift(ReferenceSpecMat_Spec,CircShiftVec(i));
+	CircShiftVec = SearchForPeak_LeftPt_Pts-SearchForPeak_Center_Pts :1: SearchForPeak_RightPt_Pts-SearchForPeak_Center_Pts;
+	for i = 1:abs(SearchForPeak_RightPt_Pts-SearchForPeak_LeftPt_Pts+1)
+		ReferenceSpecMat(i,:) = circshift(ReferenceSpecMat_Spec,CircShiftVec(i));
+	end
+	
 end
 
 OutArray = fftshift(fft(OutArray,[],ApplyAlongDim),ApplyAlongDim);
@@ -130,9 +135,12 @@ for x = 1:size(OutArray,1)
 				continue
 			end
 			
-			% Calculate ShiftMap
-			DotProd = abs(ReferenceSpecMat) * abs(squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts)));
-			ShiftMap(x,y,z) = -round( CircShiftVec(DotProd == max(DotProd)) / ZerofillingFactor); % - because we shifted the reference, but below we want to shift the other spectra
+			
+			if(~OnlyApplyShiftMap_flag)
+				% Calculate ShiftMap
+				DotProd = abs(ReferenceSpecMat) * abs(squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts)));
+				ShiftMap(x,y,z) = -round( CircShiftVec(DotProd == max(DotProd)) / ZerofillingFactor); % - because we shifted the reference, but below we want to shift the other spectra
+			end
 			
 			% Apply ShiftMap
 			OutArray(x,y,z,:) = circshift(squeeze(OutArray(x,y,z,:)),[ShiftMap(x,y,z) 1]);
