@@ -1,4 +1,4 @@
-function OutArray = Zerofilling(OutArray,Zerofill_To,PerformFFT_flag)
+function OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
 %
 % EllipticalFilter_x_y Apply an elliptical filter to k-space data
 %
