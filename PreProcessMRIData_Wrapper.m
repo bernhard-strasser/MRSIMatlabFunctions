@@ -9,25 +9,24 @@ function [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kS
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,kSpace.CSI] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, iSpaceShift,iSpaceShift(2),NoFFT_flag, NoiseCorrMat)
+% [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kSpace,PreProcessingInfo,ReadInInfo)
 %
 % Input: 
-% -         csi_path                    ...     Path of MRS(I) file.
-% -         zerofill_to_nextpow2_flag   ...     Flag, if the MRSI data should be zerofilled to the next power of 2 in k-space (e.g. 42x42 sampled --> zf to 64x64?)
-% -         zerofilling_fact            ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
-% -         Hadamard_flag               ...     If data is multislice hadamard encoded, perform hadamard-decoding function
-% -         iSpaceShift                     ...     Shift the MRSI data in the left-right direction ( = row direction of matrix) by iSpaceShift voxels
-% -         iSpaceShift(2)                     ...     Shift the MRSI data in anterior-posterior direction ( = column direction of matrix) by iSpaceShift(2) voxels
-% -         NoFFT_flag                  ...     If this is true, don't perform any fft.
-% -         NoiseCorrMat                ...     If size(NoiseCorrMat) = [cha cha]: the k-space Data gets decorrelated with this matrix. 
-%                                               If NoiseCorrMat = 1: the end of the FIDs of the outermost k-space/image points are used for noise decorrelation.
-%                                               If NoiseCorrMat = 0, or not existant: No Noise Decorrelation performed
-%
+% -         kSpace                      ...     Path of MRS(I) file.
+% -         PreProcessingInfo           ...     Info about how the read in data should be pre-processed.
+%                                               Sub-Fields: For each subdataset (EvalInfoMask entry) one, e.g. 'ONLINE', 'PATREFANDIMASCAN', and 'NOISEADJSCAN'
+%                                               Sub-Sub-Fields: Each Sub-Field can have the following entries:
+%                                               - NoFFT_flag: If true, do no fft is performed from kSpace to iSpace. Example: PreProcessingInfo.ONLINE.NoFFT_flag = true;
+%                                               - fredir_shift: Corrects for a different phase caused by a shift in the frequency encoding direction
+%                                               - FlipkSpaceAlong = 2;
+%												- FlipkSpaceWhileAccessing = ':,:,:,:,:,:,2';
+%                                               - (tbc)
+% -         ReadInInfo                  ...     Factor with which the MRSI data should be zerofilled in k-space for interpolation (e.g. zerofill from 64x64 to 128x128)
 % Output:
-% -         csi                         ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
-% -         NoiseCorrMat                ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
-% -         Noise_mat                   ...     The Noise gathered from the CSI data. Noise_mat = 0, if not gathered.
-% -         kSpace.CSI                  ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
+% -         iSpace                      ...     Output data in image domain. In case of Single Voxel Spectroscopy, this is the only output
+% -         Noise                       ...     The Noise Correlation Matrix in order to check if it was properly computed from the csi data. Is 0 if no decorrelation performed.
+% -         PreProcessingInfo           ...     The  updated PreProcessingInfo, as it is changed when reading in.
+% -         kSpace                      ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x vecSize x Averages
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -263,13 +262,14 @@ for CurDataSet = DataSetNames
 	if(isfield(PreProcessingInfo.(CurDataSetString),'ZeroFillingDesiredSize') && numel(PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{1}) > 1)
 		for echo = 1:numel(kSpace.(CurDataSetString))
 			fprintf('\nEcho %d: Zerofill in kSpace from size [%s] to [%s]',echo,sprintf('%d ',size(kSpace.(CurDataSetString){echo})),sprintf('%d ',PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo}))    						
-			kSpace.(CurDataSetString){echo} = Zerofilling(kSpace.(CurDataSetString){echo}, PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo});
+			kSpace.(CurDataSetString){echo} = ZerofillOrCutkSpace(kSpace.(CurDataSetString){echo}, PreProcessingInfo.(CurDataSetString).ZeroFillingDesiredSize{echo});
 		end
 	end
 	
 
 	% 1.3 FFT FROM K_SPACE TO DIRECT SPACE
-	if(isfield(PreProcessingInfo.(CurDataSetString), 'NoFFT_flag') && ~PreProcessingInfo.(CurDataSetString).NoFFT_flag)
+	if(  (isfield(PreProcessingInfo.(CurDataSetString), 'NoFFT_flag') && ~PreProcessingInfo.(CurDataSetString).NoFFT_flag) || ...
+		(isfield(PreProcessingInfo.(CurDataSetString), 'RmOs') && PreProcessingInfo.(CurDataSetString).RmOs == 1)  )
 		fprintf('\nFFT Data.')    						
 		if(strcmpi(CurDataSetString,'ONLINE') && size(kSpace.(CurDataSetString){1},6) > 1)
 			ConjFlag = true;
@@ -308,7 +308,7 @@ for CurDataSet = DataSetNames
 				if(isfield(kSpace,[CurDataSetString '_Unfiltered']))
 					kSpace.([CurDataSetString '_Unfiltered']){echo} = kSpace.([CurDataSetString '_Unfiltered']){echo}(:,1:2:end,:,:,:,:,:);
 				end
-			end	
+			end
 		end
 	end
 	
@@ -329,6 +329,11 @@ for CurDataSet = DataSetNames
 	end
 
 
+	if(isfield(PreProcessingInfo.(CurDataSetString), 'NoFFT_flag') && PreProcessingInfo.(CurDataSetString).NoFFT_flag)		% Remove it again
+		iSpace = rmfield(iSpace,CurDataSetString);
+	end
+	
+	
 
 end
 
