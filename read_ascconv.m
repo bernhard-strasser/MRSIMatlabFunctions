@@ -687,7 +687,15 @@ function ParList = InterpretWipMemBlock(ParList)
 		
 		
 		TwoDCaipInfoAvail = numel(ParList.WipMemBlock_alFree) > 41 && ParList.WipMemBlock_alFree(41) < 10 && ParList.WipMemBlock_alFree(42) < 10 ...
-			&& ~(numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1) && sum(ParList.WipMemBlock_alFree(41:50));
+			&& sum(ParList.WipMemBlock_alFree(41:50));
+		TwoDCaipInfoDefective = TwoDCaipInfoAvail && numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1;
+		
+		if(TwoDCaipInfoDefective)
+			TwoDCaipiInterpretation = -1;
+			fprintf('\nWARNING: 2D-CAIPI seems to have been performed, but I could not read the Pattern.')
+			return;
+		end
+		
 
 		if(TwoDCaipInfoAvail && ParList.WipMemBlock_alFree(41) > 0 && ParList.WipMemBlock_alFree(42) > 0)
 			TwoDCaipiInterpretation.Skip_Matrix = zeros([ParList.WipMemBlock_alFree(42) ParList.WipMemBlock_alFree(41)]);
