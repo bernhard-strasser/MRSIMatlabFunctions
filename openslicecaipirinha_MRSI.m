@@ -1,4 +1,4 @@
-function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, quiet_flag, AliasedSlices, kernelsize) 
+function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_shifts, quiet_flag,precision, AliasedSlices, kernelsize) 
 % 
 % openslicegrappa_MRSI Reconstruct the Slices of MRSI and MRI Data Ehen Only the Sum of Those Slices Was Measured.
 % 
@@ -65,7 +65,9 @@ end
 if(~exist('quiet_flag','var'))
 	quiet_flag = false;
 end
-
+if(~exist('precision','var') || ~ischar(precision))
+	precision = 'double';
+end
 
 
 % Initialize kernelsize
@@ -288,12 +290,12 @@ end
 
 
 % Create an extended matrix, extended by the kernelsize. This extension is necessary, so that also the target points at the border of the matrix can be reconstructed, using the kernel.
-Reco_dummy = zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) nSlice nTime]);
+Reco_dummy = feval(precision,zeros([nChannel nx+sum(kernelsize(1:2)) ny+sum(kernelsize(3:4)) nSlice nTime]));	% Convert to singles if necessary
 Reco_dummy(:,kernelsize(1)+1:end-kernelsize(2),kernelsize(3)+1:end-kernelsize(4),:,:) = InData;
 InPlane_UndersamplingPattern = abs(squeeze(Reco_dummy(1,:,:,1,1))) > 0;
 
 % Create the OutData which has to have as many slices as the ACS data because we want to reconstruct all those slices.
-OutData = zeros([nChannel nx ny nSlice_ACS nTime]);
+OutData = feval(precision,zeros([nChannel nx ny nSlice_ACS nTime]));
 for SourceSliceIndex = 1:nSlice
 	
 	if(~quiet_flag)
