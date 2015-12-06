@@ -82,7 +82,9 @@ end
 
 % if InArray contains WaterReference
 if(isstruct(InArray))
-	WaterReference = InArray.watref;
+	if(isfield(InArray,'watref') && numel(InArray.watref) > 1)	% Ignore if there is some field which is not water ref
+		WaterReference = InArray.watref;
+	end
 	InArray = InArray.csi;
 end
 
@@ -108,11 +110,12 @@ end
 if(~isfield(MetaInfo,'DimNames'))
     MetaInfo.DimNames = {'x','y','z'};
 end
-if(~exist('mask','var'))
-    mask = ones(size(squeeze(squeeze_single_dim(InArray,MetaInfo.Dimt1))));
+if(~exist('mask','var') || numel(mask) <= 1)
+    mask = ones(size(squeeze_single_dim(InArray,MetaInfo.Dimt1)));
 end
 if(~exist('CPU_cores','var'))
-    CPU_cores = 8;
+    CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
+	CPU_cores(CPU_cores > 8) = 8;
 end
 if(exist('ControlInfo','var') && isnumeric(ControlInfo))
 	clear ControlInfo;				% Easier to handle this way
