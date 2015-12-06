@@ -1,4 +1,4 @@
-function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(OutData, ACS, UndersamplingCell, quiet_flag, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
+function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(OutData, ACS, UndersamplingCell,quiet_flag,precision, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
 % 
 % opencaipirinha_MRSI Reconstruct MRSI and MRI Data Undersampled With caipirinha Patterns
 % 
@@ -11,6 +11,8 @@ function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI(OutDat
 % -     UndersamplingCell  Elementary Cell, logical array (or array containing only 1's and 0's) which tells you the measured points (1's) and omitted points (0's). 
 %                          Gets replicated to spatial size of InData to define the undersampling pattern. 
 %                          Thus spatial size of InData and ACS must be integer multiple of UndersamplingCell.
+% -     precision          E.g. 'single' or 'double'.
+% -     quiet_flag         Set to true if you dont want any text output.
 % -     MinKernelSrcPts    The minimum source points in the kernel that are fitted to the target points. 20 is a good value, as that is standard in GRAPPA.
 % -     weights            See Output. Used if the weights are already known and should not be computed from the ACS data.
 % -     kernelsize         See Output. Used if the weights are already known and should not be computed from the ACS data. 
@@ -92,10 +94,11 @@ if(sum(sum(sum(UndersamplingCell))) == numel(UndersamplingCell))
     weights = 0;
     return
 end
-
-
 if(~exist('quiet_flag','var'))
 	quiet_flag = false;
+end
+if(~exist('precision','var') || ~ischar(precision))
+	precision = 'double';
 end
 
 
@@ -366,7 +369,7 @@ Maxkernelsize = [kernelsize{:}];
 Maxkernelsize = max(reshape(Maxkernelsize, [4 numel(Maxkernelsize)/4]), [], 2);
 
 % Prepare the enlarged/extended Reconstruction Matrix
-Reco_dummy = zeros([nChannel nx+sum(Maxkernelsize(1:2)) ny+sum(Maxkernelsize(3:4)) nSlice nTime]);              % This has to be changed for "TODO 2)"
+Reco_dummy = feval(precision,zeros([nChannel nx+sum(Maxkernelsize(1:2)) ny+sum(Maxkernelsize(3:4)) nSlice nTime]));		% Make to singles if necessary
 Reco_dummy(:,Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:,:) = OutData;
 Reco_dummy_CheckIfRecoNecess = squeeze(abs(Reco_dummy(1,:,:,1,1)) > 0);
 %clear OutData;

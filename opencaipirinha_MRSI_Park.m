@@ -1,4 +1,4 @@
-function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI_Park(OutData, ACS, UndersamplingCell, quiet_flag, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
+function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI_Park(OutData, ACS, UndersamplingCell, quiet_flag,ParkControl, MinKernelSrcPts,weights,kernelsize,SrcRelativeTarg) 
 % 
 % opencaipirinha_MRSI Reconstruct MRSI and MRI Data Undersampled With caipirinha Patterns
 % 
@@ -11,6 +11,8 @@ function [OutData,weights,kernelsize,SrcRelativeTarg]=opencaipirinha_MRSI_Park(O
 % -     UndersamplingCell  Elementary Cell, logical array (or array containing only 1's and 0's) which tells you the measured points (1's) and omitted points (0's). 
 %                          Gets replicated to spatial size of InData to define the undersampling pattern. 
 %                          Thus spatial size of InData and ACS must be integer multiple of UndersamplingCell.
+% -     quiet_flag         Suppress all display output.
+% -     ParkControlIndex   Defines which version of the Park-Algorithm will be used.
 % -     MinKernelSrcPts    The minimum source points in the kernel that are fitted to the target points. 20 is a good value, as that is standard in GRAPPA.
 % -     weights            See Output. Used if the weights are already known and should not be computed from the ACS data.
 % -     kernelsize         See Output. Used if the weights are already known and should not be computed from the ACS data. 
@@ -82,6 +84,14 @@ if(~exist('UndersamplingCell','var'))
     weights = 0;    
     return
 end
+if(~exist('quiet_flag','var'))
+	quiet_flag = false;
+end
+if(~exist('ParkControl','var') || ParkControl == 1)
+	ParkControl.kSpaceSubDivisions = 2;
+	ParkControl.kSpaceSubDivisionBorders = [0 13; 14 999];
+	ParkControl.QuadrantDivision_flag = false;
+end
 
 if(~exist('MinKernelSrcPts','var'))
     MinKernelSrcPts = 20;
@@ -94,9 +104,6 @@ if(sum(sum(sum(UndersamplingCell))) == numel(UndersamplingCell))
 end
 
 
-if(~exist('quiet_flag','var'))
-	quiet_flag = false;
-end
 
 
 % Further Preparations
@@ -110,6 +117,8 @@ if(nChannel_ACS~=nChannel)
     disp('Error! The number of coils has to be the same for both inputs! Aborting . . .')
     return;
 end
+
+
 
 % Convert UndersamplingCell to logical (Make us whole again)
 UndersamplingCell = logical(UndersamplingCell);
@@ -195,7 +204,7 @@ if(~exist('weights','var'))
     kernel = cell([1 nKernels]);
     kernel_TargetPoint = cell([1 nKernels]);
     SrcRelativeTarg = cell([1 nKernels]);
-    weights = cell([1 nKernels]);
+    weights = cell([ParkControl.kSpaceSubDivisions nKernels]);
 
 
     % Iterate over all Kernels
@@ -253,7 +262,9 @@ if(~exist('weights','var'))
             if(isequal(kernelsize{test_against_kernel_no},kernelsize{KernelIndex}))
                 if(isequal(squeeze(kernel{test_against_kernel_no}(1,:,:)),kernel_dummy))        % kernel gets replicated with channels. --> Must index into kernel.
                     % Copy Weights of kernel{test_against_kernel_no}
-                    [weights{KernelIndex}] = deal(weights{test_against_kernel_no});
+					for SubDivInd = 1:ParkControl.kSpaceSubDivisions
+						[weights{SubDivInd,KernelIndex}] = deal(weights{SubDivInd,test_against_kernel_no});
+					end
                     SrcRelativeTarg{KernelIndex} = SrcRelativeTarg{test_against_kernel_no};
 					KernelCorrespondence(KernelIndex) = test_against_kernel_no;
                     kernel_found = true;
@@ -279,55 +290,98 @@ if(~exist('weights','var'))
 
 
 
+		for SubDivInd = 1:ParkControl.kSpaceSubDivisions
+
+			% Compute the Source and Target Points as linear indices
+			% What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
+			% No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
+			% (to avoid slow loops). The computation of the linear indices looks quite complicated, and in fact -- it is :)
+			% Well in principle the target points are just all points all x- and y-values of all channels. The relative distance of the
+			% source points to a target point is computed within the kernel, and this relative information is applied to the target points
+			% in order to get the source points. Then the linear indices can be computed.
+
+			
+			% Compute the Indices of the segments
+			
+			% Compute the different borders of the segment
+			% NOTE: The segments are NOT adjacent. This may sound strange for you, but consider that when computing the sourcepoints from the target points,
+			% NOTE: the source point segments will be adjacent.
+			
+			% x-borders
+			lowbord_low_x = max((nx_ACS/2+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),1) + kernelsize{KernelIndex}(1); % max:ParkControl.kSpaceSubDivisionBorders(SubDivInd,2) can be 999
+			lowbord_up_x = (nx_ACS/2+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+			if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+				lowbord_up_x = lowbord_up_x - kernelsize{KernelIndex}(2);
+			end
+			upbord_low_x = (nx_ACS/2+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+			upbord_up_x = min((nx_ACS/2+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),nx_ACS) - kernelsize{KernelIndex}(2); % min: see above
+			if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+				upbord_low_x = upbord_low_x + kernelsize{KernelIndex}(1);
+			end
+			
+			% y-borders
+			lowbord_low_y = max((ny_ACS/2+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),1) + kernelsize{KernelIndex}(1);
+			lowbord_up_y = (ny_ACS/2+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+			if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+				lowbord_up_y = lowbord_up_y - kernelsize{KernelIndex}(2);
+			end
+			upbord_low_y = (ny_ACS/2+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+			upbord_up_y = min((ny_ACS/2+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),ny_ACS) - kernelsize{KernelIndex}(2);
+			if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+				upbord_low_y = upbord_low_y + kernelsize{KernelIndex}(1);
+			end			
+	
+			% Work with zeros and ones. This is not efficient, but the only easy solution.
+			ParkSubDiv_Mask = zeros([nx_ACS ny_ACS]);
+			ParkSubDiv_Mask(lowbord_low_x:lowbord_up_x,lowbord_low_y:upbord_up_y) = 1;
+			ParkSubDiv_Mask(upbord_low_x:upbord_up_x,lowbord_low_y:upbord_up_y) = 1;
+			ParkSubDiv_Mask(lowbord_low_x:upbord_up_x,lowbord_low_y:lowbord_up_y) = 1;
+			ParkSubDiv_Mask(lowbord_low_x:upbord_up_x,upbord_low_y:upbord_up_y) = 1;
+			
+			[ParkSubDiv_x, ParkSubDiv_y] = find(ParkSubDiv_Mask);
+			
+			
+			
 
 
-        % Compute the Source and Target Points as linear indices
-        % What does the code do here? Let's assume ... (ohh... did I fall asleep? Hm.)
-        % No, really: The source and the target points are computed for the ACS data. This is done by computing the linear indices of both
-        % (to avoid slow loops). The computation of the linear indices looks quite complicated, and in fact -- it is :)
-        % Well in principle the target points are just all points all x- and y-values of all channels. The relative distance of the
-        % source points to a target point is computed within the kernel, and this relative information is applied to the target points
-        % in order to get the source points. Then the linear indices can be computed.
+			AdditionalReplication.DimPos = 2; AdditionalReplication.AddToDims = [2 3]; AdditionalReplication.Mat = int16(SrcRelativeTarg{KernelIndex});
+			Source_linear = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
+							 AdditionalReplication,[2 3], ...
+							 1:nChannel,ParkSubDiv_x,ParkSubDiv_y);
+			Target_linear = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
+							 0,[2 3], ...
+							 1:nChannel, ParkSubDiv_x,ParkSubDiv_y);
+
+			if(max(Source_linear) > 2^31)
+				max(Source_linear)
+				display('Change to uint64 in code. Aborting.')
+				weights = 0;
+				return
+			end
+
+			weights{SubDivInd,KernelIndex} = zeros([nChannel nChannel*no_SourcePoints nSlice_ACS]);
+			for SliceIndex = 1:nSlice_ACS
+
+				% Slice ACS data
+				ACS_sliced = ACS(:,:,:,SliceIndex);
+
+				% The Target Points, size: nChannel x kernel repetitions in ACS data
+				TargetPoints_ACS = ACS_sliced(Target_linear);
+				TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);
+
+				% The Source Points, size: nChannel*no_SourcePoints x kernel repetitions in ACS data
+				SourcePoints_ACS = ACS_sliced(Source_linear);    
+				SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SourcePoints numel(SourcePoints_ACS)/(nChannel*no_SourcePoints)]);
 
 
-		AdditionalReplication.DimPos = 2; AdditionalReplication.AddToDims = [2 3]; AdditionalReplication.Mat = int16(SrcRelativeTarg{KernelIndex});
-		Source_linear = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
-			             AdditionalReplication,0, ...
-						 1:nChannel, kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2), kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
-		Target_linear = sub2ind_extended([nChannel nx_ACS ny_ACS], ...
-			             0,0, ...
-						 1:nChannel, kernelsize{KernelIndex}(1)+1:nx_ACS-kernelsize{KernelIndex}(2), kernelsize{KernelIndex}(3)+1:ny_ACS-kernelsize{KernelIndex}(4));
 
-		if(max(Source_linear) > 2^31)
-            max(Source_linear)
-            display('Change to uint64 in code. Aborting.')
-            weights = 0;
-            return
+				% find weights by fitting the source data to target data.
+				% The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
+				% size: nChannel x nChannel*no_SourcePoints
+				weights{SubDivInd,KernelIndex}(:,:,SliceIndex) = TargetPoints_ACS * pinv(SourcePoints_ACS); 
+
+			end
 		end
-
-		weights{KernelIndex} = zeros([nChannel nChannel*no_SourcePoints nSlice_ACS]);
-        for SliceIndex = 1:nSlice_ACS
-
-            % Slice ACS data
-            ACS_sliced = ACS(:,:,:,SliceIndex);
-
-            % The Target Points, size: nChannel x kernel repetitions in ACS data
-            TargetPoints_ACS = ACS_sliced(Target_linear);
-            TargetPoints_ACS = reshape(TargetPoints_ACS, [nChannel numel(TargetPoints_ACS)/nChannel]);
-
-            % The Source Points, size: nChannel*no_SourcePoints x kernel repetitions in ACS data
-            SourcePoints_ACS = ACS_sliced(Source_linear);    
-            SourcePoints_ACS = reshape(SourcePoints_ACS, [nChannel*no_SourcePoints numel(SourcePoints_ACS)/(nChannel*no_SourcePoints)]);
-
-
-
-            % find weights by fitting the source data to target data.
-            % The pinv averages over all kernel repetitions in a weighted way ('least square' solution)
-            % size: nChannel x nChannel*no_SourcePoints
-            weights{KernelIndex}(:,:,SliceIndex) = TargetPoints_ACS * pinv(SourcePoints_ACS); 
-
-        end
-
 
 
 	end
@@ -399,33 +453,98 @@ for KernelIndex = 1:nKernels
     UC_dummy = repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2))]);
     UC_dummy = cat(  1,UC_dummy, UC_dummy(1:nx-size(UC_dummy,1),:,:)  );
     UC_dummy = cat(  2,UC_dummy, UC_dummy(:,1:ny-size(UC_dummy,2),:)  );
-    %UC_dummy = cat(  3,UC_dummy, UC_dummy(:,:,1:nSlice-size(UC_dummy,3))  );  
-    TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = UC_dummy;
-%     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
-%     repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
-    [TargetPoints_x, TargetPoints_y] = find(TargetPoints);
-     	
+    %UC_dummy = cat(  3,UC_dummy, UC_dummy(:,:,1:nSlice-size(UC_dummy,3))  ); 
 	
+	%ParkSubDiv_Mask = zeros(size(UC_dummy));
+	for SubDivInd=1:ParkControl.kSpaceSubDivisions
 	
-    % Loop over all target points for the processed kernel
-	SourcePoints = zeros([nChannel*size(SrcRelativeTarg{KernelIndex},1) nTime]);	
-	for Targetloopy = 1:numel(TargetPoints_x)
-        SourceIndices = [TargetPoints_x(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,1), TargetPoints_y(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,2)];
 		
-		if(sum(Reco_dummy_CheckIfRecoNecess(sub2ind(size(Reco_dummy_CheckIfRecoNecess),SourceIndices(:,1),SourceIndices(:,2)))) < 2)
+		% Compute the ParkMasks
+
+		% Compute the different borders of the segment
+		% NOTE: In the Reco part, the segments of the target points NEED to be adjacent because otherwise some points are simply not reconstructed!
+		% NOTE: Extend the regions for both, the inner and the outer segment by half the kernel size so that they are adjacent.
+		% NOTE: Also the outermost segment MUST span the whole size of the rectangle.
+
+		% x-borders
+		lowbord_low_x = max((floor(size(UC_dummy,1)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),1);
+		lowbord_up_x = (floor(size(UC_dummy,1)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+
+		upbord_low_x = (floor(size(UC_dummy,1)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+		upbord_up_x = min((floor(size(UC_dummy,1)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),size(UC_dummy,1));
+
+
+
+		% y-borders
+		lowbord_low_y = max((floor(size(UC_dummy,2)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),1);
+		lowbord_up_y = (floor(size(UC_dummy,2)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+
+		upbord_low_y = (floor(size(UC_dummy,2)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+		upbord_up_y = min((floor(size(UC_dummy,2)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),size(UC_dummy,2));
+
+		
+		
+		
+% 		% y-borders
+% 		lowbord_low_y = max((floor(size(UC_dummy,2)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),1) + kernelsize{KernelIndex}(1);
+% 		lowbord_up_y = (floor(size(UC_dummy,2)/2)+1) - ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+% 		if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+% 			lowbord_up_y = lowbord_up_y - kernelsize{KernelIndex}(2);
+% 		end
+% 		upbord_low_y = (floor(size(UC_dummy,2)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,1);
+% 		upbord_up_y = min((floor(size(UC_dummy,2)/2)+1) + ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),size(UC_dummy,2)) - kernelsize{KernelIndex}(2);
+% 		if(SubDivInd > 1) 			% For the innermost cell only one part (the outer one) of the kernelsize has to be taken into account
+% 			upbord_low_y = upbord_low_y + kernelsize{KernelIndex}(1);
+% 		end			
+
+		% Work with zeros and ones. This is not efficient, but the only easy solution.
+		ParkSubDiv_Mask = zeros([size(UC_dummy,1) size(UC_dummy,2)]);
+		ParkSubDiv_Mask(lowbord_low_x:lowbord_up_x,lowbord_low_y:upbord_up_y) = 1;
+		ParkSubDiv_Mask(upbord_low_x:upbord_up_x,lowbord_low_y:upbord_up_y) = 1;
+		ParkSubDiv_Mask(lowbord_low_x:upbord_up_x,lowbord_low_y:lowbord_up_y) = 1;
+		ParkSubDiv_Mask(lowbord_low_x:upbord_up_x,upbord_low_y:upbord_up_y) = 1;
+		
+		
+		
+		if(ParkControl.kSpaceSubDivisionBorders(SubDivInd,1) >= nx)
 			continue
 		end
 		
+% 		ParkSubDiv_Mask_dummy = zeros(size(UC_dummy));
+% 		ParkSubDiv_Mask_dummy(nx/2+1 - min(ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),nx)/2 : nx/2 + min(ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),nx)/2, ...
+% 		ny/2+1 - min(ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),ny)/2 : ny/2 + min(ParkControl.kSpaceSubDivisionBorders(SubDivInd,2),ny)/2) = 1;
+% 		
+% 		ParkSubDiv_Mask = ~ParkSubDiv_Mask .* ParkSubDiv_Mask_dummy;
 		
-		
-		for SliceIndex = 1:nSlice
-            % Compute the Source Points for that specific TargetIndex
-			for Sourceloopy = 1:size(SourceIndices,1)
-                SourcePoints((Sourceloopy-1)*nChannel+1:Sourceloopy*nChannel,:) = Reco_dummy(:,SourceIndices(Sourceloopy,1),SourceIndices(Sourceloopy,2),SliceIndex,:);
+
+		TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = UC_dummy .* ParkSubDiv_Mask;
+	%     TargetPoints(Maxkernelsize(1)+1:end-Maxkernelsize(2),Maxkernelsize(3)+1:end-Maxkernelsize(4),:) = ...
+	%     repmat(UndersamplingCell_CurrentTargetPoint, [floor(nx/size(UndersamplingCell,1)) floor(ny/size(UndersamplingCell,2)) floor(nSlice/size(UndersamplingCell,3))]);  
+		[TargetPoints_x, TargetPoints_y] = find(TargetPoints);
+
+
+
+		% Loop over all target points for the processed kernel
+		SourcePoints = zeros([nChannel*size(SrcRelativeTarg{KernelIndex},1) nTime]);	
+		for Targetloopy = 1:numel(TargetPoints_x)
+			SourceIndices = [TargetPoints_x(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,1), TargetPoints_y(Targetloopy) + SrcRelativeTarg{KernelIndex}(:,2)];
+
+			if(sum(Reco_dummy_CheckIfRecoNecess(sub2ind(size(Reco_dummy_CheckIfRecoNecess),SourceIndices(:,1),SourceIndices(:,2)))) < 2)
+				continue
 			end
-            % Reconstruct data by applying weights to Sourcepoints.
-            Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),SliceIndex,:)=reshape(weights{KernelIndex}(:,:,SliceIndex)*SourcePoints, [nChannel nTime]); 
+
+
+
+			for SliceIndex = 1:nSlice
+				% Compute the Source Points for that specific TargetIndex
+				for Sourceloopy = 1:size(SourceIndices,1)
+					SourcePoints((Sourceloopy-1)*nChannel+1:Sourceloopy*nChannel,:) = Reco_dummy(:,SourceIndices(Sourceloopy,1),SourceIndices(Sourceloopy,2),SliceIndex,:);
+				end
+				% Reconstruct data by applying weights to Sourcepoints.
+				Reco_dummy(:,TargetPoints_x(Targetloopy),TargetPoints_y(Targetloopy),SliceIndex,:)=reshape(weights{SubDivInd,KernelIndex}(:,:,SliceIndex)*SourcePoints, [nChannel nTime]); 
+			end
 		end
+		
 	end
 
 end
