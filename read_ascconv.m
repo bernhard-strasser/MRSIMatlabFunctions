@@ -570,12 +570,12 @@ function ParList = InterpretWipMemBlock(ParList)
 		% Find out version
 		VerNumber = regexpi(regexpi(ParList.tSequenceFileName,'bs_gh_ghsi_2plus1DCaip_v\d+_\d+_?\d*','match'),'\d+_\d+_?\d*','match');
 		if(isempty(VerNumber))
-			NewVer = 1;
+			NewVer = 0;
 		else
 			VerNumber = VerNumber{:};
 			Underscores = strfind(VerNumber,'_'); Fromm = Underscores{1}(1)+1; if(numel(Underscores{1} < 2)); To = Fromm+1; else To = Underscores{1}(2)-1; end
-			FeatureNumber = VerNumber{1}(Fromm:To);
-			NewVer = str2double(FeatureNumber) > 32; clear Underscores VerNumber FeatureNumber
+			FeatureNumber = VerNumber{1}(Fromm:To); MainPatchNumber = VerNumber{1}(1:Fromm-2);
+			NewVer = str2double(FeatureNumber) > 32 || str2double(MainPatchNumber) > 1; clear Underscores VerNumber FeatureNumber
 		end
 		
 		
@@ -702,7 +702,7 @@ function ParList = InterpretWipMemBlock(ParList)
 			TwoDCaipiInterpretation.VD_Radius = ParList.WipMemBlock_alFree(43);
 			MaxAccess = 50; MaxAccess(MaxAccess > numel(ParList.WipMemBlock_alFree)) = numel(ParList.WipMemBlock_alFree);
 			Access = ParList.WipMemBlock_alFree(44:MaxAccess); 
-			Access(Access == 0) = [];
+			Access(find(Access == 0,1,'first'):end) = [];
 			TwoDCaipiInterpretation.Skip_Matrix(Access) = 1;
 
 			if(numel(TwoDCaipiInterpretation.Skip_Matrix) > 1)
