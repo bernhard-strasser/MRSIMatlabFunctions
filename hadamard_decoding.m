@@ -69,7 +69,7 @@ end
 
 %% 2. Apply Hadamard Matrix
 
-HadamardMatrix = hadamard(size_InArray(ApplyAlongDim));
+HadamardMatrix = hadamard(size_InArray(ApplyAlongDim))/size_InArray(ApplyAlongDim);
 
 if(numel(InArray)*8*2*2/2^20 > MemFree)
 	
