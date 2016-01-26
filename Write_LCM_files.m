@@ -83,7 +83,9 @@ end
 
 % if InArray contains WaterReference
 if(isstruct(InArray))
-	WaterReference = InArray.watref;
+	if(isfield(InArray,'watref') && numel(InArray.watref) > 1)	% Ignore if there is some field which is not water ref
+		WaterReference = InArray.watref;
+	end
 	InArray = InArray.csi;
 end
 
