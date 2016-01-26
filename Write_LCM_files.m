@@ -68,6 +68,7 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 % subbas_flag:          flag controlling whether the baseline should be subtracted in the .PS files of LCM
 % use_phantom_flag:     If data is from a phantom, some parameters can be different (e.g. phantoms have different metabolites)
 % LCM_ProgramPath:      Path of the lcmodel file, e.g. SOME_PATH/.lcmodel/bin/lcmodel
+% water_spectrum_flag   Decide whether to use SPTYPE = lipid-8 if enabled
 
 
 
@@ -132,6 +133,10 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+% Decide whether to use SPTYPE or not
+if water_spectrum_flag
+ControlWrite.SPTYPE = 'SPTYPE = ''lipid-8''';
+end
 
 % Referencing, see LCModel Manual page 105
 ControlWrite.DOREFS = {'DOREFS(1) = T','DOREFS(2) = F'};           % T: Use standard water referencing, F: No Other metabolites used for referencing
