@@ -1,4 +1,4 @@
-function [FID,Spectrum] = Simulate_FID_Spectra_1_4(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
 %
 % Simulate_FID_Spectra Simulates FIDs.
 %
