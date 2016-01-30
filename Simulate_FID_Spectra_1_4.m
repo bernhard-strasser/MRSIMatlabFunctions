@@ -1,21 +1,66 @@
 function [FID,Spectrum] = Simulate_FID_Spectra_1_4(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
-% Simulates FIDs. Input: Angular Frequency [rad/s], Zero-Order-Phase [Degree], AcquisitionDelay[s], T2[s], Magnitude of Signal at t = 0, SNR, dwelltime[s], vecSize, Span to Smooth FID
+%
+% Simulate_FID_Spectra Simulates FIDs.
+%
+% This function was written by Bernhard Strasser, [month] [year].
+%
+%
+% The function simulates an FID and its spectrum
+% 
+%
+%
+% [FID,Spectrum] = Simulate_FID_Spectra_1_4(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+%
+% Input: 
+% -         Chemshift                   ...    Chemical Shift. Unit: [ppm].
+% -         phase0                      ...    Phase of signal. Unit: [degree].
+% -         AcqDelay                    ...    The acquisition delay, i.e. the time after which the FID is measured, after excitation. Results in first order phase. Unit: [s].
+% -         T2                          ...    The T2 relaxation constant of the signal. Unit: [s].
+% -         S_0                         ...    The signal at t=0. Unit: [IU].
+% -         SNR                         ...    The simulated SNR of the signal. Unit: [1].
+% -         dwelltime                   ...    The dwelltime of the signal. Unit: [s]
+% -         vecSize                     ...    The vector size, i.e. the number of measured time points. Unit: [1]
+% -         LarmorFreq                  ...    The Larmor frequency, i.e. the frequency of TMS or dss. Unit: [Hz].
+% -         SmoothFIDSpan               ...    If the FID shall be smoothed in the time domain to increase SNR. Set 0 for no smoothing. Unit: [1].
+%
+%
+% Output:
+% -         FID                         ...     The resulting time domain data.
+% -         Spectrum                    ...     The fft of FID.
+%
+%
+% Feel free to change/reuse/copy the function. 
+% If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
+% Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
+% File dependancy: None
+
+% Further remarks: 
+
 
 %% Comments, Definitions, Initializations
-% Define Variables
 
-%water_frequency = 297*10^6; % @ 7T
-%water_frequency = LarmorFreq * (1 + 4.65/10^6) * 2*pi;
+if(~exist('SNR','var'))
+    SNR = 0;
+end
+
+
+
+%% Define frequency and time
+
 omega = LarmorFreq * (1 + (Chemshift - 4.65)/10^6) * 2*pi;
 
 % Define time
 t_end = AcqDelay + dwelltime*(vecSize - 1);
 t=AcqDelay:dwelltime:t_end;
 
+
+
+
+%% Create Noise
+
 % Define Standard Deviation to get SNR in time domain
-if(exist('SNR','var') && SNR > 0)
-    %SNR_spectrum = SNR / sqrt(numel(t));
-    std_FID = S_0/(2*SNR);
+if(SNR > 0)
+    std_FID = S_0/(2*SNR);       %SNR_spectrum = SNR / sqrt(numel(t));
 else
     std_FID = 0;
 end
@@ -30,18 +75,14 @@ Noise = std_FID*complex(randn([1 vecSize]), randn([1 vecSize])); % Is real and i
 
 FID = [t; S_0 * exp(-(omega - LarmorFreq*2*pi) * 1i*t).*exp(-t/T2)*exp(1i*deg2rad(phase0)) + Noise];
 
+
+
 %% Smooth FID
 
-% if(exist('SmoothFIDSpan','var') && ne(SmoothFIDSpan,1))
-%    t = AcqDelay:SmoothFIDSpan*dwelltime:t_end;
-%    FID_smooth = transpose(smooth(FID(2,:),SmoothFIDSpan));
-%    FID = [t; FID_smooth(1:SmoothFIDSpan:end)]; 
-% end
 
-if(exist('SmoothFIDSpan','var') && ne(SmoothFIDSpan,1))
+if(exist('SmoothFIDSpan','var') && (SmoothFIDSpan ~= 1))
    FID_smooth = transpose(smooth(FID(2,:),SmoothFIDSpan));
    FID = [t; FID_smooth]; 
-   %FID = FID(:,1:end-SmoothFIDSpan);
 end
 
 
