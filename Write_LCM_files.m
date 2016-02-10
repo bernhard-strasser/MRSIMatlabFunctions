@@ -68,7 +68,6 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 % subbas_flag:          flag controlling whether the baseline should be subtracted in the .PS files of LCM
 % use_phantom_flag:     If data is from a phantom, some parameters can be different (e.g. phantoms have different metabolites)
 % LCM_ProgramPath:      Path of the lcmodel file, e.g. SOME_PATH/.lcmodel/bin/lcmodel
-% water_spectrum_flag   Decide whether to use SPTYPE = lipid-8 if enabled
 
 
 
@@ -111,13 +110,16 @@ end
 if(~isfield(MetaInfo,'DimNames'))
     MetaInfo.DimNames = {'x','y','z'};
 end
-if(~exist('mask','var'))
-    mask = ones(size(squeeze(squeeze_single_dim(InArray,MetaInfo.Dimt1))));
+if(~exist('mask','var') || numel(mask) <= 1)
+    mask = ones(size(squeeze_single_dim(InArray,MetaInfo.Dimt1)));
 end
 if(~exist('CPU_cores','var'))
-    CPU_cores = 8;
+    CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
+	CPU_cores(CPU_cores > 8) = 8;
 end
-
+if(exist('ControlInfo','var') && isnumeric(ControlInfo))
+	clear ControlInfo;				% Easier to handle this way
+end
 
 
 
@@ -135,10 +137,6 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-% Decide whether to use SPTYPE or not
-if water_spectrum_flag
-ControlWrite.SPTYPE = 'SPTYPE = ''lipid-8''';
-end
 
 % Referencing, see LCModel Manual page 105
 ControlWrite.DOREFS = {'DOREFS(1) = T','DOREFS(2) = F'};           % T: Use standard water referencing, F: No Other metabolites used for referencing
@@ -383,8 +381,9 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
 						fprintf(fid, ' $END\n');
 
 						%write data into file
-						single_voxel_watref = reshape(single_voxel_watref,[vecSize 1]);
-						single_voxel_sep_watref=[real(single_voxel_watref)'; imag(single_voxel_watref)'];
+						single_voxel_watref = reshape(single_voxel_watref,[numel(single_voxel_watref) 1]);
+						single_voxel_sep_watref = zeros([2 vecSize]);			% Zerofill to vecSize, because LCModel needs the same parameters for the water reference as for the CSI, see
+						single_voxel_sep_watref(1:2,1:numel(single_voxel_watref))=[real(single_voxel_watref)'; imag(single_voxel_watref)']; % error MYDATA 10 in LCModel Manual.
 						fprintf(fid, '%14.5e%14.5e\n', single_voxel_sep_watref);
 
 						fclose(fid);
@@ -464,7 +463,11 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                         end    
                     end
                     
-                    
+                    % Special type of fitting
+                    if(isfield(ControlWrite,'SPTYPE'))
+                        fprintf(control_fid, ' %s\n',ControlWrite.SPTYPE);
+                    end
+
                     % Water Scaling, Absolute Quantification
                     
 					if(exist('WaterReference','var'))
@@ -506,7 +509,13 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     
                     
                     % Basis Set Parameters
-                    fprintf(control_fid, ' %s\n', ControlWrite.NSIMUL);                   
+                    fprintf(control_fid, ' %s\n', ControlWrite.NSIMUL);
+                    if any(ControlWrite.NSIMUL ~= 0) && isfield(ControlWrite,'CHSIMU')
+                        for dumli = 1:numel(ControlWrite.CHSIMU)
+                            fprintf(control_fid, ' %s\n', ControlWrite.CHSIMU{dumli});
+                        end
+                    end                   
+  
                     fprintf(control_fid, ' %s\n', ControlWrite.NOMIT); 
                     for dumli = 1:numel(ControlWrite.CHOMIT)
                         fprintf(control_fid, ' %s\n', ControlWrite.CHOMIT{dumli});
