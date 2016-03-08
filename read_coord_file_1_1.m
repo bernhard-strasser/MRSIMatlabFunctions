@@ -1,4 +1,4 @@
-function [ppm_points,spec_points,baseline_points] = read_coord_file_1_1(file_path)
+function [ppm_points,spec_points,baseline_points,naa_points] = read_coord_file_1_1(file_path)
 %
 % read_coord_file_x_y Read Coordinate LCModel file
 %
@@ -38,9 +38,11 @@ fid = fopen(file_path,'r');
 ppm_found = false;
 spec_found = false;
 baseline_found = false;
+naa_found = false;
 ppm_points = 0;
 spec_points = 0;
 sLine = 0;
+naa_points = 0;
 
 
 
@@ -140,7 +142,7 @@ if(spec_found && nargout > 2)
             
             baseline_found = true;                                   
             
-            % Read spec-points
+            % Read baseline-points
             baseline_points = fscanf(fid,'%f',NumberOfPoints);
 
             break
@@ -161,11 +163,36 @@ if(not(baseline_found) && spec_found)
     baseline_points = zeros([1 NumberOfPoints]);
 end
 
+%% 4. Read NAA
+
+if(spec_found && nargout > 2)
+    
+
+    while(sLine > -1)
+
+        sLine = fgets(fid); % get string line
+
+        if(not(isempty(strfind(sLine,'NAA'))))   % If current line is begin of spectrum
+            
+              naa_found = true;                                 
+            
+            % Read fit-points
+            naa_points = fscanf(fid,'%f',NumberOfPoints);
+
+            break
+
+        else
+            continue                                                      % If current line is not begin of ascconv --> read next line
+        end
+
+    end   
+    
+
+end
 
 
 
 
-
-%% 3. Postparations
+%% 5. Postparations
 
 fclose(fid);
