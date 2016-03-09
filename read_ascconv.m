@@ -93,7 +93,7 @@ ParList_Search =  { ...
 'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
 'alTE\[\d+\]',                                                  ...     % 35
 'tFree',														...		% 36
-'lAverages',													...		% 37
+'(?<!a)lAverages',												...		% 37	Only search for lAverages excluding alAverages, because this belongs to 'sDiffusion.alAverages.__attribute__.size'
 'sWiPMemBlock\.alFree\[(\d){1,2}\]',							...		% 38	All variables set in Special Card + those from above
 'sKSpace.ucPhasePartialFourier',								...		% 39
 'sKSpace.ucSlicePartialFourier',								...		% 40
