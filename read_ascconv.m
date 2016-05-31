@@ -213,7 +213,7 @@ ParList_Convert = { ...
 
 % Initialize ParList
 for Par_no = 1:numel(ParList_Search)
-    eval([ 'ParList.' ParList_Assign{Par_no} ' = 0;' ]);
+    eval([ 'ParList.' ParList_Assign{Par_no} ' = ' ParList_Convert{Par_no} '(''0'');' ]);
 end
 
 % open file
@@ -333,63 +333,63 @@ end
 % Convert from 0x1 etc. to logicals
 
 % Remove Oversampling
-if(strcmp(ParList.RemoveOversampling, '0x1'))
+if(~isempty(regexp(ParList.RemoveOversampling, '1(?!.)','once')))			% (?!.) means not followed by anything (anything = .). E.g. 0x10 will not be matched, but 0x1 will.
     ParList.RemoveOversampling = true;
 else 
     ParList.RemoveOversampling = false;
 end
 
 % Asymmetric Echo
-if(strcmp(ParList.AsymmetricEcho, '0x1'))
+if(~isempty(regexp(ParList.AsymmetricEcho, '1(?!.)','once')))
     ParList.AsymmetricEcho = true;
 else
     ParList.AsymmetricEcho = false;
 end
 
 % Interleaved Acquisition: Slice Ordering
-if(strcmp(ParList.InterleavedSliceAcquisition, '0x1'))
+if(~isempty(regexp(ParList.InterleavedSliceAcquisition, '1(?!.)','once')))
 	ParList.InterleavedSliceAcquisition = false;
-elseif(strcmp(ParList.InterleavedSliceAcquisition, '0x2'))
+elseif(~isempty(regexp(ParList.InterleavedSliceAcquisition, '2(?!.)','once')))
 	ParList.InterleavedSliceAcquisition = true;
-elseif(strcmp(ParList.InterleavedSliceAcquisition, '0x4'))
+elseif(~isempty(regexp(ParList.InterleavedSliceAcquisition, '4(?!.)','once')))
 	ParList.InterleavedSliceAcquisition = 3;				% Single-Shot	   
 end
 
 % 3D_flag
-if(strcmp(ParList.ThreeD_flag, '0x4'))
+if(~isempty(regexp(ParList.ThreeD_flag, '4(?!.)','once')))
     ParList.ThreeD_flag = true;
 else
     ParList.ThreeD_flag = false;
 end
 
 % 3D_flag
-if(strcmp(ParList.SaveUncombined_flag, '0x1'))
+if(~isempty(regexp(ParList.SaveUncombined_flag, '1(?!.)','once')))
     ParList.SaveUncombined_flag = true;
 else
     ParList.SaveUncombined_flag = false;
 end
 
 % Phase Partial Fourier
-if(strcmp(ParList.PhasePartialFourier, '0x1'))
+if(~isempty(regexp(ParList.PhasePartialFourier, '1(?!.)','once')))
     ParList.PhasePartialFourier = 4/8;
-elseif(strcmp(ParList.PhasePartialFourier, '0x2'))
+elseif(~isempty(regexp(ParList.PhasePartialFourier, '2(?!.)','once')))
     ParList.PhasePartialFourier = 5/8;
-elseif(strcmp(ParList.PhasePartialFourier, '0x4'))
+elseif(~isempty(regexp(ParList.PhasePartialFourier, '4(?!.)','once')))
     ParList.PhasePartialFourier = 6/8;
-elseif(strcmp(ParList.PhasePartialFourier, '0x8'))
+elseif(~isempty(regexp(ParList.PhasePartialFourier, '8(?!.)','once')))
     ParList.PhasePartialFourier = 7/8;
 else
     ParList.PhasePartialFourier = 0;
 end
 
 % Slice Partial Fourier
-if(strcmp(ParList.SlicePartialFourier, '0x1'))
+if(~isempty(regexp(ParList.SlicePartialFourier, '1(?!.)','once')))
     ParList.SlicePartialFourier = 4/8;
-elseif(strcmp(ParList.SlicePartialFourier, '0x2'))
+elseif(~isempty(regexp(ParList.SlicePartialFourier, '2(?!.)','once')))
     ParList.SlicePartialFourier = 5/8;
-elseif(strcmp(ParList.SlicePartialFourier, '0x4'))
+elseif(~isempty(regexp(ParList.SlicePartialFourier, '4(?!.)','once')))
     ParList.SlicePartialFourier = 6/8;
-elseif(strcmp(ParList.SlicePartialFourier, '0x8'))
+elseif(~isempty(regexp(ParList.SlicePartialFourier, '8(?!.)','once')))
     ParList.SlicePartialFourier = 7/8;
 else
     ParList.SlicePartialFourier = 0;
@@ -406,9 +406,9 @@ if(numel(strfind(file_path, '.dat')) > 0 ...
  	ParList.vecSize = 2 * ParList.vecSize;   
 end
 if( numel(strfind(file_path, '.IMA') > 0) )
-	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4)	% WITH THAT I ASSUME THAT DATASET IS NOT SPIRAL! THIS IS A HACK! 
-	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes; 
-	else
+	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 && isempty(regexpi(ParList.tProtocolName,'spiral')) && isempty(regexpi(ParList.tSequenceFileName,'spiral')))	% WITH THAT I ASSUME THAT 
+	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes;																													% DATASET IS NOT SPIRAL!
+	else																																								% THIS IS A HACK!
 		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
 		fprintf('\nIF YOUR DATASET IS A CONVENTIONAL, FULLY SAMPLED (no elliptical or acquisition weighting) DATASET,\nTHE RESULTS WILL BE WRONG!')
 	end
