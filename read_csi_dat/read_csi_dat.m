@@ -94,7 +94,7 @@ end
 	
 
 % ONLINE Info
-if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree') && ParList.wipMemBlock_tFree == 0))
+if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree') && ParList.wipMemBlock_tFree == '0'))
 
 	Info.ONLINE.nReadEnc = ParList.nFreqEnc;
 	Info.ONLINE.nPhasEnc = ParList.nPhasEnc;
