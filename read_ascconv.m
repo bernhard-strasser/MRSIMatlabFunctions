@@ -98,7 +98,8 @@ ParList_Search =  { ...
 'sKSpace.ucPhasePartialFourier',								...		% 39
 'sKSpace.ucSlicePartialFourier',								...		% 40
 'tProtocolName',												...		% 41	How the "Sequence" at the scanner when it was measured was named
-'tSequenceFileName'												...		% 42	Which sequence was used
+'tSequenceFileName',											...		% 42	Which sequence was used
+'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
 };
 
 
@@ -152,8 +153,9 @@ ParList_Assign = { ...
 'WipMemBlock_alFree',												...		% 38
 'PhasePartialFourier',												...		% 39
 'SlicePartialFourier',												...		% 40
-'tProtocolName'														...		% 41
-'tSequenceFileName'													...		% 42
+'tProtocolName',													...		% 41
+'tSequenceFileName',												...		% 42
+'RefAmplitude'                                                      ...     % 50
 };
 
 
@@ -206,8 +208,9 @@ ParList_Convert = { ...
 'str2double',														...		% 38
 'char',																...		% 39
 'char',																...		% 40
-'char'																...		% 41
-'char'																...		% 42
+'char',																...		% 41
+'char',																...		% 42
+'str2double'														...		% 50
 };
 
 
