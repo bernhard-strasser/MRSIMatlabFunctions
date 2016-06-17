@@ -1,4 +1,4 @@
-function chemshift_vector = compute_chemshift_vector_1_2(LarmorFreq,dwelltime,vecSize)
+function chemshift_vector = ChemshiftVector(LarmorFreq,dwelltime,vecSize)
 % In units of:
 % water_frequency: Hz
 % dwelltime: s
