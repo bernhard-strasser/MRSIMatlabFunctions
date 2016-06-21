@@ -234,22 +234,24 @@ while(sLine > -1)
     
     sLine = fgets(fid); % get string line
     
-    if(not(begin_found))                                          % If begin of ascconv not yet found
+    if(not(begin_found))                                            % If begin of ascconv not yet found
         
         
         if(not(isempty(strfind(sLine,'### ASCCONV BEGIN'))))
-            begin_found = true;                                   % If current line is begin of ascconv
+            begin_found = true;                                     % If current line is begin of ascconv
         else
-            continue                                              % If current line is not begin of ascconv --> read next line
+            continue                                                % If current line is not begin of ascconv --> read next line
         end
         
         
-    else                                                          % If begin of ascconv has already been found
+    else                                                            % If begin of ascconv has already been found
         
-        if(not(isempty(strfind(sLine,'### ASCCONV END ###'))))    % If the end was found --> stop while loop
+        if(not(isempty(strfind(sLine,'### ASCCONV END ###'))))      % If the end was found --> stop while loop
             break
+        elseif(not(isempty(strfind(sLine,'### ASCCONV BEGIN'))))    % In very rare cases there are two 'ASCCONV BEGIN's in the header...
+            ascconv = [];
         else
-            ascconv = [ascconv; {sLine}];                         % If current line is not the end --> read in line and save it
+            ascconv = [ascconv; {sLine}];                           % If current line is not the end --> read in line and save it
         end
         
     end
