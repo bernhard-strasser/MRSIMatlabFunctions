@@ -560,10 +560,10 @@ function ParList = InterpretWipMemBlock(ParList)
 	function RollercoasterInterpretation = CheckWipMemBlockForRollercoaster(ParList)
 		if(numel(ParList.WipMemBlock_alFree) > 59)
 			try
-				RollercoasterInterpretation.sNoGradStepsPerCircle = ParList.WipMemBlock_alFree(60);
+				RollercoasterInterpretation.sNoADCPointsPerCircle = ParList.WipMemBlock_alFree(60);
 			catch
 				fprintf('\nError: Could not interpret ParList.WipMemBlock_alFree[59] - ParList.WipMemBlock_alFree[59] as Rollercoaster Info.')
-				RollercoasterInterpretation.sNoGradStepsPerCircle = NaN;
+				RollercoasterInterpretation.sNoADCPointsPerCircle = NaN;
 			end
 		end
 		
