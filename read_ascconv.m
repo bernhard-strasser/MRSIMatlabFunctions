@@ -507,6 +507,7 @@ function ParList = InterpretWipMemBlock(ParList)
 		ParList.WipMemBlockInterpretation.Prescan = CheckWipMemBlockForPrescan(ParList);
 		ParList.WipMemBlockInterpretation.OneDCaipi = CheckWipMemBlockForOneDCaipi(ParList);
 		ParList.WipMemBlockInterpretation.TwoDCaipi = CheckWipMemBlockForTwoDCaipi(ParList);
+		ParList.WipMemBlockInterpretation.Rollercoaster = CheckWipMemBlockForRollercoaster(ParList);
 		
 	else
 		
@@ -556,7 +557,17 @@ function ParList = InterpretWipMemBlock(ParList)
 	end
 
 
-
+	function RollercoasterInterpretation = CheckWipMemBlockForRollercoaster(ParList)
+		if(numel(ParList.WipMemBlock_alFree) > 59)
+			try
+				RollercoasterInterpretation.sNoGradStepsPerCircle = ParList.WipMemBlock_alFree(60);
+			catch
+				fprintf('\nError: Could not interpret ParList.WipMemBlock_alFree[59] - ParList.WipMemBlock_alFree[59] as Rollercoaster Info.')
+				RollercoasterInterpretation.sNoGradStepsPerCircle = NaN;
+			end
+		end
+		
+	end
 	
 	
 	% 1D Caipi
