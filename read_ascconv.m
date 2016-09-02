@@ -408,7 +408,11 @@ end
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
 if(numel(strfind(file_path, '.dat')) > 0 ...
 	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
- 	ParList.vecSize = 2 * ParList.vecSize;   
+ 	ParList.vecSize = 2 * ParList.vecSize;
+    if( isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'Rollercoaster') && isfield(ParList.WipMemBlockInterpretation.Rollercoaster,'sNoADCPointsPerCircle') ...
+        && ~isnan(ParList.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle) )      % if Rollercoaster
+        ParList.Dwelltimes = 2 * ParList.Dwelltimes;    % Because we have oversampling enabled, and the scanner interprets that we oversample in the spectral domain, which we dont...
+    end
 end
 if( numel(strfind(file_path, '.IMA') > 0) )
 	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 && isempty(regexpi(ParList.tProtocolName,'spiral')) && isempty(regexpi(ParList.tSequenceFileName,'spiral')))	% WITH THAT I ASSUME THAT 
@@ -561,9 +565,19 @@ function ParList = InterpretWipMemBlock(ParList)
 		if(numel(ParList.WipMemBlock_alFree) > 59)
 			try
 				RollercoasterInterpretation.sNoADCPointsPerCircle = ParList.WipMemBlock_alFree(60);
+                RollercoasterInterpretation.NoOfTempInt = ParList.WipMemBlock_alFree(1);
+                RollercoasterInterpretation.ADCDwellTime = ParList.WipMemBlock_alFree(59);
+                RollercoasterInterpretation.SpecDwellTime = RollercoasterInterpretation.ADCDwellTime * RollercoasterInterpretation.sNoADCPointsPerCircle / ...
+                                                            RollercoasterInterpretation.NoOfTempInt; % This is just an additional check. We have the info anyway in ParList.Dwelltimes
+                
+                
 			catch
 				fprintf('\nError: Could not interpret ParList.WipMemBlock_alFree[59] - ParList.WipMemBlock_alFree[59] as Rollercoaster Info.')
 				RollercoasterInterpretation.sNoADCPointsPerCircle = NaN;
+            	RollercoasterInterpretation.NoOfTempInt = NaN;
+                RollercoasterInterpretation.ADCDwellTime = NaN;
+                RollercoasterInterpretation.SpecDwellTime = NaN;
+
 			end
 		end
 		
