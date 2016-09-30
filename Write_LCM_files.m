@@ -467,6 +467,12 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     if(isfield(ControlWrite,'SPTYPE'))
                         fprintf(control_fid, ' %s\n',ControlWrite.SPTYPE);
                     end
+                    
+                    
+                    % Change DKNTMN - number of knots
+                    if(isfield(ControlWrite,'DKNTMN'))
+                        fprintf(control_fid, ' %s\n',ControlWrite.DKNTMN);
+                    end
 
                     % Water Scaling, Absolute Quantification
                     
@@ -509,6 +515,16 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     
                     
                     % Basis Set Parameters
+                    if(isfield(ControlWrite,'NRATIO'))
+                        fprintf(control_fid, ' %s\n', ControlWrite.NRATIO);
+		                if any(ControlWrite.NRATIO ~= 0) && isfield(ControlWrite,'CHRATO')
+		                    for dumli = 1:numel(ControlWrite.CHRATO)
+		                        fprintf(control_fid, ' %s\n', ControlWrite.CHRATO{dumli});
+		                    end
+		                end                   
+ 					end
+
+                    
                     fprintf(control_fid, ' %s\n', ControlWrite.NSIMUL);
                     if any(ControlWrite.NSIMUL ~= 0) && isfield(ControlWrite,'CHSIMU')
                         for dumli = 1:numel(ControlWrite.CHSIMU)
