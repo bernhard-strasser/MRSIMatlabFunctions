@@ -50,8 +50,7 @@ if(~exist('ReadInDataSets','var'))
 	ReadInDataSets = 'All';
 end
 
-
-
+Info.mdhEntryNames = {'channel','kx','ky','kz','slice','echo','avg','rep','samples','samples before echo','ida','idb','idc','idd','FreeIcePara1','FreeIcePara2','FreeIcePara3','FreeIcePara4'};
 
 
 
@@ -217,7 +216,7 @@ while(~ACQEND_flag)
 			DesiredSize.(CurrentMeasSet)(dim) = 99999;		% So that it has no effect			
 		end
 		if(isfield(Info.(CurrentMeasSet),'kSpaceShiftDueToICEZeroFill') && Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim) > 0)
-			kSpaceShift.(CurrentMeasSet)(dim) = kSpaceShift.(CurrentMeasSet)(dim) + Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim);
+			kSpaceShift.(CurrentMeasSet)(dim) = kSpaceShift.(CurrentMeasSet)(dim) - Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim);
 		end
 	end
 	
@@ -238,7 +237,7 @@ while(~ACQEND_flag)
 		kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc * Info.(CurrentMeasSet).nPhasEnc * ...
 		Info.(CurrentMeasSet).nPartEnc * Info.(CurrentMeasSet).nSLC * vecSize * Info.(CurrentMeasSet).nAverages]);
 	end
-	Info.(CurrentMeasSet).mdhInfo = zeros([10 Info.General.total_ADCs*Info.(CurrentMeasSet).total_channel_no]);
+	Info.(CurrentMeasSet).mdhInfo = zeros([18 Info.General.total_ADCs*Info.(CurrentMeasSet).total_channel_no]);
 	
 	
 	
@@ -281,6 +280,14 @@ while(~ACQEND_flag)
 			Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt) = chak_header(16) + 1;										% rep
 			Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt) = chak_header(8);											% samples
 			Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt) = chak_header(38) *2;										% samples before echo
+			Info.(CurrentMeasSet).mdhInfo(11,CurInfoPt) = chak_header(19) + 1;										% ida
+			Info.(CurrentMeasSet).mdhInfo(12,CurInfoPt) = chak_header(20) + 1;										% idb
+			Info.(CurrentMeasSet).mdhInfo(13,CurInfoPt) = chak_header(21) + 1;										% idc
+			Info.(CurrentMeasSet).mdhInfo(14,CurInfoPt) = chak_header(22) + 1;										% idd
+			Info.(CurrentMeasSet).mdhInfo(15,CurInfoPt) = chak_header(34);											% FreeIcePara1
+			Info.(CurrentMeasSet).mdhInfo(16,CurInfoPt) = chak_header(35);											% FreeIcePara2	
+			Info.(CurrentMeasSet).mdhInfo(17,CurInfoPt) = chak_header(36);											% FreeIcePara3
+			Info.(CurrentMeasSet).mdhInfo(18,CurInfoPt) = chak_header(37);											% FreeIcePara4	
 
 			% Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
             chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt)*2, 'float32'); 
@@ -343,6 +350,7 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	
 	maxi = max(transpose(Info.(CurrentMeasSet).mdhInfo),[],1);
 	Temp = cell([1 maxi(6)]);
+	mdhInfo_reshaped = cell([1 maxi(6)]);
 	
 	% Find out Samples of each echo
 	minecho = min(Info.(CurrentMeasSet).mdhInfo(6,:));
@@ -356,7 +364,6 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	% Correct for the problem in 2D-GRAPPA and certain 2D-CAIPI Patterns, where the border voxels are not measured and therefore the matrix has a wrong size.
 	if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','TwoDCaipi','Skip_Matrix') && strcmp(CurrentMeasSet,'ONLINE'))
 		maxi(2:4) = [Info.ONLINE.nReadEnc Info.ONLINE.nPhasEnc Info.ONLINE.nPartEnc];
-
 	end
 	
 	% Correct for the problem that in circular encoding e.g. 63 points are measured, but the matrix should be 64!
@@ -368,21 +375,29 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	
 	% Initialize
 	for echo = minecho:maxi(6)
-		Temp{echo} = zeros([Info.(CurrentMeasSet).total_channel_no maxi(2) maxi(3) maxi(4) maxi(5) samples(echo) maxi(7) maxi(8)]);
-	end
+		Temp{echo} = zeros([Info.(CurrentMeasSet).total_channel_no maxi(2) maxi(3) maxi(4) maxi(5) samples(echo) maxi(7) maxi(8) maxi(11) maxi(12)]);
+		mdhInfo_reshaped{echo} = zeros([1 maxi(2) maxi(3) maxi(4) maxi(5) 1 maxi(7) maxi(8) maxi(11) maxi(12) size(Info.(CurrentMeasSet).mdhInfo,1)]);	% Reshape mdhInfo: Before: NoOfADCs x 18
+	end																										% Now: {echo}[cha x kx x ky x kz x slc x samples x avg x rep x ADCNo x TempIntNo x 18]
 
 	CurPoint = 0; 
 	for i = 1 : Info.(CurrentMeasSet).total_channel_no : size(Info.(CurrentMeasSet).mdhInfo,2)
-		% {echo}[cha x kx x ky x kz x slc x samples x avg x rep]
-		Temp{Info.(CurrentMeasSet).mdhInfo(6,i)}(:,Info.(CurrentMeasSet).mdhInfo(2,i), ...
-		Info.(CurrentMeasSet).mdhInfo(3,i),Info.(CurrentMeasSet).mdhInfo(4,i),Info.(CurrentMeasSet).mdhInfo(5,i),:,Info.(CurrentMeasSet).mdhInfo(7,i),Info.(CurrentMeasSet).mdhInfo(8,i)) = ...
-		kSpace.(CurrentMeasSet)(:,CurPoint+1:CurPoint+Info.(CurrentMeasSet).mdhInfo(end-1,i)-Info.(CurrentMeasSet).mdhInfo(end,i)); 
-		CurPoint = CurPoint + (Info.(CurrentMeasSet).mdhInfo(end-1,i)-Info.(CurrentMeasSet).mdhInfo(end,i));
+		% {echo}[cha x kx x ky x kz x slc x samples x avg x rep x ADCNo x TempIntNo]
+		CurEco = Info.(CurrentMeasSet).mdhInfo(6,i); Curkx = Info.(CurrentMeasSet).mdhInfo(2,i); Curky = Info.(CurrentMeasSet).mdhInfo(3,i); Curkz = Info.(CurrentMeasSet).mdhInfo(4,i);
+		CurSlc = Info.(CurrentMeasSet).mdhInfo(5,i); CurAvg = Info.(CurrentMeasSet).mdhInfo(7,i); CurRep = Info.(CurrentMeasSet).mdhInfo(8,i);
+		CurADC = Info.(CurrentMeasSet).mdhInfo(11,i); CurTempIntNo = Info.(CurrentMeasSet).mdhInfo(12,i);
+		
+		Temp{CurEco}(:,Curkx, Curky, Curkz, CurSlc, :, CurAvg, CurRep, CurADC,CurTempIntNo) = ...
+		kSpace.(CurrentMeasSet)(:,CurPoint+1:CurPoint+Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
+	
+		mdhInfo_reshaped{CurEco}(1,Curkx, Curky, Curkz, CurSlc, 1, CurAvg, CurRep, CurADC,CurTempIntNo,:) = Info.(CurrentMeasSet).mdhInfo(:,i);
+	
+		CurPoint = CurPoint + (Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
 	end
+	Info.(CurrentMeasSet).mdhInfo = mdhInfo_reshaped; clear mdhInfo_reshaped; 
 	
 	for echo = minecho:maxi(6)
 		if(size(Temp{echo},3) == 1 && (size(Temp{echo},2) > 1 || size(Temp{echo},4) > 1) )			% This should basically mean: If data is imaging data. However it is a little cheated
-			Temp{echo} = permute(Temp{echo},[1 6 2 4 5 3 7 8]);
+			Temp{echo} = permute(Temp{echo},[1 6 2 4 5 3 7 8 9 10]);
 		end
 	end
 	
