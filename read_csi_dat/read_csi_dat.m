@@ -131,10 +131,9 @@ end
 
 
 % Analyze mdh.
-ParList = Analyze_mdh(file,0);
+ParList = Analyze_mdh(file,1);
 %Info.ONLINE.total_channel_no = ParList.total_channel_no;
 Info.General.total_ADCs = ParList.General.total_ADC_meas;
-clear ParList;
 
 
 % Otherwise read data without memory preallocation. This can be slow.
@@ -142,63 +141,35 @@ clear ParList;
 
 
 
-%% 2. READ DATA
-
-tic
-fprintf('\nReading data\t\t\t...')
-        
-file_fid = fopen(sprintf('%s', file),'r');
-headersize = fread(file_fid,1, 'uint32');
-fseek(file_fid, headersize,'bof'); 
-
-chak_header = zeros([1 64]);
-
-kSpace.ONLINE = NaN;
-ACQEND_flag = false;
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%	Loop over different measurement sets	%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-SkipMeassageAlreadyPrinted = false;
-while(~ACQEND_flag)
 
-    % Read first mdh
-    chak_header(1:5) = fread(file_fid, 5, 'uint32');
-    EvalInfoMask = fread(file_fid, 64, 'ubit1');
-	CurChak = fread(file_fid, 64-14, 'int16');
-    fseek(file_fid, -128,'cof');
+%% 2. Initialize Data
+
+
+for CurField = transpose(fieldnames(ParList))
     
-    % Stop if ACQEND was found
-	if(EvalInfoMask(1) || isempty(CurChak))
-        ACQEND_flag = true;
+    CurrentMeasSet = CurField{:};
+    if(strcmpi(CurrentMeasSet,'General'))
+        continue
+    end
+    
+    if(  ~(sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets)))  )            % If neither 'All' nor the CurrentMeasSet is in ReadInDataSets, initialize it with NaN and continue
+        kSpace.(CurrentMeasSet) = NaN;
+        Info.(CurrentMeasSet) = NaN;
+		fprintf('\nSkip\t%s data.', CurrentMeasSet)
         continue;
-	end
-    
-	chak_header(8:64-7) = CurChak;
+    end
+    fprintf('\nRead\t%s data.', CurrentMeasSet)
 
-	
-    % Set CurrentMeasSet
-	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
-	
-	if((sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
-		fprintf('\nRead\t%s data.', CurrentMeasSet)
-	else
-		if(~SkipMeassageAlreadyPrinted)
-			fprintf('\nSkip\t%s data.', CurrentMeasSet)
-			SkipMeassageAlreadyPrinted = true;
-		end
-		fseek(file_fid,(128+chak_header(8)*2*4)*chak_header(9),'cof');
-		continue;
-	end	
-	SkipMeassageAlreadyPrinted = false;
-	
-	% Initialize Current Info
-	if(~isfield(Info,CurrentMeasSet))
-		Info.(CurrentMeasSet) = struct('nReadEnc',1,'nPhasEnc',1,'nPartEnc',1,'nSLC',1, 'nAverages',1);
-	end
-	
-	dim = 0;
+        
+    % Allocate memory
+    kSpace.(CurrentMeasSet) = zeros([ParList.(CurrentMeasSet).total_channel_no, ParList.(CurrentMeasSet).TotalRawPointsPerChannel]);
+    Info.(CurrentMeasSet).mdhInfo = zeros([18 ParList.(CurrentMeasSet).NoOfADCs*ParList.(CurrentMeasSet).total_channel_no]);
+
+    
+    
+    dim = 0;
 	for fieldly = {'nReadEnc','nPhasEnc','nPartEnc','nSLC','nAverages'}
 		dim = dim + 1;
 		% Initialize missing fields with ones
@@ -221,102 +192,111 @@ while(~ACQEND_flag)
 	end
 	
 
-	Info.(CurrentMeasSet).total_channel_no = chak_header(9);
-	Info.(CurrentMeasSet).Samples = chak_header(8) - chak_header(38) *2;
+	Info.(CurrentMeasSet).total_channel_no = ParList.(CurrentMeasSet).total_channel_no;
+	Info.(CurrentMeasSet).Samples = ParList.(CurrentMeasSet).SamplesAfterEcho;
 	
-	if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN')) && Info.General.Ascconv.vecSize > 1 )
-		vecSize = Info.(CurrentMeasSet).Samples;
+	if( (strcmpi(CurrentMeasSet,'ONLINE') || strcmpi(CurrentMeasSet,'NOISEADJSCAN') || strcmpi(CurrentMeasSet,'PATREFSCAN')) && Info.General.Ascconv.vecSize > 1 )
+		Info.(CurrentMeasSet).vecSize = Info.(CurrentMeasSet).Samples;
 	else
-		vecSize = 1;
+		Info.(CurrentMeasSet).vecSize = 1;                                  % For Imaging Data
 		Info.(CurrentMeasSet).nReadEnc = Info.(CurrentMeasSet).Samples;
-	end
+    end
 	
-	
-	% Allocate memory
-	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet)) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
+    
+    % Helper variables
+    CurInfoPt.(CurrentMeasSet) = 0;
+    CurPoint.(CurrentMeasSet) = 0;
+    
+    
+end
+
+
+
+%% 3. READ DATA
+
+tic
+fprintf('\nReading data\t\t\t...')
         
-        if(isfield(Info.General.Ascconv,'WipMemBlockInterpretation') && isfield(Info.General.Ascconv.WipMemBlockInterpretation,'Rollercoaster') && isfield(Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster,'sNoADCPointsPerCircle'))
-            kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).Samples*Info.General.total_ADCs]);
-            
-        else
-            kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc * Info.(CurrentMeasSet).nPhasEnc * ...
-            Info.(CurrentMeasSet).nPartEnc * Info.(CurrentMeasSet).nSLC * vecSize * Info.(CurrentMeasSet).nAverages]);
-        end
+file_fid = fopen(sprintf('%s', file),'r');
+headersize = fread(file_fid,1, 'uint32');
+fseek(file_fid, headersize,'bof'); 
+
+chak_header = zeros([1 64]);
+kSpace.ONLINE = NaN;
+ACQEND_flag = false;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%	Loop over different measurement sets	%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+while(~ACQEND_flag)
+
+    % Read first mdh
+    chak_header(1:5) = fread(file_fid, 5, 'uint32');
+    EvalInfoMask = fread(file_fid, 64, 'ubit1');
+	CurChak = fread(file_fid, 64-14, 'int16');
+    %fseek(file_fid, -128,'cof');
+    
+    % Stop if ACQEND was found
+	if(EvalInfoMask(1) || isempty(CurChak))
+        ACQEND_flag = true;
+        continue;
 	end
-	Info.(CurrentMeasSet).mdhInfo = zeros([18 Info.General.total_ADCs*Info.(CurrentMeasSet).total_channel_no]);
-	
-	
-	
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	%%%%%%%%	Loop over all measurements	%%%%%%
-	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    BreakOutOfPrison = false;
-	CurPoint = 0;
-	for ADC_MeasNo = 1 : Info.General.total_ADCs;
-		
-		if(BreakOutOfPrison)
-			break;
-		end
-		
-		for channel_no = 1:Info.(CurrentMeasSet).total_channel_no
-			
-			% Read again EvalInfoMask.
-			fseek(file_fid,+5*4,'cof');	EvalInfoMask_loop = fread(file_fid,64,'ubit1');
-			CurInfoPt = (ADC_MeasNo-1)*Info.(CurrentMeasSet).total_channel_no + channel_no;
-			
-			% If the EvalInfoMask has changed within the loop, break out of loops.
-			CurrentMeasSet_loop = Associate_EvalInfoMask(EvalInfoMask_loop);
-			if(~strcmpi(CurrentMeasSet,CurrentMeasSet_loop))
-				fseek(file_fid,-7*4,'cof');
-				Info.(CurrentMeasSet).mdhInfo(:,CurInfoPt:end) = [];
-				BreakOutOfPrison = true;
-				break;
-			end
-			
-			% Read rest of the mdh
-			chak_header(8:57) = fread(file_fid, 50, 'int16');
-			
-			Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt) = chak_header(56) + 1;										% channel
-			Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
-			Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
-			Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
-			Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt) = chak_header(12) + 1;										% slice (also hada step)
-			Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt) = chak_header(14) + 1;										% echo
-			Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt) = chak_header(17) + 1;										% avg
-			Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt) = chak_header(16) + 1;										% rep
-			Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt) = chak_header(8);											% samples
-			Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt) = chak_header(38) *2;										% samples before echo
-			Info.(CurrentMeasSet).mdhInfo(11,CurInfoPt) = chak_header(19) + 1;										% ida
-			Info.(CurrentMeasSet).mdhInfo(12,CurInfoPt) = chak_header(20) + 1;										% idb
-			Info.(CurrentMeasSet).mdhInfo(13,CurInfoPt) = chak_header(21) + 1;										% idc
-			Info.(CurrentMeasSet).mdhInfo(14,CurInfoPt) = chak_header(22) + 1;										% idd
-			Info.(CurrentMeasSet).mdhInfo(15,CurInfoPt) = chak_header(34);											% FreeIcePara1
-			Info.(CurrentMeasSet).mdhInfo(16,CurInfoPt) = chak_header(35);											% FreeIcePara2	
-			Info.(CurrentMeasSet).mdhInfo(17,CurInfoPt) = chak_header(36);											% FreeIcePara3
-			Info.(CurrentMeasSet).mdhInfo(18,CurInfoPt) = chak_header(37);											% FreeIcePara4	
-
-			% Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-            chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt)*2, 'float32'); 
-			chak_data = chak_data(Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt)*2+1:end); 
-			chak_data = complex(chak_data(1:2:end),chak_data(2:2:end));
-			kSpace.(CurrentMeasSet)(channel_no,CurPoint+1 : CurPoint+numel(chak_data)) = chak_data;
-
-			
-			
-			% Check if this was the last measurement of scan
-			% Temporarily disabled because the flag is set for all HadamardSteps. Has to be changed.
-% 			if(EvalInfoMask_loop(9))		% LASTSCANINMEAS
-% 				BreakOutOfPrison = true;
-% 				break;
-% 			end		
-			
-
-		end 
-		CurPoint = CurPoint + numel(chak_data);
-	end
+    
+	chak_header(8:64-7) = CurChak;
 
 	
+    % Set CurrentMeasSet
+	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
 	
+    
+    % Skip Dataset
+	if(~(sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
+		fseek(file_fid,(128+chak_header(8)*2*4)*chak_header(9),'cof');
+		continue;
+	end	
+	
+
+	
+    % Save mdh-Info for later reshaping
+    CurInfoPt.(CurrentMeasSet) = CurInfoPt.(CurrentMeasSet) + 1;
+
+    Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)) = chak_header(56) + 1;										% channel
+    Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt.(CurrentMeasSet)) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
+    Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt.(CurrentMeasSet)) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
+    Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt.(CurrentMeasSet)) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
+    Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt.(CurrentMeasSet)) = chak_header(12) + 1;										% slice (also hada step)
+    Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt.(CurrentMeasSet)) = chak_header(14) + 1;										% echo
+    Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt.(CurrentMeasSet)) = chak_header(17) + 1;										% avg
+    Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt.(CurrentMeasSet)) = chak_header(16) + 1;										% rep
+    Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet)) = chak_header(8);											% samples
+    Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet)) = chak_header(38) *2;										% samples before echo
+    Info.(CurrentMeasSet).mdhInfo(11,CurInfoPt.(CurrentMeasSet)) = chak_header(19) + 1;										% ida
+    Info.(CurrentMeasSet).mdhInfo(12,CurInfoPt.(CurrentMeasSet)) = chak_header(20) + 1;										% idb
+    Info.(CurrentMeasSet).mdhInfo(13,CurInfoPt.(CurrentMeasSet)) = chak_header(21) + 1;										% idc
+    Info.(CurrentMeasSet).mdhInfo(14,CurInfoPt.(CurrentMeasSet)) = chak_header(22) + 1;										% idd
+    Info.(CurrentMeasSet).mdhInfo(15,CurInfoPt.(CurrentMeasSet)) = chak_header(34);											% FreeIcePara1
+    Info.(CurrentMeasSet).mdhInfo(16,CurInfoPt.(CurrentMeasSet)) = chak_header(35);											% FreeIcePara2	
+    Info.(CurrentMeasSet).mdhInfo(17,CurInfoPt.(CurrentMeasSet)) = chak_header(36);											% FreeIcePara3
+    Info.(CurrentMeasSet).mdhInfo(18,CurInfoPt.(CurrentMeasSet)) = chak_header(37);											% FreeIcePara4	
+
+    % Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
+    chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet))*2, 'float32'); 
+    chak_data = chak_data(Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet))*2+1:end); 
+    chak_data = complex(chak_data(1:2:end),chak_data(2:2:end));
+    kSpace.(CurrentMeasSet)(Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)),CurPoint.(CurrentMeasSet)+1 : CurPoint.(CurrentMeasSet)+numel(chak_data)) = chak_data;
+
+
+
+    % Check if this was the last measurement of scan
+    % Temporarily disabled because the flag is set for all HadamardSteps. Has to be changed.
+%     if(EvalInfoMask_loop(9))		% LASTSCANINMEAS
+%         break;
+%     end		
+
+ 
+    CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + numel(chak_data);
+
 end
 
 if(numel(kSpace.ONLINE) == 1 && isnan(kSpace.ONLINE))
@@ -385,7 +365,7 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 		mdhInfo_reshaped{echo} = zeros([1 maxi(2) maxi(3) maxi(4) maxi(5) 1 maxi(7) maxi(8) maxi(11) maxi(12) size(Info.(CurrentMeasSet).mdhInfo,1)]);	% Reshape mdhInfo: Before: NoOfADCs x 18
 	end																										% Now: {echo}[cha x kx x ky x kz x slc x samples x avg x rep x ADCNo x TempIntNo x 18]
 
-	CurPoint = 0; 
+	CurPoint.(CurrentMeasSet) = 0; 
 	for i = 1 : Info.(CurrentMeasSet).total_channel_no : size(Info.(CurrentMeasSet).mdhInfo,2)
 		% {echo}[cha x kx x ky x kz x slc x samples x avg x rep x ADCNo x TempIntNo]
 		CurEco = Info.(CurrentMeasSet).mdhInfo(6,i); Curkx = Info.(CurrentMeasSet).mdhInfo(2,i); Curky = Info.(CurrentMeasSet).mdhInfo(3,i); Curkz = Info.(CurrentMeasSet).mdhInfo(4,i);
@@ -393,22 +373,26 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 		CurADC = Info.(CurrentMeasSet).mdhInfo(11,i); CurTempIntNo = Info.(CurrentMeasSet).mdhInfo(12,i);
 		
 		Temp{CurEco}(:,Curkx, Curky, Curkz, CurSlc, :, CurAvg, CurRep, CurADC,CurTempIntNo) = ...
-		kSpace.(CurrentMeasSet)(:,CurPoint+1:CurPoint+Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
+		kSpace.(CurrentMeasSet)(:,CurPoint.(CurrentMeasSet)+1:CurPoint.(CurrentMeasSet)+Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
 	
 		mdhInfo_reshaped{CurEco}(1,Curkx, Curky, Curkz, CurSlc, 1, CurAvg, CurRep, CurADC,CurTempIntNo,:) = Info.(CurrentMeasSet).mdhInfo(:,i);
 	
-		CurPoint = CurPoint + (Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
+		CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + (Info.(CurrentMeasSet).mdhInfo(9,i)-Info.(CurrentMeasSet).mdhInfo(10,i));
 	end
 	Info.(CurrentMeasSet).mdhInfo = mdhInfo_reshaped; clear mdhInfo_reshaped; 
 	
 	for echo = minecho:maxi(6)
 		% CONCEPT RESIZING. ACTUALLY, SHOULD WE DO THIS LATER, SO THAT WE FIRST GET THE REAL RAW DATA AS MEASURED, AND THEN JUST RESHAPE IT ACC. TO OUR NEEDS?
-		if(size(Temp{echo},9) > 1)					% Hack: Sequence seems to be CONCEPT (make better in future...)
+		if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && ~strcmpi(CurrentMeasSet,'NoiseAdjScan'))
 			Temp{echo} = permute(Temp{echo},[1 2 3 4 5 10 6 9 7 8]);
 			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:6) size(Temp{echo},7)*size(Temp{echo},8) size_MultiDims(Temp{echo},9:10)]);
 			
-			vecSize = Info.General.Ascconv.vecSize/2;							% The system things we do oversampling in spectral dimension, which we dont...
-			if( isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster') )
+            if(strcmpi(CurrentMeasSet,'ONLINE'))
+                vecSize = Info.General.Ascconv.vecSize/2;							% The system thinks we do oversampling in spectral dimension, which we dont...
+            else
+                vecSize = floor(Info.PATREFSCAN.Samples / Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle);		% For the pre-scan. This is guess-work! Make better in future!      
+            end
+			if( isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle > 0 )
 				NoOfPtsPerLoop = Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle*2*1;				% *last entry ... Spatial oversampling. always *2 internal
 			else	% otherwise make a guess 
 				NoOfPtsPerLoop = size(Temp{echo},7) / vecSize;

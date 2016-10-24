@@ -147,6 +147,9 @@ if(exist('ReadInInfo','var') && isfield(ReadInInfo, 'ONLINE') && isfield(ReadInI
 	PreProcessingInfo_Standard.PATREFANDIMASCAN.EllipticalFilterSize = ReadInInfo.ONLINE.nReadEnc/2;
 end
 
+if(isfield(kSpace,'PATREFSCAN'))            % Concept Prescan. Cheat it to be the same as ONLINE
+    PreProcessingInfo_Standard.PATREFSCAN = PreProcessingInfo_Standard.ONLINE;          
+end
 
 
 
@@ -200,6 +203,11 @@ if(isfield(PreProcessingInfo,'ONLINE'))
 	if(isfield(PreProcessingInfo.ONLINE, 'ZeroFillingDesiredSize'))
 		PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) = PreProcessingInfo.ONLINE.ZeroFillingDesiredSize(2) * OversamplingFactor_ONLINE;
 	end
+end
+
+
+if(isfield(kSpace,'PATREFSCAN'))            % Concept Prescan. Cheat it to be the same as ONLINE
+    PreProcessingInfo.PATREFSCAN = PreProcessingInfo.ONLINE;
 end
 
 % if(PreProcessingInfo.ONLINE.NoFFT_flag)
