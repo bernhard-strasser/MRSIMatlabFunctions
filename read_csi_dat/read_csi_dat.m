@@ -234,8 +234,14 @@ while(~ACQEND_flag)
 	
 	% Allocate memory
 	if( ~isfield(kSpace,CurrentMeasSet) || isnan(kSpace.(CurrentMeasSet)) )					% By this statement, interleaved Prescan measurements are not allowed (data will be overwritten)
-		kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc * Info.(CurrentMeasSet).nPhasEnc * ...
-		Info.(CurrentMeasSet).nPartEnc * Info.(CurrentMeasSet).nSLC * vecSize * Info.(CurrentMeasSet).nAverages]);
+        
+        if(isfield(Info.General.Ascconv,'WipMemBlockInterpretation') && isfield(Info.General.Ascconv.WipMemBlockInterpretation,'Rollercoaster') && isfield(Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster,'sNoADCPointsPerCircle'))
+            kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).Samples*Info.General.total_ADCs]);
+            
+        else
+            kSpace.(CurrentMeasSet) = zeros([Info.(CurrentMeasSet).total_channel_no,Info.(CurrentMeasSet).nReadEnc * Info.(CurrentMeasSet).nPhasEnc * ...
+            Info.(CurrentMeasSet).nPartEnc * Info.(CurrentMeasSet).nSLC * vecSize * Info.(CurrentMeasSet).nAverages]);
+        end
 	end
 	Info.(CurrentMeasSet).mdhInfo = zeros([18 Info.General.total_ADCs*Info.(CurrentMeasSet).total_channel_no]);
 	
@@ -396,8 +402,31 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	Info.(CurrentMeasSet).mdhInfo = mdhInfo_reshaped; clear mdhInfo_reshaped; 
 	
 	for echo = minecho:maxi(6)
-		if(size(Temp{echo},3) == 1 && (size(Temp{echo},2) > 1 || size(Temp{echo},4) > 1) )			% This should basically mean: If data is imaging data. However it is a little cheated
-			Temp{echo} = permute(Temp{echo},[1 6 2 4 5 3 7 8 9 10]);
+		% CONCEPT RESIZING. ACTUALLY, SHOULD WE DO THIS LATER, SO THAT WE FIRST GET THE REAL RAW DATA AS MEASURED, AND THEN JUST RESHAPE IT ACC. TO OUR NEEDS?
+		if(size(Temp{echo},9) > 1)					% Hack: Sequence seems to be CONCEPT (make better in future...)
+			Temp{echo} = permute(Temp{echo},[1 2 3 4 5 10 6 9 7 8]);
+			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:6) size(Temp{echo},7)*size(Temp{echo},8) size_MultiDims(Temp{echo},9:10)]);
+			
+			vecSize = Info.General.Ascconv.vecSize/2;							% The system things we do oversampling in spectral dimension, which we dont...
+			if( isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster') )
+				NoOfPtsPerLoop = Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle*2*1;				% *last entry ... Spatial oversampling. always *2 internal
+			else	% otherwise make a guess 
+				NoOfPtsPerLoop = size(Temp{echo},7) / vecSize;
+				NoOfPtsPerLoop = 143*2;
+			end
+			NoOfTempInterleaves = maxi(12);										% Same here
+			TakeOnlyPoints = (vecSize/NoOfTempInterleaves)*NoOfPtsPerLoop;		% vecSize/NoOfTempInterleaves ... Spectral Points, NoOfPtsPerLoop ... PointsPerLoop
+			Temp{echo} = Temp{echo}(:,:,:,:,:,:,1:TakeOnlyPoints,:,:);
+			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:5) NoOfTempInterleaves NoOfPtsPerLoop vecSize/NoOfTempInterleaves size_MultiDims(Temp{echo},8:9)]);
+			Temp{echo} = permute(Temp{echo},[1 2 3 4 5 7 6 8 9 10]);
+			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:5) NoOfPtsPerLoop vecSize size_MultiDims(Temp{echo},9:10)]);
+			% Permute dimensions to make size {echo}(cha x LoopNo x PointsPerLoops x kz x slice x samples x avg x rep)
+			Temp{echo} = permute(Temp{echo},[1 2 6 4 5 7 8 9 3]);
+			
+		else
+			if(size(Temp{echo},3) == 1 && (size(Temp{echo},2) > 1 || size(Temp{echo},4) > 1) )			% This should basically mean: If data is imaging data. However it is a little cheated
+				Temp{echo} = permute(Temp{echo},[1 6 2 4 5 3 7 8 9 10]);
+			end
 		end
 	end
 	
