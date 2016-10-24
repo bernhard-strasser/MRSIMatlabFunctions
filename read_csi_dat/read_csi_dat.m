@@ -80,14 +80,14 @@ end
 
 % Second try: Try to get Prescans Info from wipMemBlock and ONLINE Info from normal ascconv header and mdh.
 % Prescan Info
-if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'Prescan'))
-	if(isfield(ParList.WipMemBlockInterpretation.Prescan,'NOISEADJSCAN'))
+if(isfieldRecursive(ParList,'WipMemBlockInterpretation','Prescan'))
+	if(isfieldRecursive(ParList.WipMemBlockInterpretation,'NOISEADJSCAN','Dwelltime') && ParList.WipMemBlockInterpretation.Prescan.NOISEADJSCAN.Dwelltime > 0)
 		Info.NOISEADJSCAN = ParList.WipMemBlockInterpretation.Prescan.NOISEADJSCAN;
 	end
 	if(isfield(ParList.WipMemBlockInterpretation,'ONLINE'))
 		Info.ONLINE = ParList.WipMemBlockInterpretation.Prescan.ONLINE;
 	end
-	if(isfield(ParList.WipMemBlockInterpretation.Prescan,'PATREFANDIMASCAN'))
+	if(isfieldRecursive(ParList.WipMemBlockInterpretation.Prescan,'PATREFANDIMASCAN','Dwelltime') && ParList.WipMemBlockInterpretation.Prescan.PATREFANDIMASCAN.Dwelltime > 0)
 		Info.PATREFANDIMASCAN = ParList.WipMemBlockInterpretation.Prescan.PATREFANDIMASCAN;
 	end
 end
@@ -113,13 +113,17 @@ if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree'
 % 	end	
 	
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill = zeros([1 5]);
-	Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
-	Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
-	%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
+	
+% This is legacy code... Probably the Zerofilling should be done by PreProcessMRIData_Wrapper only, not here and there... ?!
+% 	if(???)
+% 		Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
+% 		Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
+% 		%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
+% 	end
 	Info.ONLINE.nAverages = ParList.nAverages;
 	Info.ONLINE.Dwelltime = ParList.Dwelltimes(1);	% For now only take the first one. Assume that all slices have the same dwelltime
 	
-	if(isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'OneDCaipi') && isfield(ParList.WipMemBlockInterpretation.OneDCaipi,'NoOfMeasSlices'))
+	if(isfieldRecursive(ParList,'WipMemBlockInterpretation','OneDCaipi','NoOfMeasSlices'))
 		Info.ONLINE.nSLC = ParList.WipMemBlockInterpretation.OneDCaipi.NoOfMeasSlices;
 	else
 		Info.ONLINE.nSLC = ParList.nSLC;
@@ -163,15 +167,18 @@ while(~ACQEND_flag)
     % Read first mdh
     chak_header(1:5) = fread(file_fid, 5, 'uint32');
     EvalInfoMask = fread(file_fid, 64, 'ubit1');
-    chak_header(8:64-7) = fread(file_fid, 64-14, 'int16');
+	CurChak = fread(file_fid, 64-14, 'int16');
     fseek(file_fid, -128,'cof');
     
     % Stop if ACQEND was found
-    if(EvalInfoMask(1))
+	if(EvalInfoMask(1) || isempty(CurChak))
         ACQEND_flag = true;
         continue;
-    end
+	end
     
+	chak_header(8:64-7) = CurChak;
+
+	
     % Set CurrentMeasSet
 	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
 	
@@ -324,7 +331,12 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	CurrentMeasSet = CurrentMeasSet2{1};
 	fprintf('\nReshape\t%s data.', CurrentMeasSet)
 
+	% Test if each ADC has unique mdh. If not, write warning.
+	if(size(unique(transpose(Info.(CurrentMeasSet).mdhInfo),'rows'),1) < size(Info.(CurrentMeasSet).mdhInfo,2))
+		fprintf('\n\nWARNING:\t%s has non-unique mdh entries for different ADCs. Data will be overwritten.\n\n', CurrentMeasSet)	
+	end
 	
+	% What's this for?
 	if(sum(  Info.(CurrentMeasSet).mdhInfo(6,:) ~= Info.(CurrentMeasSet).mdhInfo(5,:)  ) == 0)
 		Info.(CurrentMeasSet).mdhInfo(6,:) = 1;
 	end
@@ -342,7 +354,7 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	end
 	
 	% Correct for the problem in 2D-GRAPPA and certain 2D-CAIPI Patterns, where the border voxels are not measured and therefore the matrix has a wrong size.
-	if(isfield(Info.General.Ascconv.WipMemBlockInterpretation,'TwoDCaipi') && isfield(Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi,'Skip_Matrix') && strcmp(CurrentMeasSet,'ONLINE'))
+	if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','TwoDCaipi','Skip_Matrix') && strcmp(CurrentMeasSet,'ONLINE'))
 		maxi(2:4) = [Info.ONLINE.nReadEnc Info.ONLINE.nPhasEnc Info.ONLINE.nPartEnc];
 
 	end
