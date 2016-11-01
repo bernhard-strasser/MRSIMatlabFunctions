@@ -222,7 +222,9 @@ headersize = fread(file_fid,1, 'uint32');
 fseek(file_fid, headersize,'bof'); 
 
 chak_header = zeros([1 64]);
-kSpace.ONLINE = NaN;
+if(~isfield(kSpace,'ONLINE'))
+    kSpace.ONLINE = NaN;
+end
 ACQEND_flag = false;
 
 
@@ -248,7 +250,6 @@ while(~ACQEND_flag)
 	
     % Set CurrentMeasSet
 	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
-	
     
     % Skip Dataset
 	if(~(sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
@@ -294,8 +295,10 @@ while(~ACQEND_flag)
 %         break;
 %     end		
 
- 
-    CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + numel(chak_data);
+
+    if(chak_header(56)+1 == Info.(CurrentMeasSet).total_channel_no)
+        CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + numel(chak_data);
+    end
 
 end
 
