@@ -233,7 +233,7 @@ ACQEND_flag = false;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 while(~ACQEND_flag)
 
-    % Read first mdh
+    % Read mdh
     chak_header(1:5) = fread(file_fid, 5, 'uint32');
     EvalInfoMask = fread(file_fid, 64, 'ubit1');
 	CurChak = fread(file_fid, 64-14, 'int16');
@@ -258,36 +258,43 @@ while(~ACQEND_flag)
 	end	
 	
 
+	for CurCha = 1:Info.(CurrentMeasSet).total_channel_no
 	
-    % Save mdh-Info for later reshaping
-    CurInfoPt.(CurrentMeasSet) = CurInfoPt.(CurrentMeasSet) + 1;
+		% Save mdh-Info for later reshaping
+		CurInfoPt.(CurrentMeasSet) = CurInfoPt.(CurrentMeasSet) + 1;
 
-    Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)) = chak_header(56) + 1;										% channel
-    Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt.(CurrentMeasSet)) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
-    Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt.(CurrentMeasSet)) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
-    Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt.(CurrentMeasSet)) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
-    Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt.(CurrentMeasSet)) = chak_header(12) + 1;										% slice (also hada step)
-    Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt.(CurrentMeasSet)) = chak_header(14) + 1;										% echo
-    Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt.(CurrentMeasSet)) = chak_header(17) + 1;										% avg
-    Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt.(CurrentMeasSet)) = chak_header(16) + 1;										% rep
-    Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet)) = chak_header(8);											% samples
-    Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet)) = chak_header(38) *2;										% samples before echo
-    Info.(CurrentMeasSet).mdhInfo(11,CurInfoPt.(CurrentMeasSet)) = chak_header(19) + 1;										% ida
-    Info.(CurrentMeasSet).mdhInfo(12,CurInfoPt.(CurrentMeasSet)) = chak_header(20) + 1;										% idb
-    Info.(CurrentMeasSet).mdhInfo(13,CurInfoPt.(CurrentMeasSet)) = chak_header(21) + 1;										% idc
-    Info.(CurrentMeasSet).mdhInfo(14,CurInfoPt.(CurrentMeasSet)) = chak_header(22) + 1;										% idd
-    Info.(CurrentMeasSet).mdhInfo(15,CurInfoPt.(CurrentMeasSet)) = chak_header(34);											% FreeIcePara1
-    Info.(CurrentMeasSet).mdhInfo(16,CurInfoPt.(CurrentMeasSet)) = chak_header(35);											% FreeIcePara2	
-    Info.(CurrentMeasSet).mdhInfo(17,CurInfoPt.(CurrentMeasSet)) = chak_header(36);											% FreeIcePara3
-    Info.(CurrentMeasSet).mdhInfo(18,CurInfoPt.(CurrentMeasSet)) = chak_header(37);											% FreeIcePara4	
+		Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)) = CurCha;										% channel
+		Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt.(CurrentMeasSet)) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
+		Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt.(CurrentMeasSet)) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
+		Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt.(CurrentMeasSet)) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
+		Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt.(CurrentMeasSet)) = chak_header(12) + 1;										% slice (also hada step)
+		Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt.(CurrentMeasSet)) = chak_header(14) + 1;										% echo
+		Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt.(CurrentMeasSet)) = chak_header(17) + 1;										% avg
+		Info.(CurrentMeasSet).mdhInfo(8,CurInfoPt.(CurrentMeasSet)) = chak_header(16) + 1;										% rep
+		Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet)) = chak_header(8);											% samples
+		Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet)) = chak_header(38) *2;										% samples before echo
+		Info.(CurrentMeasSet).mdhInfo(11,CurInfoPt.(CurrentMeasSet)) = chak_header(19) + 1;										% ida
+		Info.(CurrentMeasSet).mdhInfo(12,CurInfoPt.(CurrentMeasSet)) = chak_header(20) + 1;										% idb
+		Info.(CurrentMeasSet).mdhInfo(13,CurInfoPt.(CurrentMeasSet)) = chak_header(21) + 1;										% idc
+		Info.(CurrentMeasSet).mdhInfo(14,CurInfoPt.(CurrentMeasSet)) = chak_header(22) + 1;										% idd
+		Info.(CurrentMeasSet).mdhInfo(15,CurInfoPt.(CurrentMeasSet)) = chak_header(34);											% FreeIcePara1
+		Info.(CurrentMeasSet).mdhInfo(16,CurInfoPt.(CurrentMeasSet)) = chak_header(35);											% FreeIcePara2	
+		Info.(CurrentMeasSet).mdhInfo(17,CurInfoPt.(CurrentMeasSet)) = chak_header(36);											% FreeIcePara3
+		Info.(CurrentMeasSet).mdhInfo(18,CurInfoPt.(CurrentMeasSet)) = chak_header(37);											% FreeIcePara4	
 
-    % Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
-    chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet))*2, 'float32'); 
-    chak_data = chak_data(Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet))*2+1:end); 
-    chak_data = complex(chak_data(1:2:end),chak_data(2:2:end));
-    kSpace.(CurrentMeasSet)(Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)),CurPoint.(CurrentMeasSet)+1 : CurPoint.(CurrentMeasSet)+numel(chak_data)) = chak_data;
+		% Read & Assign Data	% Read real & imaginary (--> Info.(CurrentMeasSet).Samples*2) measured points
+		chak_data = fread(file_fid, Info.(CurrentMeasSet).mdhInfo(9,CurInfoPt.(CurrentMeasSet))*2, 'float32'); 
+		chak_data = chak_data(Info.(CurrentMeasSet).mdhInfo(10,CurInfoPt.(CurrentMeasSet))*2+1:end); 
+		chak_data = complex(chak_data(1:2:end),chak_data(2:2:end));
+		kSpace.(CurrentMeasSet)(Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)),CurPoint.(CurrentMeasSet)+1 : CurPoint.(CurrentMeasSet)+numel(chak_data)) = chak_data;
+		
+		% Skip the following mdh
+		fseek(file_fid, 128,'cof');
 
-
+	end
+	% Jump back to beginning of mdh, so that we can update the mdhInfo after all channels are read in
+	fseek(file_fid, -128,'cof');
+	
 
     % Check if this was the last measurement of scan
     % Temporarily disabled because the flag is set for all HadamardSteps. Has to be changed.
@@ -296,9 +303,9 @@ while(~ACQEND_flag)
 %     end		
 
 
-    if(chak_header(56)+1 == Info.(CurrentMeasSet).total_channel_no)
-        CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + numel(chak_data);
-    end
+    % if(chak_header(56)+1 == Info.(CurrentMeasSet).total_channel_no)
+    CurPoint.(CurrentMeasSet) = CurPoint.(CurrentMeasSet) + numel(chak_data);
+    % end
 
 end
 
@@ -386,13 +393,13 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	
 	for echo = minecho:maxi(6)
 		% CONCEPT RESIZING. ACTUALLY, SHOULD WE DO THIS LATER, SO THAT WE FIRST GET THE REAL RAW DATA AS MEASURED, AND THEN JUST RESHAPE IT ACC. TO OUR NEEDS?
-		if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && ~strcmpi(CurrentMeasSet,'NoiseAdjScan'))
+		if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle > 0 && ~strcmpi(CurrentMeasSet,'NoiseAdjScan'))
 			Temp{echo} = permute(Temp{echo},[1 2 3 4 5 10 6 9 7 8]);
 			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:6) size(Temp{echo},7)*size(Temp{echo},8) size_MultiDims(Temp{echo},9:10)]);
 			
             if(strcmpi(CurrentMeasSet,'ONLINE'))
                 vecSize = Info.General.Ascconv.vecSize/2;							% The system thinks we do oversampling in spectral dimension, which we dont...
-            else
+			elseif(strcmpi(CurrentMeasSet,'PATREFSCAN'))
                 vecSize = floor(Info.PATREFSCAN.Samples / Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle);		% For the pre-scan. This is guess-work! Make better in future!      
             end
 			if( isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle > 0 )
