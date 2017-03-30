@@ -358,7 +358,8 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 	end
 	
 	% Correct for the problem in 2D-GRAPPA and certain 2D-CAIPI Patterns, where the border voxels are not measured and therefore the matrix has a wrong size.
-	if(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','TwoDCaipi','Skip_Matrix') && strcmp(CurrentMeasSet,'ONLINE'))
+	if(isfield(Info.General.Ascconv.WipMemBlockInterpretation,'TwoDCaipi') && strcmp(CurrentMeasSet,'ONLINE') && ...
+       (isfield(Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi,'Skip_Matrix') || (~isstruct(Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi) && Info.General.Ascconv.WipMemBlockInterpretation.TwoDCaipi == -1)) )
 		maxi(2:4) = [Info.ONLINE.nReadEnc Info.ONLINE.nPhasEnc Info.ONLINE.nPartEnc];
 	end
 	
