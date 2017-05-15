@@ -49,7 +49,7 @@ function Association = Associate_EvalInfoMask(EvalInfoMask_logical)
 
 always_zeros = [7,8,10,34,35,36,37,38,39,40,44,45,54,55,56,57,58,59,60,61,62,63,64];
 
-if(numel(EvalInfoMask_logical) < 64 || sum(EvalInfoMask_logical(always_zeros)) > 1)
+if(numel(EvalInfoMask_logical) < 64)
 	Association = 'None';
 	return;
 end
@@ -61,10 +61,12 @@ if(numel(EvalInfoMask_logical) == 1 && EvalInfoMask_logical == 0)   % If somethi
 	Association = 'None';
 elseif(EvalInfoMask_logical(23))									% NOISEADJSCAN
 	Association = 'NOISEADJSCAN';	
-elseif(EvalInfoMask_logical(4))										% ONLINE
-	Association = 'ONLINE';
 elseif(EvalInfoMask_logical(21))									% PATREFANDIMASCAN
 	Association = 'PATREFANDIMASCAN';
+elseif(EvalInfoMask_logical(20))									% PATREFSCAN
+	Association = 'PATREFSCAN';    
+elseif(EvalInfoMask_logical(4))										% ONLINE
+	Association = 'ONLINE';
 elseif(EvalInfoMask_logical(1))										% 
 	Association = 'ACQEND';
 else
