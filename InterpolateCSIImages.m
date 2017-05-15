@@ -75,38 +75,45 @@ end
 %% 2. Compute Mask
 
 
+if(sum(ResolutionRatio > 1) >= 1)		% if at least along one dimension summing should be performed
+	OutArray = zeros([DesiredSize prod(size_InArray(4:end))]);
+	for z_new = 1:DesiredSize(3)
+		for y_new = 1:DesiredSize(2)
+			for x_new = 1:DesiredSize(1)
 
-OutArray = zeros([DesiredSize prod(size_InArray(4:end))]);
-for z_new = 1:DesiredSize(3)
-	for y_new = 1:DesiredSize(2)
-		for x_new = 1:DesiredSize(1)
-			
-			x_old_dwn = ResolutionRatio(1)*(x_new - 1) + 1;
-			x_old_up = ResolutionRatio(1)*x_new;
-			y_old_dwn = ResolutionRatio(2)*(y_new - 1) + 1;
-			y_old_up = ResolutionRatio(2)*y_new;
-			z_old_dwn = ResolutionRatio(3)*(z_new - 1) + 1;
-			z_old_up = ResolutionRatio(3)*z_new;
-			
-			% The mask which should be potentially summed
-			CurMask = false(size_InArray(1:3));
-			CurMask(x_old_dwn:x_old_up,y_old_dwn:y_old_up,z_old_dwn:z_old_up) = true;
-			CurMask = logical(CurMask .* Mask);
-			NoOfSummedVoxels = sum(sum(sum(CurMask)));
-			
-			if(NoOfSummedVoxels <= 0)
-				continue
+				x_old_dwn = ResolutionRatio(1)*(x_new - 1) + 1;
+				x_old_up = ResolutionRatio(1)*x_new;
+				y_old_dwn = ResolutionRatio(2)*(y_new - 1) + 1;
+				y_old_up = ResolutionRatio(2)*y_new;
+				z_old_dwn = ResolutionRatio(3)*(z_new - 1) + 1;
+				z_old_up = ResolutionRatio(3)*z_new;
+
+				% The mask which should be potentially summed
+				CurMask = false(size_InArray(1:3));
+				CurMask(x_old_dwn:x_old_up,y_old_dwn:y_old_up,z_old_dwn:z_old_up) = true;
+				CurMask = logical(CurMask .* Mask);
+				NoOfSummedVoxels = sum(sum(sum(CurMask)));
+
+				if(NoOfSummedVoxels <= 0)
+					continue
+				end
+
+				CurMask = myrepmat(CurMask,size_InArray);
+				OutArray(x_new,y_new,z_new,:) = sum(reshape(InArray(CurMask),[NoOfSummedVoxels prod(size_InArray(4:end))])) / NoOfSummedVoxels;
+
 			end
-			
-			CurMask = myrepmat(CurMask,size_InArray);
-			OutArray(x_new,y_new,z_new,:) = sum(reshape(InArray(CurMask),[NoOfSummedVoxels prod(size_InArray(4:end))])) / NoOfSummedVoxels;
-			
 		end
 	end
+
+	OutArray = reshape(OutArray,[DesiredSize size_InArray(4:end)]);
+
+	
+	
+else
+	
+	OutArray = ZerofillOrCutkSpace(OutArray);
+	
 end
-
-OutArray = reshape(OutArray,[DesiredSize size_InArray(4:end)]);
-
 
 
 
