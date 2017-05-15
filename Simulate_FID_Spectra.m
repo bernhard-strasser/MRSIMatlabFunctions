@@ -1,4 +1,4 @@
-function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,DeltaFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
 %
 % Simulate_FID_Spectra Simulates FIDs.
 %
@@ -9,10 +9,11 @@ function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,phase0,AcqDelay,T2,S_0,
 % 
 %
 %
-% [FID,Spectrum] = Simulate_FID_Spectra_1_4(Chemshift,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+% [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,DeltaFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
 %
 % Input: 
 % -         Chemshift                   ...    Chemical Shift. Unit: [ppm].
+% -         DeltaFrequency              ...    If you want to measure not centered around e.g. water. Set to 4.65 for water. Unit: [ppm].
 % -         phase0                      ...    Phase of signal. Unit: [degree].
 % -         AcqDelay                    ...    The acquisition delay, i.e. the time after which the FID is measured, after excitation. Results in first order phase. Unit: [s].
 % -         T2                          ...    The T2 relaxation constant of the signal. Unit: [s].
@@ -47,7 +48,7 @@ end
 
 %% Define frequency and time
 
-omega = LarmorFreq * (1 + (Chemshift - 4.65)/10^6) * 2*pi;
+omega = LarmorFreq * (1 + (Chemshift - DeltaFrequency)/10^6) * 2*pi;
 
 % Define time
 t_end = AcqDelay + dwelltime*(vecSize - 1);
@@ -91,7 +92,7 @@ end
 
 %% Compute PPM-Scale
 
-Chemshift = compute_chemshift_vector_1_2(LarmorFreq,dwelltime,numel(FID(2,:)));
+Chemshift = compute_chemshift_vector_1_2(LarmorFreq,dwelltime,numel(FID(2,:))) - (4.65 - DeltaFrequency);     % Dont ask me why we need to subtract 4.65... Somehow in my code water should be always centered...
 
 
 %% FFT
