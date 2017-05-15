@@ -64,6 +64,8 @@ for Dim = 1:numel(ApplyAlongDims)
     kSpaceCenter(Dim) = floor(size(OutArray,ApplyAlongDims(Dim))/2) + 1;
 end
 
+% Due to small numerical errors, inputting EllipsoidCoefficients = [1 1 1 R] gives different results than EllipsoidCoefficients = [R R R 1], which should be equivalent. This Epsilon makes them same again.
+Epsilon = 0.000001;         
 
  
 
@@ -95,7 +97,7 @@ else
     [x_grid,y_grid,z_grid] = ndgrid(1:size(OutArray,ApplyAlongDims(1)), 1:size(OutArray,ApplyAlongDims(2)), 1:size(OutArray,ApplyAlongDims(3)));   
 end
 
-mask = ( (x_grid - kSpaceCenter(1)) / EllipsoidCoefficients(1) ).^2 + ( (y_grid - kSpaceCenter(2)) / EllipsoidCoefficients(2) ).^2 + ( (z_grid - kSpaceCenter(3)) / EllipsoidCoefficients(3) ).^2 <= EllipsoidCoefficients(4)^2;
+mask = ( (x_grid - kSpaceCenter(1)) / EllipsoidCoefficients(1) ).^2 + ( (y_grid - kSpaceCenter(2)) / EllipsoidCoefficients(2) ).^2 + ( (z_grid - kSpaceCenter(3)) / EllipsoidCoefficients(3) ).^2 <= EllipsoidCoefficients(4)^2+Epsilon;
 mask = myrepmat(mask,size(OutArray));
 
 
