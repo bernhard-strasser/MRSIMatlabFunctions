@@ -381,8 +381,9 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
 						fprintf(fid, ' $END\n');
 
 						%write data into file
-						single_voxel_watref = reshape(single_voxel_watref,[vecSize 1]);
-						single_voxel_sep_watref=[real(single_voxel_watref)'; imag(single_voxel_watref)'];
+						single_voxel_watref = reshape(single_voxel_watref,[numel(single_voxel_watref) 1]);
+						single_voxel_sep_watref = zeros([2 vecSize]);			% Zerofill to vecSize, because LCModel needs the same parameters for the water reference as for the CSI, see
+						single_voxel_sep_watref(1:2,1:numel(single_voxel_watref))=[real(single_voxel_watref)'; imag(single_voxel_watref)']; % error MYDATA 10 in LCModel Manual.
 						fprintf(fid, '%14.5e%14.5e\n', single_voxel_sep_watref);
 
 						fclose(fid);
