@@ -38,7 +38,7 @@ if(~exist('quiet_flag','var'))
 end
 
 % Check if we are on a linux system
-[UnixSystem,memfree] = unix('free -g');
+[UnixSystem,memfree] = unix('free -g'); UnixSystem = ~UnixSystem;
 if(~UnixSystem)
 	if(~quiet_flag)
 		fprintf('\nWarning: memused_linux cannot run on non-linux systems')
@@ -64,7 +64,7 @@ end
 uid = regexp(regexp(uid,'uid=\d+','match'),'\d+','match');
 uid = uid{:}; uid = str2num(uid{:});
 
-[stat,memused] = unix(['ps aux | grep "' uname '\|' uid '" | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1']);     % unix just performs the unix-command.
+[stat,memused] = unix(['ps aux | grep "' uname(1:end-1) '\|' num2str(uid) '" | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1']);     % unix just performs the unix-command.
 memused = sum(str2num(memused));                                                               % str2double does not work
 
 [stat,memfree] = unix('free -m | awk ''NR==3'' | awk ''{print $4}''');                         % unix just performs the unix-command. perform free -g command, take 3rd line of that, and 4th column.
