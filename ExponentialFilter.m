@@ -8,11 +8,11 @@ function [OutArray,exp_filter_mat] = ExponentialFilter(InArray,dwelltime,exp_fil
 % The function computes an exponential filter in Hertz
 %
 %
-% [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,ApplyAlongDim,exp_filter_Hz)
+% [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,exp_filter_Hz,ApplyAlongDim)
 %
 % Input: 
 % -         InArray                     ...    Input array to which the filter should be applied
-% -         dwelltime                   ...    The dwelltime in [us], i.e. the time between two consecutive time points.
+% -         dwelltime                   ...    The dwelltime in [ns], i.e. the time between two consecutive time points.
 % -         ApplyAlongDim               ...    Along this dimension the filter is applied. 
 % -         exp_filter_Hz               ...    The filter strength in Hz
 %
