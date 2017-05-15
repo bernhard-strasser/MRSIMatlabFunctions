@@ -1,4 +1,4 @@
-function [OutArray,ShiftMap] = FrequencyAlignment(InArray,PeakSearchSettingsOrShiftMap,ApplyAlongDim,ZerofillingFactor)
+function [OutArray,ShiftMap,RefSpec] = FrequencyAlignment(InArray,PeakSearchSettingsOrShiftMap,ApplyAlongDim,ZerofillingFactor,RefSpecIn)
 %
 % FrequencyAlignment Align frequencies of csi spectra.
 %
@@ -48,26 +48,45 @@ if(nargin < 2)
     return
 end
 size_InArray = size(InArray);
+
+if(~exist('RefSpecIn','var'))
+	RefSpecIn = [];
+end
+RefSpec = RefSpecIn;
+
+% Handle mask
+MaskWasProvided = true;
 if(isstruct(InArray) && isfield(InArray,'mask'))
 	mask = InArray.mask;
 	InArray = InArray.csi;
 	size_InArray = size(InArray);
-	
-	% Define Reference Voxel as Center of Mass Voxel
-	RefVox = regionprops(mask, 'centroid');
-	RefVox = round(RefVox.Centroid);
-	
 else
 	mask = ones(size_InArray(setdiff(1:numel(size_InArray),ApplyAlongDim)));
-	
-	RefVox = floor(size_InArray/2)+1;
-	fprintf('\n\nWARNING: No mask input for FrequencyAlignment. Reference voxel will be set as (%d,%d,%d). Might be wrong!',RefVox(1),RefVox(2),RefVox(3))
-	
+	MaskWasProvided = false;	
 end
 
-if(numel(RefVox) < 3)
-	RefVox(3) = 1;
+
+% Define Reference Voxel if necessary
+RefSpecWasProvided = true;
+if(isempty(RefSpec))
+	if(MaskWasProvided)
+		% Define Reference Voxel as Center of Mass Voxel
+		RefVox = regionprops(mask, 'centroid');
+		RefVox = round(RefVox.Centroid);
+	else
+		RefVox = floor(size_InArray/2)+1;
+		fprintf('\n\nWARNING: No mask input for FrequencyAlignment. Reference voxel will be set as (%d,%d,%d). Might be wrong!',RefVox(1),RefVox(2),RefVox(3))
+	end
+
+	if(numel(RefVox) < 3)
+		RefVox(3) = 1;
+	end
+	
+	% Set RefSpec
+	RefSpec = InArray(RefVox(1),RefVox(2),RefVox(3),:);
+	RefSpecWasProvided = false;
 end
+
 
 
 if(isfield(PeakSearchSettingsOrShiftMap,'PeakSearchPPM'))
@@ -76,7 +95,7 @@ if(isfield(PeakSearchSettingsOrShiftMap,'PeakSearchPPM'))
 		Settings.PolyfitRegion = [3.4 2.01];
 	end
 	Settings.PolyfitRegion = sort(Settings.PolyfitRegion,2,'descend');
-	
+	OnlyApplyShiftMap_flag = false;
 else
 	ShiftMap = PeakSearchSettingsOrShiftMap;
 	OnlyApplyShiftMap_flag = true;
@@ -101,11 +120,15 @@ SearchArray = InArray;
 SearchArray = Zerofilling_Spectral(SearchArray,size_SearchArray,0);
 SearchArray = fftshift(fft(SearchArray,[],ApplyAlongDim),ApplyAlongDim);
 
+RefSpec2 = Zerofilling_Spectral(RefSpec,[ones([1 numel(size_SearchArray)-1]) size_SearchArray(ApplyAlongDim)],0);
+RefSpec2 = fftshift(fft(RefSpec2,[],ApplyAlongDim),ApplyAlongDim);
 
 
+%% 2. Shift RefSpec by a Certain Amount of Points.
 
-%% 2. Calculate ShiftMap with Scalar Product of abs(waterpeak)
-
+% Instead of shifting the individual spectra of all voxels N times, computing the DotProduct and finding the maximum,
+% do instead: Shift the RefSpec once N times, save that, and calculate the DotProducts for all shifts of the RefSpec.
+% In the fist case, we would need to do NumbOfVox x N shifts, whereas in the latter we only need N shifts.
 if(~OnlyApplyShiftMap_flag)
 	
 	CS_vec_zf = compute_chemshift_vector_1_1(Settings.LarmorFreq,Settings.Dwelltime/10^9,Settings.vecsize*ZerofillingFactor); 
@@ -114,9 +137,8 @@ if(~OnlyApplyShiftMap_flag)
 	SearchForPeak_RightPt_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM + Settings.PeakSearchRangePPM));
 	SearchForPeak_Center_Pts = find(min(abs(CS_vec_zf - Settings.PeakSearchPPM)) == abs(CS_vec_zf - Settings.PeakSearchPPM));
 
-	ReferenceSpecMat_Spec = squeeze(SearchArray(RefVox(1),RefVox(2),RefVox(3),SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
+	ReferenceSpecMat_Spec = squeeze(RefSpec2(1,1,1,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
 	ReferenceSpecMat = zeros(size(ReferenceSpecMat_Spec,1));
-
 
 	CircShiftVec = SearchForPeak_LeftPt_Pts-SearchForPeak_Center_Pts :1: SearchForPeak_RightPt_Pts-SearchForPeak_Center_Pts;
 	for i = 1:abs(SearchForPeak_RightPt_Pts-SearchForPeak_LeftPt_Pts+1)
@@ -125,13 +147,17 @@ if(~OnlyApplyShiftMap_flag)
 	
 end
 
+
+%% 3. Calculate & Apply ShiftMap
+
+
 OutArray = fftshift(fft(OutArray,[],ApplyAlongDim),ApplyAlongDim);
 
 for x = 1:size(OutArray,1)
 	for y = 1:size(OutArray,2)
 		for z = 1:size(OutArray,3)
 			
-			if(mask(x,y,z) == 0 || (x==RefVox(1) && y == RefVox(2) && z == RefVox(3)))
+			if(mask(x,y,z) == 0 || (~RefSpecWasProvided && x==RefVox(1) && y == RefVox(2) && z == RefVox(3)))			% Dont process if mask=0 or reference voxel
 				continue
 			end
 			
