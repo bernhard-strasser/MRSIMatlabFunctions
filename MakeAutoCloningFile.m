@@ -43,6 +43,17 @@ function MakeAutoCloningFile(FileToClone,GitRepo,AutoCloningFile)
 
 
 % Create full path of FileToClone if necessary
+
+% Try to cd to folder where file lies in
+CurDir = pwd;
+CDDir = regexp(FileToClone,'.*/','match'); 
+try
+    CDDir = CDDir{1};
+    cd(CDDir)
+catch ME
+    
+end
+
 FileToClone2 = which(FileToClone);
 if(numel(FileToClone2) == 0)
 	fprintf('\nProblem: Function or Script\n%s\ndoes not exist.\n',FileToClone)
@@ -132,5 +143,5 @@ end
 if(~CopyFlag)
 	fclose(fid);
 end
-
+cd(CurDir)
 
