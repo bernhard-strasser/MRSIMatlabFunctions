@@ -21,7 +21,8 @@ function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,Filter
 %                                             Filter is applied. Otherwise, a 3d filter is used.
 % -         FilterWidth                ...    Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
 %                                             filter width of n % means filter is only applied on n % (n/2 % on left, n/2 % on right) of
-%                                             the data, the rest of the data is untouched (filter is set to 1 there).
+%                                             the data, the rest of the data is untouched (filter is set to 1 there). 
+%                                             See p74 (A.2-26) Spectroscopy Manual.
 % -         RadialOrOuterProduct       ...    Input: 'Radial' or 'OuterProduct'. Default: 'Radial'. There are two different methods to
 %                                             create an n-dimensional filter from an 1-d filter: The OuterProduct is nothing more
 %                                             than applying the 1d-filter in each dimension consecutively, 
