@@ -1,30 +1,24 @@
 function OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
 %
-% EllipticalFilter_x_y Apply an elliptical filter to k-space data
+% ZerofillOrCutkSpace Zerofill or Cut k-Space Data
 %
 % This function was written by Bernhard Strasser, July 2012.
 %
 %
-% The function masks the data in k-space, so that k-space values outside of an ellipsoid-shaped mask are set to zero. The mask can be a
-% 3d-ellipsoid, or an 2d-ellipse. The equation for the mask is
-% mask = {(x,y,z) E R³ | (x/a)² + (y/b)² + (z/c)² <= R²}
-% a, b, c, and R can be chosen by the user.
+% The function either zerofills or cuts data in k-space. For zerofilling time data 
+% (zerofilling only one-sided instead of on both sides like in k-space), use "Zerofilling_Spectral".
 %
 %
-% [OutArray,mask] = EllipticalFilter_x_y(OutArray,ApplyAlongDims,EllipsoidCoefficients,PerformFFT_flag)
+% OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
 %
 % Input: 
-% -     OutArray                     ...    Input array to which the filter should be applied
-% -     ApplyAlongDims               ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
-%                                          Filter is applied. Otherwise, a 3d filter is used.
-% -     EllipsoidCoefficients        ...    The values for [a b c R], which determine the shape and size of the ellipsoid. For two dimensional
-%                                          Filter, set c = 1;
-% -     PerformFFT_flag              ...    If it is 0, the image gets Fourier transformed to k-space before applying the filter, 
-%                                          and transformed back to image domain afterwards
+% -     OutArray                     ...    Input array to which the filter should be applied.
+% -     Zerofill_To                  ...    Array to which data should be zerofilled or cut. E.g. size(OutArray) = [32 64 64 512], Zerofill_To = [32 128 128 512]. 
+% -     PerformFFT_flag              ...    If it is 1, the image gets Fourier transformed to k-space before applying the filter, 
+%                                           and transformed back to image domain afterwards
 %
 % Output:
-% -     OutArray                     ...     The filtered/masked output array
-% -     mask                         ...     The mask of the filter
+% -     OutArray                     ...    The filtered/masked output array
 %
 %
 % Feel free to change/reuse/copy the function. 
