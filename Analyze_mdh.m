@@ -18,7 +18,7 @@ function ParList = Analyze_mdh(csi_path,AnalyzeWholeMDH)
 % -         ParList                         ...     Structure giving all the Parameters. It contains:
 %           -- ParList.vecSize                      - VectorSize in spectroscopic dimension
 %           -- ParList.total_channel_no             - number of receive-channels
-%           -- ParList.total_k_points               - obvious
+%           -- ParList.total_ADC_meas               - obvious
 %           -- ParList.SLC                          - Number of Slices
 %           -- ParList.Averages                     - Number of acquired averages.
 % if AnalyzeWholeMDH = true
@@ -70,7 +70,7 @@ EvalInfoMask_First = Associate_EvalInfoMask(EvalInfoMask);
 
 
 % VectorSize & Total Channel Number
-ParList.(EvalInfoMask_First).vecSize = chak_header(8);
+ParList.(EvalInfoMask_First).Samples = chak_header(8);
 
 
 
@@ -99,7 +99,7 @@ if(mod(AnalyzeWholeMDH,2) == 1)
 
 
 
-		fseek_ok = fseek(fid, step*(64*2 + ParList.(EvalInfoMask_Cur).vecSize*2*4),'cof');
+		fseek_ok = fseek(fid, step*(64*2 + ParList.(EvalInfoMask_Cur).Samples*2*4),'cof');
 		if(fseek_ok == -1)
 			step = 1;
 			continue;
@@ -114,14 +114,14 @@ if(mod(AnalyzeWholeMDH,2) == 1)
 
 		Assoc = Associate_EvalInfoMask(EvalInfoMask);
 		if(strcmp(Assoc,'None') || strcmp(Assoc,'Other'))
-			fseek(fid, -step*(64*2 + ParList.(EvalInfoMask_Cur).vecSize*2*4),'cof');
+			fseek(fid, -step*(64*2 + ParList.(EvalInfoMask_Cur).Samples*2*4),'cof');
 			step = 1;
 		elseif(strcmp(Assoc,'ACQEND'))
 			break;
 		elseif(~strcmp(Assoc,EvalInfoMask_Cur))
 			EvalInfoMask_Cur = Assoc;
 			step = step_big;
-			ParList.(EvalInfoMask_Cur).vecSize = chak_header(8);
+			ParList.(EvalInfoMask_Cur).Samples = chak_header(8);
 		end
 
 
@@ -149,9 +149,65 @@ end
 
 
 
-%% 3. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
 
-if(AnalyzeWholeMDH > 1)
+
+
+%% 3. 
+
+if(AnalyzeWholeMDH > 0)
+    
+    chak_header = zeros([1 64]);
+    fseek(fid,headersize,'bof');
+    for i = 1:ParList.General.total_ADC_meas
+        
+        
+        	fseek(fid,+5*4,'cof');	EvalInfoMask_loop = fread(fid,64,'ubit1');            
+            Assoc = Associate_EvalInfoMask(EvalInfoMask_loop);
+            
+            
+            if(~isfieldRecursive(ParList,Assoc,'NoOfADCs'))
+                ParList.(Assoc).NoOfADCs = 0;
+                
+                chak_header(8:57) = fread(fid, 50, 'int16');                               
+                % Assume these dont change for different ADCs of this type
+                ParList.(Assoc).total_channel_no = chak_header(9);
+                ParList.(Assoc).Samples = chak_header(8);
+                ParList.(Assoc).SamplesAfterEcho = chak_header(8) - chak_header(38)*2;
+                fseek(fid,-50*2,'cof');
+            end
+            fseek(fid,+50*2,'cof');
+            
+            ParList.(Assoc).NoOfADCs = ParList.(Assoc).NoOfADCs+1;
+            
+            
+            % Jump forward to next mdh
+            fseek(fid,ParList.(Assoc).Samples*2*4*ParList.(Assoc).total_channel_no + (ParList.(Assoc).total_channel_no-1)*128,'cof');
+    end
+
+    for fieldys = transpose(fieldnames(ParList))
+        
+        CurField = fieldys{:};
+        if(strcmpi(CurField,'General'))
+            continue
+        end
+        
+        ParList.(CurField).TotalRawPointsPerChannel = ParList.(CurField).NoOfADCs * ParList.(CurField).Samples;
+        ParList.(CurField).TotalRawPoints = ParList.(CurField).TotalRawPointsPerChannel * ParList.(CurField).total_channel_no;
+    end
+    
+    
+    
+    
+end
+
+
+
+
+
+
+%% 4. READ MATRIX SIZE (ROW AND COLUMN NUMBERS) FROM MAXIMUM K-POINT
+
+if(AnalyzeWholeMDH > 3)
     
     fseek(fid,headersize,'bof');
     kline_max = 0; kline_min = 99999; 
@@ -165,7 +221,7 @@ if(AnalyzeWholeMDH > 1)
 	SampleList = zeros([1 10^5]);
 	InfoList = zeros([8 10^5]);
 	
-    for i = 1:ParList.total_k_points*ParList.Averages
+    for i = 1:ParList.total_ADC_meas*ParList.Averages
             chak_header = fread(fid, 64, 'uint16');
             if(chak_header(17) > kline_max)
                 kline_max = chak_header(17);
@@ -180,7 +236,7 @@ if(AnalyzeWholeMDH > 1)
             if(chak_header(22) < kphase_min)
                 kphase_min = chak_header(22);
             end        
-            fseek(fid,ParList.vecSize*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
+            fseek(fid,ParList.Samples*2*4*ParList.total_channel_no + (ParList.total_channel_no-1)*128,'cof');
     end
     ParList.ROW_measured = kline_max - kline_min + 1;
     ParList.COL_measured = kphase_max - kphase_min + 1;
