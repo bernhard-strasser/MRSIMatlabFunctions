@@ -1,4 +1,4 @@
-function [A,B] = template_1_0(inputvar1,inputvar2)
+function [A,B] = template(inputvar1,inputvar2)
 %
 % template_1_0 Do nothing specific
 %
