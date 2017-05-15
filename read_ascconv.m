@@ -99,6 +99,8 @@ ParList_Search =  { ...
 'sKSpace.ucSlicePartialFourier',								...		% 40
 'tProtocolName',												...		% 41	How the "Sequence" at the scanner when it was measured was named
 'tSequenceFileName',											...		% 42	Which sequence was used
+'alTI\[\d+\]',											...		% 42	Which sequence was used
+'alTR\[\d+\]',											...		% 42	Which sequence was used
 'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
 };
 
@@ -155,6 +157,8 @@ ParList_Assign = { ...
 'SlicePartialFourier',												...		% 40
 'tProtocolName',													...		% 41
 'tSequenceFileName',												...		% 42
+'TIs',												...		% 42
+'TR',												...		% 42
 'RefAmplitude'                                                      ...     % 50
 };
 
@@ -210,6 +214,8 @@ ParList_Convert = { ...
 'char',																...		% 40
 'char',																...		% 41
 'char',																...		% 42
+'str2double',                                                       ...     % 35
+'str2double',                                                       ...     % 35
 'str2double'														...		% 50
 };
 
@@ -571,7 +577,7 @@ function ParList = InterpretWipMemBlock(ParList)
                                                             RollercoasterInterpretation.NoOfTempInt; % This is just an additional check. We have the info anyway in ParList.Dwelltimes
                 
                 
-			catch
+			catch errie
 				fprintf('\nError: Could not interpret ParList.WipMemBlock_alFree[59] - ParList.WipMemBlock_alFree[59] as Rollercoaster Info.')
 				RollercoasterInterpretation.sNoADCPointsPerCircle = NaN;
             	RollercoasterInterpretation.NoOfTempInt = NaN;
@@ -579,6 +585,11 @@ function ParList = InterpretWipMemBlock(ParList)
                 RollercoasterInterpretation.SpecDwellTime = NaN;
 
 			end
+		else
+			RollercoasterInterpretation.sNoADCPointsPerCircle = NaN;
+			RollercoasterInterpretation.NoOfTempInt = NaN;
+			RollercoasterInterpretation.ADCDwellTime = NaN;
+			RollercoasterInterpretation.SpecDwellTime = NaN;			
 		end
 		
 	end
