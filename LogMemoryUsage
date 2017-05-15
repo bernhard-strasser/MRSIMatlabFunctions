@@ -1,0 +1,44 @@
+#!/bin/bash
+
+trap "{ Trapped=1; echo Try to kill: PID: $$, PPID: $PPID; TerminateProgram;}" SIGINT SIGUSR1
+TerminateProgram(){
+	StopSignal=1
+}
+
+
+logfile_flag=0
+while getopts ':l:' OPTION
+do
+	case $OPTION in
+
+#mandatory
+	  l)	logfile_flag=1
+		logfile="$OPTARG"
+		;;
+#optional
+
+
+	  \?)	echo -e "\nUsage: LogMemUsageToFile -l \"logfile\""
+		exit 2
+		;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+if [[ "$logfile_flag" -eq "0" ]]; then
+	echo "You need to provide a logfile. Abort."
+	exit 2
+fi
+
+
+echo "PID=$$;" > $logfile
+StopSignal=0
+cnter=0
+while [ "$StopSignal" -eq "0" ]; do
+	let "cnter=cnter+1"
+	if [[ "$cnter" -ge "60000" ]]; then
+		StopSignal=1
+	fi
+	bash LogMemUsageToFile -l $logfile -c $cnter
+	sleep 5s
+done
