@@ -39,9 +39,20 @@ if(numel(size(in_array)) < squeeze_dim)
 end
 
 if(size(in_array,squeeze_dim) > 1)
-    display([char(10) 'Error: The dimension to squeeze is non-singleton'])
-    out_array = in_array;
-    return
+    display([char(10) 'Warning in squeeze_single_dim: The dimension to squeeze is non-singleton. Take First element of dimension ' num2str(squeeze_dim) '.'])
+	regy = cell([1 numel(size(in_array))]);
+	regy(:) = {':,'};
+	regy{squeeze_dim} = '1,';
+	regy{end} = regy{end}(1);
+	
+	% if it is the last index, its done.
+	if(squeeze_dim == numel(size(in_array)))
+		out_array = eval(['in_array(' [regy{:}] ');']);
+		return;
+	else
+		in_array = eval(['in_array(' [regy{:}] ');']);		
+	end
+	
 end
      
 
