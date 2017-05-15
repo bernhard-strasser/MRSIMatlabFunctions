@@ -54,6 +54,11 @@ end
 
 %% 1. Search for SynthMapTitles in MetMapTitles
 
+% Check if all exists
+if(numel(MetMapTitle) < numel(SynthMapTitle))
+	fprintf('\nError: Did not find all necessary metabolic maps. Aborting.\n')
+	return
+end
 
 MetaboInd = regexp_SearchCellInCell(MetMapTitle,SynthMapTitle);
 if( sum(cellfun(@numel,MetaboInd) > 1) == 0 )
@@ -68,7 +73,6 @@ if(numel(MetaboInd) < numel(SynthMapTitle))
 	fprintf('\nError: Did not find all necessary metabolic maps. Aborting.\n')
 	return
 end
-
 
 
 %% 2. Compute Map
