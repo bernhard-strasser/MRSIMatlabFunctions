@@ -399,7 +399,7 @@ for CurrentMeasSet2 = transpose(fields(kSpace))
 			Temp{echo} = reshape(Temp{echo},[size_MultiDims(Temp{echo},1:6) size(Temp{echo},7)*size(Temp{echo},8) size_MultiDims(Temp{echo},9:10)]);
 			
             if(strcmpi(CurrentMeasSet,'ONLINE'))
-                vecSize = Info.General.Ascconv.vecSize/2;							% The system thinks we do oversampling in spectral dimension, which we dont...
+                vecSize = Info.General.Ascconv.vecSize/2;							% The system things we do oversampling in spectral dimension, which we dont...
 			elseif(strcmpi(CurrentMeasSet,'PATREFSCAN'))
                 vecSize = floor(Info.PATREFSCAN.Samples / Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle);		% For the pre-scan. This is guess-work! Make better in future!      
             end
