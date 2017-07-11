@@ -66,7 +66,7 @@ Info.General.Ascconv = ParList;
 
 % Info about sizes
 % First try: Get info from wipMemBlock_tfree
-if(ParList.wipMemBlock_tFree ~= 0)
+if(numel(ParList.wipMemBlock_tFree) > 1)
 	% Only evaluate the tFree string if it is proper MATLAB CODE (doesnt throw any errors)
 	try
 		eval(ParList.wipMemBlock_tFree);
