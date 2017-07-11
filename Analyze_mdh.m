@@ -64,6 +64,7 @@ chak_header = zeros([1 64]);
 
 % Read first mdh
 chak_header(1:5) = fread(fid, 5, 'uint32');
+lMeasUID = chak_header(2);
 EvalInfoMask = fread(fid, 64, 'ubit1');
 chak_header(8:57) = fread(fid, 50, 'int16');
 EvalInfoMask_First = Associate_EvalInfoMask(EvalInfoMask);
@@ -95,34 +96,45 @@ if(mod(AnalyzeWholeMDH,2) == 1)
 	EvalInfoMask_Cur = EvalInfoMask_First;
 	step_big = 12;
 	step = step_big;
+    LastGoodPosition = ftell(fid);
 	while(~strcmpi(EvalInfoMask_Cur,'ACQEND') || ~feof(fid))
 
 
 
 		fseek_ok = fseek(fid, step*(64*2 + ParList.(EvalInfoMask_Cur).Samples*2*4),'cof');
 		if(fseek_ok == -1)
-			step = 1;
+			fseek(fid, LastGoodPosition,'bof');			
+            step = 1;
 			continue;
 		end
 		
 		
 		chak_header(1:5) = fread(fid, 5, 'uint32');
+        if(chak_header(2) ~= lMeasUID)      % An error occurred
+ 			fseek(fid, LastGoodPosition,'bof');			
+            step = 1;
+			continue;           
+        end
 		EvalInfoMask = fread(fid, 64, 'ubit1');
 		chak_header(8) = fread(fid, 1, 'uint16');		
 		fseek(fid, -5*4-64*1/8-1*2,'cof');
 
 
 		Assoc = Associate_EvalInfoMask(EvalInfoMask);
-		if(strcmp(Assoc,'None') || strcmp(Assoc,'Other'))
-			fseek(fid, -step*(64*2 + ParList.(EvalInfoMask_Cur).Samples*2*4),'cof');
+        if(strcmp(Assoc,'None') || strcmp(Assoc,'Other'))
+			fseek(fid, LastGoodPosition,'bof');
 			step = 1;
+            continue;
 		elseif(strcmp(Assoc,'ACQEND'))
 			break;
 		elseif(~strcmp(Assoc,EvalInfoMask_Cur))
 			EvalInfoMask_Cur = Assoc;
 			step = step_big;
 			ParList.(EvalInfoMask_Cur).Samples = chak_header(8);
-		end
+        end
+        
+        % Ensure that we only come here if no error occurred
+        LastGoodPosition = ftell(fid);
 
 
 	end
