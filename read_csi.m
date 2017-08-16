@@ -70,7 +70,18 @@ end
 if(numel(strfind(file, '.dat')) > 0)
     
     % Read Raw Data
-    [kSpace,ReadInInfo] = read_csi_dat(file,0,ReadInDataSets);
+    
+    % Find out Version. This code is copied from Philipp Ehses from his "mapVBVD_20150918" functions.
+    file_fid = fopen(sprintf('%s', file),'r');
+    firstInt  = fread(file_fid,1,'uint32');
+    secondInt = fread(file_fid,1,'uint32');
+    fclose(file_fid);
+    if (and(firstInt < 10000, secondInt <= 64))                             % lazy software version check (VB or VD?)
+        [kSpace,ReadInInfo] = read_csi_dat_VE11(file,0,ReadInDataSets);     % VE Version
+    else
+        [kSpace,ReadInInfo] = read_csi_dat(file,0,ReadInDataSets);          % VB Version
+    end
+    clear file_fid firstInt secondInt
     
 else   
    
