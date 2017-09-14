@@ -1,4 +1,4 @@
-function [ppm_points,spec_points,baseline_points,naa_points] = read_coord_file_1_1(file_path)
+function [PlotData] = read_coord_file(file_path)
 %
 % read_coord_file_x_y Read Coordinate LCModel file
 %
@@ -36,15 +36,12 @@ function [ppm_points,spec_points,baseline_points,naa_points] = read_coord_file_1
 % open file
 fid = fopen(file_path,'r');
 ppm_found = false;
-spec_found = false;
-baseline_found = false;
-naa_found = false;
-ppm_points = 0;
-spec_points = 0;
 sLine = 0;
-naa_points = 0;
 
 
+SearchSet = {'NY phased data points follow','NY points of the fit to the data follow','NY background values follow'};       % Search for these strings
+IdentifyWithSet = {'Spec','Fit','Baseline'};                                                                                % And if we find one, identify with this data set
+EndOfReadSearchSet = {'\d+ lines in following diagnostic table:'};                                                          % If we find one of these strings, stop reading
 
 
 %% 1. Read ppm-scale
@@ -56,12 +53,12 @@ while(sLine > -1)
 
     if(not(isempty(strfind(sLine,'points on ppm-axis '))))
         
-        ppm_found = true;                                     % If current line is begin of ppm-axis
-        NumberOfPoints = textscan(sLine,'%d');                % Find out the number of points included in the ppm-scale which is written in this line.
-        NumberOfPoints = double(NumberOfPoints{:});           % Convert from cell to double.
+        ppm_found = true;                                               % If current line is begin of ppm-axis
+        PlotData.NumberOfPoints = textscan(sLine,'%d');                 % Find out the number of points included in the ppm-scale which is written in this line.
+        PlotData.NumberOfPoints = double(PlotData.NumberOfPoints{:});   % Convert from cell to double.
         
         % Read ppm-points
-        ppm_points = fscanf(fid,'%f',NumberOfPoints);
+        PlotData.ppm_points = fscanf(fid,'%f',PlotData.NumberOfPoints);
         
         break
 
@@ -78,117 +75,67 @@ end
 if(not(ppm_found))
     display(['Pfui Toifel! You gave me a wrong file, I cannot digest that! Please remember that I am NOT an omnivore.' char(10) ...
              'I will stop here . . .'])
-     ppm_points = 0;
-     spec_points = 0;
-     baseline_points = 0;
-    return
+    PlotData.ppm_points = 0;
+	return
 end
 
 
 
 
+%% Read rest
 
 
-%% 2. Read Spectrum
-
-if(ppm_found)
+while(sLine > -1)
     
+    sLine = fgets(fid); % get string line
+    
+    % stop reading if we find one of the strings in EndOfReadSearchSet
+    if(sum(~cellfun(@isempty,regexp(sLine,EndOfReadSearchSet))) > 0)
+        return
+    end
+    
+    % The data set defining lines need to include alphabetic characters and do not have numbers, except for 'Conc. = +xyz.abcd'
+    ConcIndex = regexp(sLine,'Conc\. = .?\d+\.\d+');
+    ConcFound = numel(ConcIndex) > 0;
+    if(numel(regexp(sLine,'[a-zA-Z]+')) == 0 || (numel(regexp(sLine,'\d+')) > 0 && ~ConcFound))
+        continue
+    end    
+    % Otherwise it seems to be a line defining a data set 
+    
+    
+    % See if we can search one of the phrases defined in SearchSet
+    CurDataSet = sLine;
+    if(~ConcFound)
+        SearchSet_FoundIndex = ~cellfun(@isempty,regexp(CurDataSet,SearchSet));
 
-    while(sLine > -1)
-
-        sLine = fgets(fid); % get string line
-
-        if(not(isempty(strfind(sLine,'NY phased data points follow'))))   % If current line is begin of spectrum
-            
-            spec_found = true;                                   
-            
-            % Read spec-points
-            spec_points = fscanf(fid,'%f',NumberOfPoints);
-
-            break
-
-        else
-            continue                                                      % If current line is not begin of ascconv --> read next line
+        % If we found something, replace with IdentifyWithSet
+        if(sum(SearchSet_FoundIndex) > 0)
+            CurDataSet = IdentifyWithSet{SearchSet_FoundIndex};
+        else                                                                % It's neither a 'Metabo Conc. = ...', nor one of the phrases in SearchSet
+            error('\nError in read_coord_file: I found a line which does not fit in my patterns. Abort.')   
         end
-
-    end   
+    else
+        CurDataSet = CurDataSet(1:ConcIndex(1)-1);              % Remove all this concentration stuff
+    end
     
-
-end
-
-
-
-% Display error & stop if no spectrum points found
-
-if(not(spec_found))
-    display(['Pfui Toifel! You gave me a wrong file, I cannot digest that! Please remember that I am NOT an omnivore.' char(10) ...
-             'I will stop here . . .'])
-    return
-end
-
-
-
-
-%% 3. Read Baseline
-
-if(spec_found && nargout > 2)
+    % In any case, remove all whitespace characters, and check if string is non-empty
+    CurDataSet = regexprep(CurDataSet,'\s','');
     
-
-    while(sLine > -1)
-
-        sLine = fgets(fid); % get string line
-
-        if(not(isempty(strfind(sLine,'NY background values follow'))))   % If current line is begin of spectrum
-            
-            baseline_found = true;                                   
-            
-            % Read baseline-points
-            baseline_points = fscanf(fid,'%f',NumberOfPoints);
-
-            break
-
+    % Read data
+    if(~isempty(CurDataSet))
+        if(ConcFound)
+            PlotData.Metabos.(CurDataSet) = fscanf(fid,'%f',PlotData.NumberOfPoints);
         else
-            continue                                                      % If current line is not begin of ascconv --> read next line
+            PlotData.(CurDataSet) = fscanf(fid,'%f',PlotData.NumberOfPoints);            
         end
-
-    end   
+    end
+    
     
 
+    
 end
 
 
-% Set to zeros if not found
-
-if(not(baseline_found) && spec_found)
-    baseline_points = zeros([1 NumberOfPoints]);
-end
-
-%% 4. Read NAA
-
-if(spec_found && nargout > 2)
-    
-
-    while(sLine > -1)
-
-        sLine = fgets(fid); % get string line
-
-        if(not(isempty(strfind(sLine,'NAA'))))   % If current line is begin of spectrum
-            
-              naa_found = true;                                 
-            
-            % Read fit-points
-            naa_points = fscanf(fid,'%f',NumberOfPoints);
-
-            break
-
-        else
-            continue                                                      % If current line is not begin of ascconv --> read next line
-        end
-
-    end   
-    
-
-end
 
 
 
