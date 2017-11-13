@@ -99,9 +99,10 @@ ParList_Search =  { ...
 'sKSpace.ucSlicePartialFourier',								...		% 40
 'tProtocolName',												...		% 41	How the "Sequence" at the scanner when it was measured was named
 'tSequenceFileName',											...		% 42	Which sequence was used
-'alTI\[\d+\]',											...		% 42	Which sequence was used
-'alTR\[\d+\]',											...		% 42	Which sequence was used
+'alTI\[\d+\]',                                                  ...		% 51	TI
+'alTR\[\d+\]',                                                  ...		% 52	TR
 'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
+'lTotalScanTimeSec'                                             ...     % 53    Total scan time
 };
 
 
@@ -157,9 +158,10 @@ ParList_Assign = { ...
 'SlicePartialFourier',												...		% 40
 'tProtocolName',													...		% 41
 'tSequenceFileName',												...		% 42
-'TIs',												...		% 42
-'TR',												...		% 42
+'TIs',                                                              ...		% 51
+'TR',                                                               ...		% 52
 'RefAmplitude'                                                      ...     % 50
+'TotalScanTime'                                                     ...     % 53
 };
 
 
@@ -214,9 +216,10 @@ ParList_Convert = { ...
 'char',																...		% 40
 'char',																...		% 41
 'char',																...		% 42
-'str2double',                                                       ...     % 35
-'str2double',                                                       ...     % 35
+'str2double',                                                       ...     % 51
+'str2double',                                                       ...     % 52
 'str2double'														...		% 50
+'str2double'														...		% 53
 };
 
 
