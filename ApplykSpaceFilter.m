@@ -1,4 +1,4 @@
-function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
+function [OutArray,HammingFilter] = ApplykSpaceFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
 %
 % HammingFilter Apply an Hamming filter to (k-space) data
 %
