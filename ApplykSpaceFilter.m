@@ -1,28 +1,30 @@
-function [OutArray,HammingFilter] = ApplykSpaceFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
+function [OutArray,kSpaceFilter] = ApplykSpaceFilter(OutArray,ApplyAlongDims,FilterTypeName,FilterOption,RadialOrOuterProduct,InputIskSpace_flag)
 %
-% HammingFilter Apply an Hamming filter to (k-space) data
+% kSpaceFilter Apply a filter to (k-space) data
 %
 % This function was written by Bernhard Strasser, July 2012 - July 2014.
 %
 %
-% The function applies a Hamming filter to the input-data. You can specify along which dimensions this should be done (e.g. [2 4 5 6]). You can
-% also specify the filter width in %, e.g. a FilterWidth of 70 % leaves the inner 30% of the k-Space untouched and applies the filter only
+% The function applies a filter to the input-data. You can specify along which dimensions this should be done (e.g. [2 4 5 6]). You can
+% also specify the filter width in %, e.g. a FilterOption of 70 % leaves the inner 30% of the k-Space untouched and applies the filter only
 % along the 70 % of the outer data. You can also specify how the multi-dimensional filter is created, i.e. by the OuterProduct, 
-% Hamming2D(x,y) = Hamming1D(x) * Hamming1D(y), or by a Radial 'rotation' (e.g. creating a 1D-hamming filter along the x-axis and then rotating
+% kSpaceFilter2D(x,y) = kSpaceFilter1D(x) * kSpaceFilter1D(y), or by a Radial 'rotation' (e.g. creating a 1D-hamming filter along the x-axis and then rotating
 % that around the z-axis to get a 2D-filter. If you tell the function that the Input is already in kSpace, no fft is performed before applying
 % the filter.
 %
 %
-% [OutArray,HammingFilter] = HammingFilter(InArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
+% [OutArray,kSpaceFilter] = kSpaceFilter(InArray,ApplyAlongDims,FilterOption,RadialOrOuterProduct,InputIskSpace_flag)
 %
 % Input: 
-% -         InArray                    ...    Input array to which the filter should be applied. For memory reasons InArray = OutArray.
-% -         ApplyAlongDims             ...    Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
+% -         OutArray                    ...   Input/Output array to which the filter should be applied. For memory reasons InArray = OutArray.
+% -         ApplyAlongDims              ...   Along these dimensions the filter is applied. If this vector has two elements, a two dimensional 
 %                                             Filter is applied. Otherwise, a 3d filter is used.
-% -         FilterWidth                ...    Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
+% -         FilterTypeName              ...   Name of filter that should be applied. Examples: 'hamming', 'hann', 'hanning', 'chebwin', 'gausswin', see 'help window'
+% -         FilterOption                ...   In case of hamming filter: Same as in spectroscopy sequences. Filter Width of 100 (%) means normal hamming filter,
 %                                             filter width of n % means filter is only applied on n % (n/2 % on left, n/2 % on right) of
 %                                             the data, the rest of the data is untouched (filter is set to 1 there). 
 %                                             See p74 (A.2-26) Spectroscopy Manual.
+%                                             Non-Hamming filter: option that can be specified by chosen window.
 % -         RadialOrOuterProduct       ...    Input: 'Radial' or 'OuterProduct'. Default: 'Radial'. There are two different methods to
 %                                             create an n-dimensional filter from an 1-d filter: The OuterProduct is nothing more
 %                                             than applying the 1d-filter in each dimension consecutively, 
@@ -36,7 +38,7 @@ function [OutArray,HammingFilter] = ApplykSpaceFilter(OutArray,ApplyAlongDims,Fi
 %
 % Output:
 % -         OutArray                   ...    The filtered/masked output array
-% -         HammingFilter              ...    The values of the Hamming filter in k-Space.
+% -         kSpaceFilter              ...    The values of the filter in k-Space.
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -53,15 +55,18 @@ function [OutArray,HammingFilter] = ApplykSpaceFilter(OutArray,ApplyAlongDims,Fi
 
 %OutArray = InArray; 
 if(~exist('OutArray','var'))
-	fprintf('\nHamming Filtering could not be performed.\nMore input needed.')
+	fprintf('\nFiltering could not be performed.\nMore input needed.')
 	return
 end
 if(~exist('ApplyAlongDims','var'))
-	fprintf('\nWARNING: No dimensions specified along which Hamming Filter should be applied.\nFiltering along dim 1 with size %d',size(OutArray,1))
+	fprintf('\nWARNING: No dimensions specified along which Filter should be applied.\nFiltering along dim 1 with size %d',size(OutArray,1))
 	ApplyAlongDims = 1;
 end
-if(~exist('FilterWidth','var'))
-	FilterWidth = 100;
+if(~exist('FilterTypeName','var'))
+    FilterTypeName = 'hamming';
+end
+if(numel(FilterOption)==0)
+    FilterOption = [];
 end
 if( ~exist('RadialOrOuterProduct','var') || (~strcmpi(RadialOrOuterProduct,'Radial') && ~strcmpi(RadialOrOuterProduct,'OuterProduct')) )
 	RadialOrOuterProduct = 'Radial';
@@ -77,110 +82,118 @@ Size_OutArray = size(OutArray);
 %% 1. FFT to k-space
 
 if(~InputIskSpace_flag)
-    for hamming_dim = ApplyAlongDims
-        OutArray = ifftshift(OutArray,hamming_dim);
-        OutArray = ifft(OutArray,[],hamming_dim);
-        OutArray = fftshift(OutArray,hamming_dim);
+    for filter_dim = ApplyAlongDims
+        OutArray = ifftshift(OutArray,filter_dim);
+        OutArray = ifft(OutArray,[],filter_dim);
+        OutArray = fftshift(OutArray,filter_dim);
     end
 end
 
 
 
 
-%% 2. Compute Hamming Filter
+%% 2. Compute  Filter
 
 
 
 
 if(strcmpi(RadialOrOuterProduct,'Radial'))
+    if(strcmp(FilterTypeName,'hamming'))
 
-	HammingFilter = NaN(Size_OutArray(ApplyAlongDims));
-	FilterSize = ceil(FilterWidth/100 * Size_OutArray(ApplyAlongDims));
-	OnesSize = Size_OutArray(ApplyAlongDims) - FilterSize;
-	OnesRadius = OnesSize/2;
-	NormFactor = sqrt(sum(  (OnesRadius./(sqrt(numel(ApplyAlongDims))*FilterSize)).^2  ));
-	
-	
-	
-	% Loop over all Array entries... This is slow, but was easiest to implement now...
-	% Loop Preps
-	LinIndex = 1:prod(Size_OutArray(ApplyAlongDims));
-	MatInd = cell( 1, numel(ApplyAlongDims) );
-	for LinLoopy = LinIndex
-		% Get from the linear index to the x,y,z,... in order to calculate the distance to k-Space center
-		[MatInd{:}] = ind2sub(size(HammingFilter),LinLoopy);
-		MatInd2 = [MatInd{:}] - (size(HammingFilter)+1)/2;
-		
-		% Dont process anything that is outside of the ellipsoid (consider ellipse equation!)
-		if(sum((MatInd2 ./ (size(HammingFilter)/2)).^2) > 1 )
-			continue;
-		end
-		
-		if(	sum((MatInd2 ./ OnesRadius).^2) <= 1 )
-			HammingFilter(LinLoopy) = 1;
-		else
-			HammingFilter(LinLoopy) = sum((MatInd2./FilterSize).^2);
-		end
-		
-	end
+        kSpaceFilter = NaN(Size_OutArray(ApplyAlongDims));
+        FilterSize = ceil(FilterOption/100 * Size_OutArray(ApplyAlongDims));
+        OnesSize = Size_OutArray(ApplyAlongDims) - FilterSize;
+        OnesRadius = OnesSize/2;
+        NormFactor = sqrt(sum(  (OnesRadius./(sqrt(numel(ApplyAlongDims))*FilterSize)).^2  ));
 
-	HammingFilter(HammingFilter ~= 1) = 0.54 + 0.46*cos(2*pi*(sqrt(HammingFilter(HammingFilter ~= 1)) - NormFactor));		
 
-	
-	% Extrapolate the filter to the edges
-	HammingSize = size(HammingFilter);
-	for hamming_dim = 1:numel(ApplyAlongDims)
-		ZerosSize = size(HammingFilter); ZerosSize(hamming_dim) = 1;
-		HammingFilter = cat(hamming_dim,zeros(ZerosSize),HammingFilter,zeros(ZerosSize));
-	end
-	HammingFilter = inpaint_nans(HammingFilter,4);
-	HammingFilter = reshape(HammingFilter,HammingSize+2); %#ok
-	% Crop out the good data
-	CropString = '2:end-1,'; CropString = repmat(CropString,[1 numel(ApplyAlongDims)]); CropString(end) = [];
-	HammingFilter = eval(['HammingFilter(' CropString ');']);
-	
-	
-	% Replicate To size of OutArray
-	HammingFilter = myrepmat(HammingFilter,Size_OutArray);
-	
-	
+
+        % Loop over all Array entries... This is slow, but was easiest to implement now...
+        % Loop Preps
+        LinIndex = 1:prod(Size_OutArray(ApplyAlongDims));
+        MatInd = cell( 1, numel(ApplyAlongDims) );
+        for LinLoopy = LinIndex
+            % Get from the linear index to the x,y,z,... in order to calculate the distance to k-Space center
+            [MatInd{:}] = ind2sub(size(kSpaceFilter),LinLoopy);
+            MatInd2 = [MatInd{:}] - (size(kSpaceFilter)+1)/2;
+
+            % Dont process anything that is outside of the ellipsoid (consider ellipse equation!)
+            if(sum((MatInd2 ./ (size(kSpaceFilter)/2)).^2) > 1 )
+                continue;
+            end
+
+            if(	sum((MatInd2 ./ OnesRadius).^2) <= 1 )
+                kSpaceFilter(LinLoopy) = 1;
+            else
+                kSpaceFilter(LinLoopy) = sum((MatInd2./FilterSize).^2);
+            end
+
+        end
+
+        kSpaceFilter(kSpaceFilter ~= 1) = 0.54 + 0.46*cos(2*pi*(sqrt(kSpaceFilter(kSpaceFilter ~= 1)) - NormFactor));		
+
+
+        % Extrapolate the filter to the edges
+        kSpaceSize = size(kSpaceFilter);
+        for filter_dim = 1:numel(ApplyAlongDims)
+            ZerosSize = size(kSpaceFilter); ZerosSize(filter_dim) = 1;
+            kSpaceFilter = cat(filter_dim,zeros(ZerosSize),kSpaceFilter,zeros(ZerosSize));
+        end
+        kSpaceFilter = inpaint_nans(kSpaceFilter,4);
+        kSpaceFilter = reshape(kSpaceFilter,kSpaceSize+2); %#ok
+        % Crop out the good data
+        CropString = '2:end-1,'; CropString = repmat(CropString,[1 numel(ApplyAlongDims)]); CropString(end) = [];
+        kSpaceFilter = eval(['kSpaceFilter(' CropString ');']);
+
+
+        % Replicate To size of OutArray
+        kSpaceFilter = myrepmat(kSpaceFilter,Size_OutArray);
+    else
+       	error('Option ''Radial'' currently only supported for Hamming filter.') 
+    end
 	
 else
 	
-	HammingFilter = ones(size(OutArray));	
-	for hamming_dim = ApplyAlongDims                                            % Compute Hamming filter in each dimension seperately
+	kSpaceFilter = ones(size(OutArray));	
+	for filter_dim = ApplyAlongDims                                            % Compute filter in each dimension seperately
 
 
-		RepmatToSizeOfMatrixIn = size(OutArray);                                % The Hamming-filter must have the same size as the OutArray
-		RepmatToSizeOfMatrixIn(hamming_dim) = 1;                                % Do not repmat in that dimension, in which hamming filtering is performed.
+		%calculate filter
+		n = size(OutArray,filter_dim);
+        
+        if(strcmp(FilterTypeName,'hamming'))
+            if(exist('FilterOption','var'))
+                filter_1D = hamming(  ceil(FilterOption/100*n)  );
+                filter_1D = cat(1, filter_1D(1:ceil(ceil(FilterOption/100*n)/2)), ones([n-numel(filter_1D) 1]), filter_1D(ceil(ceil(FilterOption/100*n)/2)+1:end));
+            else
+                filter_1D = hamming( n );
+                filter_1D = cat(1, filter_1D(1:ceil(n/2)), ones([n-numel(filter_1D) 1]), filter_1D(ceil(n/2)+1:end));
+            end
+        else
+            if(exist('FilterOption','var'))
+                filter_1D = window(FilterTypeName,n,FilterOption);
+            else
+                 filter_1D = window(FilterTypeName,n);               
+            end
+        end
 
 
 
-		%calculate Hamming filter
-		n = size(OutArray,hamming_dim);
-		hamming_1D = hamming(  ceil(FilterWidth/100*n)  );
-		hamming_1D = cat(1, hamming_1D(1:ceil(ceil(FilterWidth/100*n)/2)), ones([n-numel(hamming_1D) 1]), hamming_1D(ceil(ceil(FilterWidth/100*n)/2)+1:end));
-
-
-		if(hamming_dim == 1)
-			hamming_1D_LeadingOnes = hamming_1D;
-		else
-			reshape_to = horzcat(ones([1 hamming_dim-1]), numel(hamming_1D));       % This creates e.g. a vector [1 1 1 1 64]
-			hamming_1D_LeadingOnes = reshape(hamming_1D,reshape_to);                % Reshapes hamming filter to above size
-		end
-
-		HammingFilter = repmat(hamming_1D_LeadingOnes, RepmatToSizeOfMatrixIn) ...  % Replicate 1d-Hamming to the matrix size, 
-						.* HammingFilter;                                           % Multiply this array with the previous calculated array
-																					% but now the hamming-variation is in another dimension
+        % Define the dimension of Size_OutArray which corresponds to the first (and only) dimension of filter_1D
+        DimensionCorrespondence = zeros([1 numel(Size_OutArray)]); DimensionCorrespondence(filter_dim) = 1;
+		kSpaceFilter = myrepmat(filter_1D, Size_OutArray,DimensionCorrespondence) .* kSpaceFilter;  % Replicate 1d-filter to the matrix size, 
+                                                                                                    % Multiply this array with the previous calculated array
+                                                                                                    % but now the filter-variation is in another dimension
+                                                                                                    
 	end
 
 end
 
 
 
-%% 3. Apply Hamming Filter
+%% 3. Apply Filter
 
-OutArray = OutArray .* HammingFilter;
+OutArray = OutArray .* kSpaceFilter;
 
 
 
@@ -191,15 +204,14 @@ OutArray = OutArray .* HammingFilter;
 
 if(~InputIskSpace_flag)
     
-    for hamming_dim = ApplyAlongDims
-        OutArray = ifftshift(OutArray,hamming_dim);
-        OutArray = fft(OutArray,[],hamming_dim);
-        OutArray = fftshift(OutArray,hamming_dim);
+    for filter_dim = ApplyAlongDims
+        OutArray = ifftshift(OutArray,filter_dim);
+        OutArray = fft(OutArray,[],filter_dim);
+        OutArray = fftshift(OutArray,filter_dim);
     end
     
 end
 
 
 %% 5. Postparations
-
 
