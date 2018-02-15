@@ -1,8 +1,8 @@
-function [PlotData] = read_coord_file(file_path)
+function PlotData = read_coord_file(file_path)
 %
 % read_coord_file_x_y Read Coordinate LCModel file
 %
-% This function was written by Bernhard Strasser, September 2012.
+% This function was written by Bernhard Strasser, September 2017.
 %
 %
 % The function reads "Coordinate" LCModel files. In these files the plots of the output-ps-files of LCModel are written in numbers, e.g. to create your own plots. 
@@ -14,9 +14,14 @@ function [PlotData] = read_coord_file(file_path)
 % -         file_path                     ...     Path of file.
 %
 % Output:
-% -         ppm_points                    ...     The chemical shift scale of the spectrum.
-% -         spec_points                   ...     These are the phased spectrum points.
-% -         baseline_points               ...     These are the points of the baseline.
+% -         PlotData                      ...     Structure containing all the plots. Example fields:
+%                   .NumberOfPoints       ...     Number of points that were read in.
+%                   .ppm_points           ...     Read in points of the ppm-axis
+%                   .Spec                 ...     Read in points of Input spectrum
+%                   .Fit                  ...     Read in points of LCModel fit
+%                   .Baseline             ...     Read in points of the fitted baseline
+%                   .Metabos              ...     Structure containing all the metabolite fits as subfields:
+%                           .xyz          ...     Read in points of metabolite xyz
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -120,7 +125,12 @@ while(sLine > -1)
     
     % In any case, remove all whitespace characters, and check if string is non-empty
     CurDataSet = regexprep(CurDataSet,'\s','');
-    
+    % Replace invalid field names
+    CurDataSet = regexprep(CurDataSet,'2HG','TwoHG');
+    if(~isempty(regexp(CurDataSet(1),'[^a-zA-Z]','ONCE')))
+        CurDataSet(1) = [];
+    end
+   
     % Read data
     if(~isempty(CurDataSet))
         if(ConcFound)
