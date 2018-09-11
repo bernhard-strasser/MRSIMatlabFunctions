@@ -1,4 +1,4 @@
-function [GradPosSave, GradValuesSave, GradSlewSave] = ShowSequenceArbGrads(PathToTxtFile,PlotFlag,PauseDuration)
+function [dGradMom, dGradientValues, dGradSlew] = ShowSequenceArbGrads(PathToTxtFile,PlotFlag,PauseDuration,CalcCircle_flag)
 %
 % ShowSequenceArbGrads Do nothing specific
 %
@@ -36,15 +36,25 @@ function [GradPosSave, GradValuesSave, GradSlewSave] = ShowSequenceArbGrads(Path
         fprintf('\nNo input file. Abort.')
         return
     end
-
+    if(~exist('PlotFlag','var'))
+        PlotFlag = false;
+        PauseDuration = -5;
+    end
+    if(~exist('PauseDuration','var'))
+        PauseDuration = -5;        
+    end
+    if(~exist('CalcCircle_flag','var'))
+        CalcCircle_flag = false;        
+    end
+    
+    % If input is directory, gather all trajectory files
     if(exist(PathToTxtFile,'dir'))
         bla = dir(PathToTxtFile);
         bla3 = {bla.name};
         bla3 = strcat(PathToTxtFile, '/', bla3);
         bla3(cellfun(@exist,bla3) ~= 2) = [];
         PathToTxtFile = bla3; clear bla*
-        
-        
+                
         text = regexp(PathToTxtFile,'/[^/][0-9]*[^/]*\.','match');
         text2 = cellfun(@cell2mat,text,'UniformOutput',false);
         text3 = regexp(text2,'[0-9]*','match');
@@ -52,9 +62,6 @@ function [GradPosSave, GradValuesSave, GradSlewSave] = ShowSequenceArbGrads(Path
         text5 = cellfun(@str2double,text4);
         [text6, sorty] = sort(text5);
         PathToTxtFile = PathToTxtFile(sorty); clear text*
-        
-        
-        
 
     else
         PathToTxtFile = {PathToTxtFile};
@@ -69,84 +76,83 @@ function [GradPosSave, GradValuesSave, GradSlewSave] = ShowSequenceArbGrads(Path
 
     %% 1. Read File
     Index = 0;
-    GradPosSave = cell([1 numel(PathToTxtFile)]); GradValuesSave = GradPosSave; GradSlewSave = GradPosSave;
+    dGradMom = cell([1 numel(PathToTxtFile)]); dGradientValues = dGradMom; dGradSlew = dGradMom;
     for CurFile = PathToTxtFile
         Index = Index+1;
-        GradValues = importdata(CurFile{1},'\t');
+        
+        %Inside should be variables: dGradientValues, dMaxGradAmpl, NumberOfBrakeRunPoints, NumberOfLaunTrackPoints, NumberOfLoopPoints
+        run(CurFile{1});
+        
+%         % What is that doing?
+%         dGradientValues{Index}(isnan(dGradientValues{Index})) = [];
+%         if(mod(numel(dGradientValues{Index}),3) == 1)
+%             dGradientValues{Index}(end) = [];
+%             size_Data(1) = size_Data(1)-1;
+%         end
+%         dGradientValues{Index} = reshape(dGradientValues{Index},[size_Data(1) size_Data(2)-2])*dMaxGradAmpl;
 
-
-        size_Data = size(GradValues.data);
-        GradValues.data(isnan(GradValues.data)) = [];
-        if(mod(numel(GradValues.data),3) == 1)
-            GradValues.data(end) = [];
-            size_Data(1) = size_Data(1)-1;
-        end
-        GradValues.data = reshape(GradValues.data,[size_Data(1) size_Data(2)-2])*40;        % 32 is the maximum Gradient amplitude
+        dGradientValues{Index} = dGradientValues{Index}*dMaxGradAmpl;
 
         
         %% 2. Calculate Positions
 
-        % Need to integrate, i.e. s(t_n) = sum(i<n, v(t_i) * Delta_t) = Delta_t * sum(i<n,v(t_i))            % really i<n or i<=n ?
-        GradPos_x = zeros([1 size_Data(1)+1]);
-        GradPos_y = zeros([1 size_Data(1)+1]);
+%         % Need to integrate, i.e. s(t_n) = sum(i<n, v(t_i) * Delta_t) = Delta_t * sum(i<n,v(t_i))            % really i<n or i<=n ?
+%         GradPos_x = zeros([1 size_Data(2)+1]);
+%         GradPos_y = zeros([1 size_Data(2)+1]);
+%         for i=2:size_Data(2)+1
+%             GradPos_x(i) = GradPos_x(i-1) + (dGradientValues{Index}(1,i-1));     % mean: Trapezformel
+%         end
+%         GradPos_y = imag(GradPos_x);
+%         GradPos_x = real(GradPos_x);
+        
+        
+        GradPos_x = cumsum(dGradientValues{Index});
+        GradPos_y = imag(GradPos_x);
+        GradPos_x = real(GradPos_x);
 
-    %     GradPos_x(2) = GradValues.data(1,1);
-    %     GradPos_y(2) = GradValues.data(1,2);
-        for i=2:size_Data(1)+1
-            GradPos_x(i) = GradPos_x(i-1) + (GradValues.data(i-1,1));     % mean: Trapezformel
-            GradPos_y(i) = GradPos_y(i-1) + (GradValues.data(i-1,2));        
-        end
-
-
-        GradPos = transpose(cat(1,GradPos_x,GradPos_y)) * 10;     % in units of mT*us/m
+        dGradMom{Index} = cat(1,GradPos_x,GradPos_y) * 10;     % in units of mT*us/m
         clear GradPos_x GradPos_y
 
-
-
-        % Calculate center of circle:
-        GradPosFindCenter = GradPos(round(size(GradPos,1)/3):4:end,:);
-        mr = (GradPosFindCenter(2,2)-GradPosFindCenter(1,2))/(GradPosFindCenter(2,1)-GradPosFindCenter(1,1));
-        mt = (GradPosFindCenter(3,2)-GradPosFindCenter(2,2))/(GradPosFindCenter(3,1)-GradPosFindCenter(2,1));
-        CircleCenter(1) = (mr*mt*(GradPosFindCenter(3,2)-GradPosFindCenter(1,2)) + mr*(GradPosFindCenter(2,1)+GradPosFindCenter(3,1)) - mt*(GradPosFindCenter(1,1)+GradPosFindCenter(2,1)))/(2*(mr-mt));
-        CircleCenter(2) = (GradPosFindCenter(1,2)+GradPosFindCenter(2,2))/2 - 1/mr*(CircleCenter(1)-(GradPosFindCenter(1,1)+GradPosFindCenter(2,1))/2);
         
-        Radius =  sqrt(sum((GradPos(end,:) - CircleCenter).^2));
-
-        GradValuesFindCenter = GradValues.data(round(size(GradValues.data,1)/3):end,1:2);
-        CircleCenter_GradValues(1) = min(GradValuesFindCenter(:,1)) + 0.5*(max(GradValuesFindCenter(:,1)) - min(GradValuesFindCenter(:,1)));
-        CircleCenter_GradValues(2) = min(GradValuesFindCenter(:,2)) + 0.5*(max(GradValuesFindCenter(:,2)) - min(GradValuesFindCenter(:,2)));
-    
-
         %% 3. Calculate SlewRates
 
         % Numeric differentiation: a(t_n) = (a(t_n) - a(t_n-1)) / Delta_t
 
-        GradSlew = GradValues.data - circshift(GradValues.data,[-1 0]);        % Then the last value is not meaningful
-        GradSlew(end,:) = [];
-        GradSlew = GradSlew / 10;                                              % in units of mT/m per us
+        dGradSlew{Index} = -diff(dGradientValues{Index});        
+        dGradSlew{Index} = dGradSlew{Index} / 10;                                              % in units of mT/m per us
+        dGradSlew{Index} = cat(1,real(dGradSlew{Index}),imag(dGradSlew{Index}));
+        
+        
+        dGradientValues{Index} = cat(1,real(dGradientValues{Index}),imag(dGradientValues{Index}));
+        
+        
 
+        %% Calculate center of circle:
+        if(CalcCircle_flag == true)
+            GradPosFindCenter = GradPos(round(size(GradPos,1)/3):4:end,:);
+            mr = (GradPosFindCenter(2,2)-GradPosFindCenter(1,2))/(GradPosFindCenter(2,1)-GradPosFindCenter(1,1));
+            mt = (GradPosFindCenter(3,2)-GradPosFindCenter(2,2))/(GradPosFindCenter(3,1)-GradPosFindCenter(2,1));
+            CircleCenter(1) = (mr*mt*(GradPosFindCenter(3,2)-GradPosFindCenter(1,2)) + mr*(GradPosFindCenter(2,1)+GradPosFindCenter(3,1)) - mt*(GradPosFindCenter(1,1)+GradPosFindCenter(2,1)))/(2*(mr-mt));
+            CircleCenter(2) = (GradPosFindCenter(1,2)+GradPosFindCenter(2,2))/2 - 1/mr*(CircleCenter(1)-(GradPosFindCenter(1,1)+GradPosFindCenter(2,1))/2);
 
+            Radius =  sqrt(sum((GradPos(end,:) - CircleCenter).^2));
 
+            GradValuesFindCenter = dGradientValues{Index}(round(size(dGradientValues{Index},1)/3):end,1:2);
+            CircleCenter_GradValues(1) = min(GradValuesFindCenter(:,1)) + 0.5*(max(GradValuesFindCenter(:,1)) - min(GradValuesFindCenter(:,1)));
+            CircleCenter_GradValues(2) = min(GradValuesFindCenter(:,2)) + 0.5*(max(GradValuesFindCenter(:,2)) - min(GradValuesFindCenter(:,2)));
+            fprintf('\nCenter of Circle %d: [%f, %f], Radius = %f',Index,CircleCenter(1),CircleCenter(2), Radius)
+        end
+
+        
+        
+        
         %% Plot
-        fprintf('\nCenter of Circle %d: [%f, %f], Radius = %f',Index,CircleCenter(1),CircleCenter(2), Radius)
         if(PlotFlag)
             close all
             Data.GradPos = GradPos; Data.GradValues = GradValues; Data.GradSlew = GradSlew; Data.CircleCenter = CircleCenter; Data.CircleCenter_GradValues = CircleCenter_GradValues;
             PlotSequenceArbGrads(Data,PauseDuration)
         end
-        
-        if(nargout > 0)
-            GradPosSave{Index} = GradPos;
-        end
-        if(nargout > 1)
-            GradValuesSave{Index} = GradValues.data;
-        end
-        if(nargout > 2)
-            GradSlewSave{Index} = GradSlew;
-        end
     end
-    fprintf('\n')
-
 
 
 
@@ -174,7 +180,7 @@ function PlotSequenceArbGrads(Data,PauseDuration)
     movegui(GradFig,'northwest')
 
     % Set Axis
-    MaxValues = max(abs(Data.GradValues.data));
+    MaxValues = max(abs(Data.dGradientValues));
     Plot_Lims = 1.1 * [-max(MaxValues) max(MaxValues) -max(MaxValues) max(MaxValues)];
     axis(Plot_Lims)
 
@@ -223,7 +229,7 @@ function PlotSequenceArbGrads(Data,PauseDuration)
     for i = 1:size(Data.GradPos,1)
         if(i>1)
             figure(GradFig)
-            scatter(Data.GradValues.data(i-1,1),Data.GradValues.data(i-1,2),'filled','b')
+            scatter(Data.dGradientValues(i-1,1),Data.dGradientValues(i-1,2),'filled','b')
         end
 
         figure(GradPosFig)
