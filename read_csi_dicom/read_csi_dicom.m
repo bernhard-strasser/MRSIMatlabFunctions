@@ -82,15 +82,36 @@ tic
 
 % Read Data
 csi_fid = fopen(csi_path,'r');
-fseek(csi_fid, -((vecSize*ROW*COL*SLC*2*4)), 'eof');  % Find position where to start to read. Go from end of file back vecSize*ROW*COL*SLC * 2 (real & imaginary) * 4 (float32) bytes.
-csi_data = fread(csi_fid,'float32');
-fclose(csi_fid);
 
+% Find a certain bit pattern which indicates the end of the data
+% (For some reason, some of the VE spiral data sets have traling zeros at the end of the file
+% I dont understand the reason for that, but this code should work in both cases.)
+SearchBytesFromBack = 1024;
+FindBitPattern = [0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 1 0 0 1 0 0 0 0 1];  % 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 also needed?
+fseek(csi_fid, -SearchBytesFromBack, 'eof');
+SearchBitPattern = fread(csi_fid,'ubit1');
+FoundBitPattern_Ind = SearchBytesFromBack*8-strfind(SearchBitPattern',FindBitPattern);
+
+% Go to beginning of data: From the end of data (end - FoundBitPattern_Ind/8) back the amount of data we expect ( -((vecSize*ROW*COL*SLC*2*4)) )
+if(isempty(FoundBitPattern_Ind))
+    pause(2)
+    fseek(csi_fid, -((vecSize*ROW*COL*SLC*2*4)), 'eof');
+else
+    fseek(csi_fid, -((vecSize*ROW*COL*SLC*2*4)) - FoundBitPattern_Ind/8, 'eof');   % /8 because I searched for bits, but fseek works with bytes
+end
+
+% Read data
+csi_data = fread(csi_fid,vecSize*ROW*COL*SLC*2,'float32');
+fclose(csi_fid);
 
 % Separate real & imaginary part
 csi_real=csi_data(1:2:end);                           % Odd points are real data
 csi_imag=csi_data(2:2:end);                           % Even imaginary
 csi_complex=complex(csi_real,csi_imag);
+
+% Replace NaNs by 0s
+csi_complex(isnan(csi_complex)) = 0;
+
 
 
 % Reshape to 6D-Matrix

@@ -146,7 +146,9 @@ Info.General.total_ADCs = ParList.General.total_ADC_meas;
 
 %% 2. Initialize Data
 
-
+if(isfield(ParList,'Other'))
+    ParList.ONLINE = ParList.Other; ParList = rmfield(ParList,'Other');
+end
 for CurField = transpose(fieldnames(ParList))
     
     CurrentMeasSet = CurField{:};
@@ -211,7 +213,6 @@ for CurField = transpose(fieldnames(ParList))
 end
 
 
-
 %% 3. READ DATA
 
 tic
@@ -249,7 +250,7 @@ while(~ACQEND_flag)
 
 	
     % Set CurrentMeasSet
-	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
+	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask); CurrentMeasSet = 'ONLINE';
     
     % Skip Dataset
 	if(~(sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
@@ -322,6 +323,7 @@ if(numel(fields(kSpace)) > 1 && numel(fields(Info)) + 1 < numel(fields(kSpace)) 
 	'the sizes of those scans in the wipMemBlock.tFree or wipMemBlock.alFree[50-55]!\n\n'])
 end
 %fprintf('\n\n\nChange ''Interpret_EvalInfoMask.m'' function to rename data sets.')
+
 
 
 
