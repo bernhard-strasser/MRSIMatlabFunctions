@@ -114,11 +114,12 @@ if(~isfield(ParList,'wipMemBlock_tFree') || (isfield(ParList,'wipMemBlock_tFree'
 	Info.ONLINE.kSpaceShiftDueToICEZeroFill = zeros([1 5]);
 	
 % This is legacy code... Probably the Zerofilling should be done by PreProcessMRIData_Wrapper only, not here and there... ?!
-% 	if(???)
-% 		Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
-% 		Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
-% 		%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
-% 	end
+% UPDATE: Actually it turned out that this is not legacy at all, but should be done for Cartesian sampling. For CONCEPT it might be not necessary. Therefore do this, but don't do it in the CONCEPT case
+	if(~(isfieldRecursive(Info,'General','Ascconv','WipMemBlockInterpretation','Rollercoaster','sNoADCPointsPerCircle') && Info.General.Ascconv.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle > 0))
+		Info.ONLINE.kSpaceShiftDueToICEZeroFill(1) = floor(Info.ONLINE.nReadEncFinalMatrix/2) - floor(Info.ONLINE.nReadEnc/2);
+		Info.ONLINE.kSpaceShiftDueToICEZeroFill(2) = floor(Info.ONLINE.nPhasEncFinalMatrix/2) - floor(Info.ONLINE.nPhasEnc/2);
+		%Info.ONLINE.kSpaceShiftDueToICEZeroFill(3) = floor(Info.ONLINE.nPartEncFinalMatrix/2) - floor(Info.ONLINE.nPartEnc/2);
+	end
 	Info.ONLINE.nAverages = ParList.nAverages;
 	Info.ONLINE.Dwelltime = ParList.Dwelltimes(1);	% For now only take the first one. Assume that all slices have the same dwelltime
 	
@@ -189,7 +190,7 @@ for CurField = transpose(fieldnames(ParList))
 			DesiredSize.(CurrentMeasSet)(dim) = 99999;		% So that it has no effect			
 		end
 		if(isfield(Info.(CurrentMeasSet),'kSpaceShiftDueToICEZeroFill') && Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim) > 0)
-			kSpaceShift.(CurrentMeasSet)(dim) = kSpaceShift.(CurrentMeasSet)(dim) - Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim);
+			kSpaceShift.(CurrentMeasSet)(dim) = kSpaceShift.(CurrentMeasSet)(dim) + Info.(CurrentMeasSet).kSpaceShiftDueToICEZeroFill(dim);
 		end
 	end
 	
@@ -250,7 +251,7 @@ while(~ACQEND_flag)
 
 	
     % Set CurrentMeasSet
-	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask); CurrentMeasSet = 'ONLINE';
+	CurrentMeasSet = Associate_EvalInfoMask(EvalInfoMask);
     
     % Skip Dataset
 	if(~(sum(strcmpi(ReadInDataSets,'All')) || sum(strcmpi(CurrentMeasSet,ReadInDataSets))) )
