@@ -103,6 +103,7 @@ ParList_Search =  { ...
 'alTR\[\d+\]',                                                  ...		% 52	TR
 'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
 'lTotalScanTimeSec'                                             ...     % 53    Total scan time
+'sTXSPEC\.asNucleusInfo\[0\]\.tNucleus'                         ...     % 54    Nucleus
 };
 
 
@@ -162,6 +163,7 @@ ParList_Assign = { ...
 'TR',                                                               ...		% 52
 'RefAmplitude'                                                      ...     % 50
 'TotalScanTime'                                                     ...     % 53
+'Nucleus'                                                           ...     % 54
 };
 
 
@@ -220,6 +222,7 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 52
 'str2double'														...		% 50
 'str2double'														...		% 53
+'char'                                                              ...     % 54
 };
 
 
@@ -423,8 +426,8 @@ if(numel(strfind(file_path, '.dat')) > 0 ...
         ParList.Dwelltimes = 2 * ParList.Dwelltimes;    % Because we have oversampling enabled, and the scanner interprets that we oversample in the spectral domain, which we dont...
     end
 end
-if( numel(strfind(file_path, '.IMA') > 0) )
-	if(ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 && isempty(regexpi(ParList.tProtocolName,'spiral')) && isempty(regexpi(ParList.tSequenceFileName,'spiral')))	% WITH THAT I ASSUME THAT 
+if( numel(strfind(file_path, '.IMA') > 0) ) 
+	if( isempty(regexpi(ParList.tProtocolName,'spiral')) && isempty(regexpi(ParList.tSequenceFileName,'spiral')))	% PREVIOUSLY HAD: ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 &&. BUT SOMETIMES CSI IS ALSO WEIGHTED!!! % WITH THAT I ASSUME THAT 
 	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes;																													% DATASET IS NOT SPIRAL!
 	else																																								% THIS IS A HACK!
 		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
@@ -462,7 +465,11 @@ end
 ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
 
 
+% Add field gyromagnetic ratio based on nucleus
 
+if(~isempty(regexp(ParList.Nucleus,'1H','ONCE')))
+    ParList.GyroMagnRatioOverTwoPi = 42.57747892 * 10^6;
+end
 
 
 
