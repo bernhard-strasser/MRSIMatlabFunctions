@@ -1,26 +1,26 @@
 function FieldExists_flag = isfield_recursive(InStruct,RecursiveFieldsToCheck)
 %
-% ExponentialFilter Apply an Exponential filter to time-domain signals (e.g. FIDs)
+% Recursively check if fields exist in structure
 %
-% This function was written by Wolfgang Bogner 2013, revised by Bernhard Strasser, October 2013.
+% This function was written by Bernhard Strasser.
 %
 %
 % The function computes an exponential filter in Hertz
 %
 %
-% [OutArray,exp_filter_funct] = ExponentialFilter(InArray,dwelltime,ApplyAlongDim,exp_filter_Hz)
+% FieldExists_flag = isfield_recursive(InStruct,RecursiveFieldsToCheck)
 %
 % Input: 
-% -         InArray                     ...    Input array to which the filter should be applied
-% -         dwelltime                   ...    The dwelltime in [us], i.e. the time between two consecutive time points.
-% -         ApplyAlongDim               ...    Along this dimension the filter is applied. 
-% -         exp_filter_Hz               ...    The filter strength in Hz
+% -         InStruct                            ...    Structure which should be tested for fields
+% -         RecursiveFieldsToCheck              ...    String of field-names which should be tested. The subfields are separated by '.'
 %
 % Output:
-% -         OutArray                    ...     The filtered output array
-% -         exp_filter_funct            ...     The filter
+% -         FieldExists_flag                    ...    Bool saying if all subfields exist or not
 %
 %
+% Example:
+% Test.Operator.Input = 1; isfield_recursive(Test,'Operator.Input') % Result: 1
+% isfield_recursive(Test,'Operator.In') % Result: 0
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
@@ -40,7 +40,7 @@ function FieldExists_flag = isfield_recursive(InStruct,RecursiveFieldsToCheck)
 
 
 
-%% 1. Compute exponential Time-Domain Filter
+%% 1. Check for 
 
 FieldExists_flag = true;
 
