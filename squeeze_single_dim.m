@@ -1,4 +1,4 @@
-function out_array = squeeze_single_dim(in_array,squeeze_dim)
+function out_array = squeeze_single_dim(in_array,squeeze_dims)
 %
 % SearchHistory Searches the command history. 
 %
@@ -32,27 +32,40 @@ function out_array = squeeze_single_dim(in_array,squeeze_dim)
 
 
 % 0.1 Preparations
-if(numel(size(in_array)) < squeeze_dim)
-    display([char(10) sprintf('Error: Your input array has less than %d dimensions', squeeze_dim)])
-    out_array = in_array;
-    return
+
+sz = size(in_array);                                 % size of the array
+
+
+if(any(numel(sz) < squeeze_dims))
+    TooHighDims = squeeze_dims(numel(sz) < squeeze_dims);
+    fprintf('\nWarning in %s: You asked me to squeeze dimension(s) %s, but your input array has only %d dimensions.', mfilename,mat2str(TooHighDims),numel(sz))
+    fprintf(' Do nothing on those dimensions.\n')
+    squeeze_dims = setxor(squeeze_dims,TooHighDims);
 end
 
-if(size(in_array,squeeze_dim) > 1)
-    display([char(10) 'Warning in squeeze_single_dim: The dimension to squeeze is non-singleton. Take First element of dimension ' num2str(squeeze_dim) '.'])
-	regy = cell([1 numel(size(in_array))]);
-	regy(:) = {':,'};
-	regy{squeeze_dim} = '1,';
-	regy{end} = regy{end}(1);
+if(any(sz(squeeze_dims) > 1))
+    NonSingDims = squeeze_dims(sz(squeeze_dims) > 1);
+    fprintf('\nWarning in %s: The dimension(s) %s is/are non-singleton, but has/ve size %s.',mfilename, mat2str(NonSingDims),mat2str(sz(NonSingDims)))
+    fprintf(' Do nothing on this/these dimension(s).\n')
+    squeeze_dims = setxor(squeeze_dims,NonSingDims);
+% 	regy = cell([1 numel(sz)]);
+% 	regy(:) = {':,'};
+% 	regy{squeeze_dims} = '1,';
+% 	regy{end} = regy{end}(1);
+% 	
+% 	% if it is the last index, its done.
+% 	if(squeeze_dims == numel(sz))
+% 		out_array = eval(['in_array(' [regy{:}] ');']);
+% 		return;
+% 	else
+% 		in_array = eval(['in_array(' [regy{:}] ');']);		
+% 	end
+		
+end
 	
-	% if it is the last index, its done.
-	if(squeeze_dim == numel(size(in_array)))
-		out_array = eval(['in_array(' [regy{:}] ');']);
-		return;
-	else
-		in_array = eval(['in_array(' [regy{:}] ');']);		
-	end
-	
+if(isempty(squeeze_dims))
+    out_array = in_array;
+    return
 end
      
 
@@ -67,9 +80,8 @@ end
 
 %% 1. Squeeze
 
-new_dimensions = setxor(1:numel(size(in_array)), squeeze_dim);  % numel(size(..)) gives the number of dimensions of in_array; so 1:numel... gives [1 2 3 ... dimensionality(in_array)]; setxor: removes squeeze_dim out of this vec
-size_in_array = size(in_array);                                 % size of the array
-new_size = size_in_array(new_dimensions);                       % gives a vector with the same size as size(in_array) but where the size_in_array(squeeze_dim) does not occur
+new_dimensions = setxor(1:numel(sz), squeeze_dims);  % numel(size(..)) gives the number of dimensions of in_array; so 1:numel... gives [1 2 3 ... dimensionality(in_array)]; setxor: removes squeeze_dims out of this vec
+new_size = sz(new_dimensions);                       % gives a vector with the same size as sz but where the sz(squeeze_dims) does not occur
 
 out_array = reshape(in_array, new_size);
 
