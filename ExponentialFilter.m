@@ -64,27 +64,9 @@ exp_filter_funct = exp(-exp_filter_Hz*t);     %exp(-t/a) wobei "1/a" = "exp_filt
 
 %% 2. Replicate Filter to size of InArray
 
-% Find out along which dimensions the filter has to be replicated in order to match the size of InArray
-ReplicateAlongDims = setdiff(1:numel(size(InArray)),ApplyAlongDim);
-
-% Compute the size to which the filter has to be replicated. The first element is always 1, because this is the dimension of the filter (e.g. [1024 1])
-ReplicateToSize = ones([1 numel(size(InArray))]);
-loopy2 = 1;
-for loopy = ReplicateAlongDims
-    loopy2 = loopy2 + 1;
-    ReplicateToSize(loopy2) = size(InArray,loopy);
-end
 
 
-% Replicate the filter, e.g. [1024 1] -> [1024 64 64]
-exp_filter_mat = repmat(transpose(exp_filter_funct),ReplicateToSize);
-
-
-% shiftdim: [1024 64 64] -> [64 64 1024], reshape: [64 64 1024] -> [64 64 1 1024]
-exp_filter_mat = shiftdim(exp_filter_mat, numel(size(InArray)) - ApplyAlongDim + 1);
-exp_filter_mat = reshape(exp_filter_mat, size(InArray));
-
-
+exp_filter_mat = myrepmat(exp_filter_funct,size(InArray));
 
 
 
