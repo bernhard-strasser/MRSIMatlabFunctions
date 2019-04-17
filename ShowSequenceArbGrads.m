@@ -1,4 +1,4 @@
-function [dGradMom, dGradientValues, dGradSlew] = ShowSequenceArbGrads(PathToTxtFile,PlotFlag,PauseDuration,CalcCircle_flag)
+function [Parameters,dGradientValues, dGradMom, dGradSlew] = ShowSequenceArbGrads(PathToTxtFile,PlotFlag,PauseDuration,CalcCircle_flag)
 %
 % ShowSequenceArbGrads Do nothing specific
 %
@@ -82,6 +82,11 @@ function [dGradMom, dGradientValues, dGradSlew] = ShowSequenceArbGrads(PathToTxt
         
         %Inside should be variables: dGradientValues, dMaxGradAmpl, NumberOfBrakeRunPoints, NumberOfLaunTrackPoints, NumberOfLoopPoints
         run(CurFile{1});
+
+        Parameters{Index}.dMaxGradAmpl = dMaxGradAmpl;
+        Parameters{Index}.NumberOfBrakeRunPoints = NumberOfBrakeRunPoints;
+        Parameters{Index}.NumberOfLaunTrackPoints = NumberOfLaunTrackPoints;
+        Parameters{Index}.NumberOfLoopPoints = NumberOfLoopPoints;
         
 %         % What is that doing?
 %         dGradientValues{Index}(isnan(dGradientValues{Index})) = [];
@@ -96,32 +101,38 @@ function [dGradMom, dGradientValues, dGradSlew] = ShowSequenceArbGrads(PathToTxt
         
         %% 2. Calculate Positions
 
-%         % Need to integrate, i.e. s(t_n) = sum(i<n, v(t_i) * Delta_t) = Delta_t * sum(i<n,v(t_i))            % really i<n or i<=n ?
-%         GradPos_x = zeros([1 size_Data(2)+1]);
-%         GradPos_y = zeros([1 size_Data(2)+1]);
-%         for i=2:size_Data(2)+1
-%             GradPos_x(i) = GradPos_x(i-1) + (dGradientValues{Index}(1,i-1));     % mean: Trapezformel
-%         end
-%         GradPos_y = imag(GradPos_x);
-%         GradPos_x = real(GradPos_x);
+        if(nargout > 2)
+%             % Need to integrate, i.e. s(t_n) = sum(i<n, v(t_i) * Delta_t) = Delta_t * sum(i<n,v(t_i))            % really i<n or i<=n ?
+%             GradPos_x = zeros([1 size_Data(2)+1]);
+%             GradPos_y = zeros([1 size_Data(2)+1]);
+%             for i=2:size_Data(2)+1
+%                 GradPos_x(i) = GradPos_x(i-1) + (dGradientValues{Index}(1,i-1));     % mean: Trapezformel
+%             end
+%             GradPos_y = imag(GradPos_x);
+%             GradPos_x = real(GradPos_x);
         
         
-        GradPos_x = cumsum(dGradientValues{Index});
-        GradPos_y = imag(GradPos_x);
-        GradPos_x = real(GradPos_x);
+            GradPos_x = cumsum(dGradientValues{Index});
+            GradPos_y = imag(GradPos_x);
+            GradPos_x = real(GradPos_x);
 
-        dGradMom{Index} = cat(1,GradPos_x,GradPos_y) * 10;     % in units of mT*us/m
-        clear GradPos_x GradPos_y
+            dGradMom{Index} = cat(1,GradPos_x,GradPos_y) * 10;     % in units of mT*us/m
+            clear GradPos_x GradPos_y
+        end
 
         
         %% 3. Calculate SlewRates
 
-        % Numeric differentiation: a(t_n) = (a(t_n) - a(t_n-1)) / Delta_t
+        if(nargout > 3)
+            % Numeric differentiation: a(t_n) = (a(t_n) - a(t_n-1)) / Delta_t
 
-        dGradSlew{Index} = -diff(dGradientValues{Index});        
-        dGradSlew{Index} = dGradSlew{Index} / 10;                                              % in units of mT/m per us
-        dGradSlew{Index} = cat(1,real(dGradSlew{Index}),imag(dGradSlew{Index}));
+            dGradSlew{Index} = -diff(dGradientValues{Index});        
+            dGradSlew{Index} = dGradSlew{Index} / 10;                                              % in units of mT/m per us
+            dGradSlew{Index} = cat(1,real(dGradSlew{Index}),imag(dGradSlew{Index}));
+        end
         
+        
+        %% Reshape GradValues
         
         dGradientValues{Index} = cat(1,real(dGradientValues{Index}),imag(dGradientValues{Index}));
         
