@@ -46,7 +46,7 @@ function [iSpace,Noise,PreProcessingInfo, kSpace] = PreProcessMRIData_Wrapper(kS
 
 % Find out memory used by MATLAB
 memused_before = memused_linux(1); 
-
+% iSpace = NaN; % If we want to read in data that doesn't get FFT'd
 
 % % Assign standard values to variables if nothing is passed to function.
 
@@ -212,8 +212,8 @@ for CurDataSet = DataSetNames
 		fprintf('\nCorrect global phase of %f deg due to FoV-shift of %f in kSpace.',phase,PreProcessingInfo.(CurDataSetString).fredir_shift(1)) 	
 		for echo = 1:numel(kSpace.(CurDataSetString))
 			kSpace.(CurDataSetString){echo} = kSpace.(CurDataSetString){echo} * exp(1i*deg2rad(phase));												% Is it really 2^nextpow2(fredir_measured) 
-			clear phase;																												% and not just fredir_measured?  
-		end
+        end
+        clear phase;                                                                                                                                % and not just fredir_measured?  
 	end                                                                                        
 
 	
@@ -341,6 +341,9 @@ end
 
 %% 7. Postparations
 
+if(~exist('iSpace','var'))
+    iSpace = NaN;
+end
 if(nargout > 1 && ~exist('Noise','var'))
 	Noise = 0;
 end
