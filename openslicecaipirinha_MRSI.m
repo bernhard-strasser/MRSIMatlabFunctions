@@ -17,15 +17,17 @@ function [OutData,weights]=openslicecaipirinha_MRSI(InData, ACS_or_weights, FoV_
 %                          slice 1 by 0.2*FoV_x in x and 0.3*FoV_y in x direction and
 %                          slice 3 by 0.5*FoV in both directions.
 %                          size: [nSlice_ACS 2]
+% -     quiet_flag         Set to false for nice text output
+% -     precision          Usually 'single' or 'double', defining if the function should convert the data to single or double.
+% -     AliasedSlices      A matrix telling the function which slices are aliased.
+%                          E.g.: [1 3 5; 2 4 6]. This tells the program:
+%                          AliasedSlices(1,:) = 1 3 5 --> Slice 1 of InData contains the aliased Slices of 1,3 and 5
+%                          AliasedSlices(2,:) = 2 4 6 --> Slice 2 of Indata contains the aliased Slices of 2,4 and 6
 % -     kernelsize         The kernelsize. Input should be either one of those formats (examples produce exactly the same results):
 %                               *   [1 4]-vector: These give the maximum distance of the kernel from the target point
 %                                   to the left and right (x direction), and to down and up (y direction). E.g.: [2 2 2 2]
 %                               *   [1 2]-vector: The kernelsize in x- and y-direction. E.g. [5 5]
 %                               *   scalar: The kernel size in both directions. E.g. 5.
-% -     AliasedSlices      A matrix telling the function which slices are aliased.
-%                          E.g.: [1 3 5; 2 4 6]. This tells the program:
-%                          AliasedSlices(1,:) = 1 3 5 --> Slice 1 of InData contains the aliased Slices of 1,3 and 5
-%                          AliasedSlices(2,:) = 2 4 6 --> Slice 2 of Indata contains the aliased Slices of 2,4 and 6
 % 
 %   Output:
 % -     OutData            Reconstructed Output Data    (size: [#coils, nx, ny, nSlice_ACS, nTime]) (nTime = 1 for MRI)
