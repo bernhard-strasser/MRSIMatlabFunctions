@@ -1,4 +1,4 @@
-function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag)
+function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim_flag)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -9,7 +9,7 @@ function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag)
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [csi,NoiseCorrMat,Noise_mat,InData] = read_csi_dat(csi_path, zerofill_to_nextpow2_flag, zerofilling_fact, Hadamard_flag, x_shift,y_shift,NoFFT_flag, NoiseCorrMat)
+% InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim_flag)
 %
 % Input: 
 % -         csi_path                    ...     Path of MRS(I) file.
@@ -59,7 +59,12 @@ end
 if(nargin < 4)
 	Ifft_flag = false;
 end
-
+if(~exist('quiet_flag','var'))
+    quiet_flag = false;
+end
+if(~exist('FlipDim_flag','var'))
+    FlipDim_flag = true;
+end
 
 if(size(InData,2) == 1 && size(InData,3) == 1 && size(InData,4) == 1)
 	InData = conj(InData);
@@ -104,7 +109,7 @@ tic_overall = tic;
 
 
 
-if(sum(ApplyAlongDims == 2) == 1 && Ifft_flag)	% Only if the second dimension is to be applied
+if(sum(ApplyAlongDims == 2) == 1 && Ifft_flag && FlipDim_flag)	% Only if the second dimension is to be applied
 	InData = flipdim(InData,2);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
 end
 
@@ -116,13 +121,19 @@ if(MemNecessary > MemFree)
 	
 	for LoopIndex = 1:size(InData,LoopOverIndex)
 		tic_loop = tic;
-		fprintf('\nFouriertransforming Part %02d\t...\tof %02d', LoopIndex, size(InData,LoopOverIndex))
-
+        if(~quiet_flag)
+            fprintf('\nFouriertransforming Part %02d\t...\tof %02d', LoopIndex, size(InData,LoopOverIndex))
+        end
+        
 		TempData = eval(['InData(' AccessString ');']);	
+        
+        if(ConjFlag && Ifft_flag)       % For IFFT, conjugate before IFFT, so that FFT(IFFT(x)) = IFFT(FFT(x)) = x
+            TempData = conj(TempData);
+        end
 		for Dimli = ApplyAlongDims
 			TempData = feval(IfftOrFft,ifftshift(TempData,Dimli),[],Dimli);
 		end
-		if(ConjFlag)
+		if(ConjFlag && ~Ifft_flag)      % For FFT, conjugate after FFT, so that FFT(IFFT(x)) = IFFT(FFT(x)) = x
 			TempData = conj(TempData);
 		end
 		for Dimli = ApplyAlongDims
@@ -130,18 +141,26 @@ if(MemNecessary > MemFree)
 		end		
 		eval(['InData(' AccessString ') = TempData;']);
 		
-		fprintf('\ttook\t%10.6f seconds', toc(tic_loop))       
+        if(~quiet_flag)
+            fprintf('\ttook\t%10.6f seconds', toc(tic_loop))       
+        end
 	end
 	clear TempData;
 
 
 % Perform fft at once if enough memory is available
 else
-	fprintf('\nFouriertransforming Data at Once')
+    if(~quiet_flag)
+        fprintf('\nFouriertransforming Data at Once')
+    end
+    
+    if(ConjFlag && Ifft_flag)       % For IFFT, conjugate before IFFT, so that FFT(IFFT(x)) = IFFT(FFT(x)) = x
+        InData = conj(InData);
+    end
 	for Dimli = ApplyAlongDims
 		InData = feval(IfftOrFft,ifftshift(InData,Dimli),[],Dimli);
 	end
-	if(ConjFlag)
+	if(ConjFlag && ~Ifft_flag)      % For FFT, conjugate after FFT, so that FFT(IFFT(x)) = IFFT(FFT(x)) = x
 		InData = conj(InData);
 	end
 	for Dimli = ApplyAlongDims
@@ -151,11 +170,12 @@ end
 		
 	
 
-if(sum(ApplyAlongDims == 2) == 1 && ~Ifft_flag)	% Only if the second dimension is to be applied
+if(sum(ApplyAlongDims == 2) == 1 && ~Ifft_flag && FlipDim_flag)	% Only if the second dimension is to be applied
 	InData = flipdim(InData,2);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
 end
-fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))
-
+if(~quiet_flag)
+    fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))
+end
 
 
 
