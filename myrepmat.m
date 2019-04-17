@@ -56,6 +56,10 @@ if(numel(size(OutArray)) == numel(DesiredSize) && sum(size(OutArray) ~= DesiredS
 	return;
 end
 
+if(~exist('DimensionCorrespondence', 'var'))
+    OutArray = squeeze(OutArray);
+end
+
 Size_InArray = size(OutArray);
 if(Size_InArray(end) == 1)
 	Size_InArray(end) = [];
