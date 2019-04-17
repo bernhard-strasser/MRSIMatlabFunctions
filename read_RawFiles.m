@@ -1,7 +1,4 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%           FUNCTION TO READ IN RAW FILES          %%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
+function image = read_RawFiles(RawFile,ROW,COL,SLC,precision)
 % read_RawFiles Read a simple binary 'raw' file, e.g. created by mnc2raw
 %
 % This function was written by Bernhard Strasser, July 2012.
@@ -22,6 +19,14 @@
 %                                                 Further examples: ???
 %                                                 Default: 'float32'
 %
+% OR:
+% -         RawFile                       ...     Path of file.
+% -         [ROW,COL,SLC]                 ...     The size of the image in the first direction.
+% -         precision                     ...     The precision of the doubles in the file given as a string. E.g. if you used
+%                                                 minctoraw bla.mnc -nonormalize -float > bla.raw, precision is 'float32'
+%                                                 Further examples: ???
+%                                                 Default: 'float32'%
+%
 % Output:
 % -        image                          ...     The data which was read in.
 %
@@ -32,7 +37,6 @@
 % File dependancy: None
 
 
-function image = read_RawFiles(RawFile,ROW,COL,SLC,precision)
 
 
 
@@ -40,6 +44,16 @@ function image = read_RawFiles(RawFile,ROW,COL,SLC,precision)
 
 
 %% 0. Preparations
+
+if(numel(ROW) == 3)
+   if(exist('COL','var'))
+       precision = COL;
+   end
+   SLC = ROW(3);
+   COL = ROW(2);
+   ROW = ROW(1);
+   
+end
 
 Info = dir(RawFile);
 if(numel(Info) < 1 || Info.bytes == 0)
