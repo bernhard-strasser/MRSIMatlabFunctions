@@ -1,4 +1,4 @@
-function Noise_mat = GatherNoiseFromCSI(InData,Full_ElliptWeighted_Or_Weighted_Acq,nFIDendpoints,TakeNPointsOutOfEnd)
+function Noise_mat = GatherNoiseFromCSI(InData,MaskShape,TakeNPointsOutOfEnd,TakeNotLastNPoints)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -50,11 +50,8 @@ if(nargin < 1)
 	Noise_mat = 0;
 	return;
 end
-if(~exist('Full_ElliptWeighted_Or_Weighted_Acq','var'))
-	Full_ElliptWeighted_Or_Weighted_Acq = 2;	% = Elliptical
-end
-if(~exist('nFIDendpoints','var'))
-	nFIDendpoints = 400;
+if(~exist('MaskShape','var'))
+	MaskShape = 3;	% = Boxcar Mask
 end
 if(~exist('TakeNPointsOutOfEnd','var'))
 	TakeNPointsOutOfEnd = 200;	% = Elliptical
@@ -64,27 +61,31 @@ end
 %% 1. Gather Noise
 
 
-% Gather "Noise" of the CSI data (end of FIDs in the outermost acquired circle of k-space points). Only working for 2D and Multislice
-randy = randperm(nFIDendpoints); randy = randy(1:TakeNPointsOutOfEnd); % Take 'em randomly
-
-% Take random points at end of FID
-Noise_csi = InData(:,:,:,:,:,end - (nFIDendpoints - 1) : end); Noise_csi = Noise_csi(:,:,:,:,:,randy);
+% Take points at end of FID
+Noise_csi = InData(:,:,:,:,:,end - (TakeNPointsOutOfEnd - 1) : end-TakeNotLastNPoints); 
 
 % Take only csi-points which are farest away from k-space center (so a circle with radius 31 k-space points)
-if(Full_ElliptWeighted_Or_Weighted_Acq == 2)
-	[Elliptical_dummy,OuterkSpace_mask1] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
-	[Elliptical_dummy,OuterkSpace_mask2] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
-	OuterkSpace_mask = OuterkSpace_mask1 - OuterkSpace_mask2;
+if(numel(MaskShape) > 1)
+    SpatialMask = MaskShape;
+elseif(MaskShape == 1)
+	SpatialMask = zeros([size(InData,2), size(InData,3)]);
+	SpatialMask(1:end,1) = 1; SpatialMask(1,1:end) = 1; SpatialMask(end,1:end) = 1; SpatialMask(1:end,end) = 1;    
+elseif(MaskShape == 2)
+	[Elliptical_dummy,SpatialMask1] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-1],1);
+	[Elliptical_dummy,SpatialMask2] = EllipticalFilter(squeeze(InData(1,:,:,1,1,1,1)),[1 2],[1 1 1 size(InData,3)/2-2],1);
+	SpatialMask = SpatialMask1 - SpatialMask2;
 else
-	OuterkSpace_mask = zeros([size(InData,2), size(InData,3)]);
-	OuterkSpace_mask(1:end,1) = 1; OuterkSpace_mask(1,1:end) = 1; OuterkSpace_mask(end,1:end) = 1; OuterkSpace_mask(1:end,end) = 1;
+    SpatialMask = ones([size(InData,2), size(InData,3)]);
 end
-PI_mask = abs(squeeze(InData(1,:,:,1,1,1))); PI_mask(PI_mask > 0) = 1;
-csi_mask = OuterkSpace_mask .* PI_mask;
-csi_mask = repmat(logical(csi_mask), [1 1 size(InData,1)*size(InData,4)*TakeNPointsOutOfEnd]);
-csi_mask = reshape(csi_mask, [size(InData,2) size(InData,3) size(InData,1) size(InData,4) TakeNPointsOutOfEnd]);
-csi_mask = permute(csi_mask, [3 1 2 4 5]);
 
+% If some points are 0 (e.g. bc of parallel imaging), omit those
+PI_mask = abs(squeeze(InData(1,:,:,1,1,1))); PI_mask(PI_mask > 0) = 1;
+csi_mask = SpatialMask .* PI_mask;
+
+% Replicate mask
+csi_mask = logical(myrepmat(csi_mask,size(Noise_csi)));
+
+% Take noise & reshape it
 Noise_mat = Noise_csi(csi_mask);
 Noise_mat = reshape(Noise_mat, [size(InData,1) numel(Noise_mat)/size(InData,1)]);  
 
