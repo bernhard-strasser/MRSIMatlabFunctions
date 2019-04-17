@@ -28,8 +28,8 @@ function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
 %                       -   MetaInfo.Dimt1:          Tells the function in which dimension of InArray the FID's are saved, i.e. which dimension is the
 %                                                    t1-dimension / vecSize-dimension
 %                       -   MetaInfo.pat_name:       The patient name. Used for the output file names
-%                       -   MetaInfo.LarmorFreq:     The Larmor frequency which should be read out of the DICOM or raw-data header 
-%                       -   MetaInfo.dwelltime:      The dwelltime, i.e. the duration between two consecutive time points.
+%                       -   MetaInfo.LarmorFreq:     The Larmor frequency which should be read out of the DICOM or raw-data header. Units: Hz
+%                       -   MetaInfo.dwelltime:      The dwelltime, i.e. the duration between two consecutive time points. Units: ns
 % ControlInfo:          Struct or a string referring .m file with control parameters for LCModel fitting. This file / struct is executed at the end of the Control-Parameter settings,
 %                       and can thus overwrite ALL control parameters. Be careful!
 %						You can also pass over a path with control parameters and additional parameters. The path is passed over by field .Path. The other parameters normal, e.g. .Others1 = ...
@@ -310,7 +310,44 @@ InArray_AccessStr = cell2mat(InArray_AccessStr);
 
 
 
+%% BOW - read in phase/frequency priors from raw files 
+if(isfield(Paths,'priors_dir'))
+    
+    if(~exist(Paths.priors_dir,'dir'))
+        fprintf(batch_fids(1), 'echo -e ''Directory for Priors not found\t...\t0 %%''\n');
+    end
 
+    %read 0-order phases
+    priors_pha0_file = sprintf('%s/0_pha_map.raw', Paths.priors_dir);
+    if(exist(priors_pha0_file,'file'))
+        fid_priors_pha0 = fopen(priors_pha0_file,'r');                                    % +180: FOR MEGA NEED THAT, OTHERWISE NOT!
+        priors_pha0 = reshape(fread(fid_priors_pha0, 'float'), size(mask)) + 180;         % Must have same size as mask. 
+        fclose(fid_priors_pha0);
+    else
+        fprintf(batch_fids(1), 'echo -e ''Files for 0-order phase priors not found\t...\t0 %%''\n');
+    end
+
+    %read 1-order phases
+    priors_pha1_file = sprintf('%s/1_pha_map.raw', Paths.priors_dir);
+    if(exist(priors_pha1_file,'file'))
+        fid_priors_pha1 = fopen(priors_pha1_file,'r');
+        priors_pha1 = reshape(fread(fid_priors_pha1, 'float'), size(mask));
+        fclose(fid_priors_pha1);
+    else
+        fprintf(batch_fids(1), 'echo -e ''Files for 1-order phase priors not found\t...\t0 %%''\n');
+    end
+    
+    %read frequency shifts
+    priors_freq_file = sprintf('%s/shift_map.raw', Paths.priors_dir);
+    if(exist(priors_freq_file,'file'))
+        fid_priors_freq = fopen(priors_freq_file,'r');
+        priors_freq = reshape(fread(fid_priors_freq, 'float'), size(mask));
+        fclose(fid_priors_freq);
+    else
+        fprintf(batch_fids(1), 'echo -e ''Files for frequency shift priors not found\t...\t0 %%''\n');
+    end   
+    
+end
 
 
 
@@ -503,13 +540,26 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                         end
                     end
 
+
+					%BOW - modified - use phase & frequency prior knowledge
+                    if(isfield(Paths,'priors_dir'))
+                        % zero order phase
+                        fprintf(control_fid, ' DEGZER = %d\n',priors_pha0(VarInd1,VarInd2,VarInd3,VarInd4,VarInd5));
+                        % first order phase
+                        fprintf(control_fid, ' DEGPPM = %d\n',priors_pha1(VarInd1,VarInd2,VarInd3,VarInd4,VarInd5));
+                        % frequency shift
+                        fprintf(control_fid, ' PPMSHF = %d\n',priors_freq(VarInd1,VarInd2,VarInd3,VarInd4,VarInd5));
+						%fprintf(control_fid, ' PPMSHF = %d\n',0.1);
+                        fprintf(control_fid, ' FIXSHF = T\n');
+                    else	
+                        fprintf(control_fid, ' %s\n',ControlWrite.DEGZER);
+                        fprintf(control_fid, ' %s\n',ControlWrite.DEGPPM);
+                    end
                     
                     % Zero order phase
-                    fprintf(control_fid, ' %s\n',ControlWrite.DEGZER);
                     fprintf(control_fid, ' %s\n',ControlWrite.SDDEGZ);      
 
                     % First order phase
-                    fprintf(control_fid, ' %s\n',ControlWrite.DEGPPM); 
                     fprintf(control_fid, ' %s\n',ControlWrite.SDDEGP);             
 
                     
