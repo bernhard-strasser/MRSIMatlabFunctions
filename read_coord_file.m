@@ -1,6 +1,6 @@
 function PlotData = read_coord_file(file_path)
 %
-% read_coord_file_x_y Read Coordinate LCModel file
+% read_coord_file Read Coordinate LCModel file
 %
 % This function was written by Bernhard Strasser, September 2017.
 %
@@ -8,7 +8,7 @@ function PlotData = read_coord_file(file_path)
 % The function reads "Coordinate" LCModel files. In these files the plots of the output-ps-files of LCModel are written in numbers, e.g. to create your own plots. 
 %
 %
-% [ppm_points,spec_points] = read_coord_file_x_y(file_path)
+% PlotData = read_coord_file(file_path)
 %
 % Input: 
 % -         file_path                     ...     Path of file.
@@ -78,9 +78,10 @@ end
 % Display error & stop if no ppm scale found
 
 if(not(ppm_found))
-    display(['Pfui Toifel! You gave me a wrong file, I cannot digest that! Please remember that I am NOT an omnivore.' char(10) ...
-             'I will stop here . . .'])
+    fprintf(['\nPfui Toifel! You gave me a wrong file, I cannot digest this file:\n%s\n' ...
+    'Please remember that I am NOT an omnivore. I will stop here . . .\n'],file_path)
     PlotData.ppm_points = 0;
+    fclose(fid);
 	return
 end
 
@@ -96,7 +97,7 @@ while(sLine > -1)
     
     % stop reading if we find one of the strings in EndOfReadSearchSet
     if(sum(~cellfun(@isempty,regexp(sLine,EndOfReadSearchSet))) > 0)
-        return
+        break
     end
     
     % The data set defining lines need to include alphabetic characters and do not have numbers, except for 'Conc. = +xyz.abcd'
