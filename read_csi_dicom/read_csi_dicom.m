@@ -66,7 +66,12 @@ if(not(isnan(ParList.nPhasEnc_FinalMatrix)))
 else
     SLC = ParList.nPartEnc;
 end
-
+if(ROW < 1)
+    ROW = 1;
+end
+if(COL < 1)
+    COL = 1;
+end
 if(ParList.nPartEnc == 1)
     SLC = 1;
 end
