@@ -55,6 +55,20 @@ end
 if(~isfield(Settings,'ConjAtEnd_flag'))
    Settings.ConjAtEnd_flag = true;    
 end
+if(~isfield(Settings,'Correct4SpatialB0_flag'))
+   Settings.Correct4SpatialB0_flag = false;    
+end
+if(~isfield(Settings,'Correct4SpectralB0_flag'))
+   Settings.Correct4SpectralB0_flag = false;    
+end
+
+if(~isfield(Settings,'CircularSFTFoV_flag'))
+   Settings.CircularSFTFoV_flag = false;    
+end
+if(~isfield(Settings,'DensCompAutoScale_flag'))
+   Settings.DensCompAutoScale_flag = false;    
+end
+
 % if(~isfield(InData,'RecoPar'))
 %     if(~isfield(InData,'Par'))
 %         error('InData must have field Par or RecoPar.')
@@ -134,35 +148,6 @@ AdditionalOut.TiltTrajMat = TiltTrajMat;
 
 
 
-
-%% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
-
-if(Settings.DensComp_flag)
-    % FudgeFactor = 1.2743;     % For old trajectory
-    FudgeFactor = 0.00051078;         % For new trajectory
-    FudgeFactor = 1.9634;
-   
-    v1 = InTrajectory;
-    DCFPreG = zeros([size(v1,2) size(v1,3)]);
-    for SpirPts = 2:size(v1,2)
-        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
-        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
-    end
-    DCFPreG(isnan(DCFPreG)) = 0;
-    DCFPreG = DCFPreG / max(DCFPreG(:))*2*Settings.fov_overgrid^2/FudgeFactor;  %
-    % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
-    % and seeing how it was scaled...
-
-    clear v1
-    
-%     Data_k = Data_k .* myrepmat(DCFPreG,size(Data_k));
-
-    
-end
-AdditionalOut.DCFPreG = DCFPreG;
-
-
-
 %% Calculate sft2-Operator
 
 % sft Operator
@@ -176,28 +161,41 @@ SizeData_k = size(Data_k); SizeData_k = cat(2,SizeData_k,ones([1 5-numel(SizeDat
 
 sft2_Oper = sft2_Operator(transpose(squeeze(OutTrajectory(:,:))*RecoPar.DataSize(1)),transpose(InTrajectory(:,:)),1);
 
+% Restrict to circular FoV
+if(Settings.CircularSFTFoV_flag)
+    FoVMask = EllipticalFilter(ones(RecoPar.DataSize(1:2)),[1 2],[1 1 1 RecoPar.DataSize(1)/2-1],1); 
+    FoVMask = FoVMask(:);
+    sft2_Oper(:,~logical(FoVMask(:))) = 0;
+    clear FoVMask;
+end
 
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
-% if(Ctrl.SimPar.B0_flag && Ctrl.SimPar.TiltedTraj_flag)
-%     t   = (0:SpSpice.D2.Par.DataSize(1)-1)*SpSpice.D2.Par.ADC_Dt/10^6;
-%     t = repmat(t,[1 1 SpSpice.D2.Par.nAngInts]); t = t(:);
-%     SpSpice.Reco.B0CorrMat_Spatial = exp(myrepmat(-2*pi*1i*SpSpice.D2.B0Map(:),size(sft2_Operator_ForSpir_TrajIdeal)) .* myrepmat(t,size(sft2_Operator_ForSpir_TrajIdeal)));
-% 
-%     % SpSpice.Spi2Cart.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
-%     % SpSpice.Spi2Cart_NoTiltCorr.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
-% 
-% else
-%     SpSpice.Reco.B0CorrMat_Spatial = ones(size(sft2_Operator_ForSpir_TrajIdeal));
-% end
-% if(Ctrl.RecoPar.Correct4B0_flag)
-%     sft2_Operator_ForSpir_TrajIdeal_B0Corr = sft2_Operator_ForSpir_TrajIdeal .* SpSpice.Reco.B0CorrMat_Spatial;
-% else
-%     sft2_Operator_ForSpir_TrajIdeal_B0Corr = sft2_Operator_ForSpir_TrajIdeal;
-% end
+if(Settings.Correct4SpatialB0_flag)
+    t   = (0:RecoPar.TrajPts-1)*RecoPar.ADC_dt/10^9;
+    t = repmat(t,[1 1 RecoPar.nAngInts]); t = t(:);
+    CurB0 = imresize(B0.B0Map,RecoPar.DataSize(1:2));    
+    if(isfield(B0,'Mask'))
+        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),RecoPar.DataSize(1:2),'nearest');
+        CurB0 = CurB0 .* Mask;
+    end
+    
+    B0CorrMat_Spatial = exp(transpose(-2*pi*1i*CurB0(:)) .* t);
+
+    % SpSpice.Spi2Cart.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
+    % SpSpice.Spi2Cart_NoTiltCorr.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
+
+    sft2_Oper = sft2_Oper .* B0CorrMat_Spatial;
+    
+end
+
+%% Calculate B0CorrMat_Spec
+
+Mask = imresize(B0.Mask,RecoPar.DataSize(1:2),'nearest');
+AdditionalOut.Mask = Mask;
+if(Settings.Correct4SpectralB0_flag)
 % Go to resolution of D1
 CurB0 = imresize(B0.B0Map,RecoPar.DataSize(1:2)) ;
-Mask = imresize(B0.Mask,RecoPar.DataSize(1:2),'nearest');
 if(exist('Mask','var'))
     CurB0 = CurB0 .* Mask;
 end
@@ -212,20 +210,67 @@ time   = (0:InData.Par.DataSize(5)-1)*InData.Par.Dwelltimes(1)/10^9;
 time = repmat(time,[InData.Par.DataSize(end) 1]);
 B0CorrMat_Spec = exp(myrepmat(2*pi*1i*CurB0(:),[prod(RecoPar.DataSize(1:2)),RecoPar.DataSize(4:end)]) .* myrepmat(time,[prod(RecoPar.DataSize(1:2)),RecoPar.DataSize(4:end)]));
 
-%% Save B0CorrMat_Spec
 
 AdditionalOut.B0CorrMat_Spec = B0CorrMat_Spec;
-AdditionalOut.Mask = Mask;
-AdditionalOut.SENSE = squeeze_single_dim(Smap,3);
+else
+    AdditionalOut.B0CorrMat_Spec = ones([prod(RecoPar.DataSize(1:2)),RecoPar.DataSize(4:end)]);
+end
 
-%%
 
-AdditionalOut.SENSE = AdditionalOut.SENSE(:,:,1,:);
+%% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
-% Scale = 1 ./ sqrt(sum(abs(AdditionalOut.SENSE(:,:,1,:)).^2,4));
-% Scale(isinf(Scale) | isnan(Scale) | Scale == 0 ) = 1;
-% AdditionalOut.SENSE = AdditionalOut.SENSE(:,:,1,:).*Scale.*AdditionalOut.Mask;
-% AdditionalOut.SENSE(isinf(AdditionalOut.SENSE) | isnan(AdditionalOut.SENSE)) = 0;
+if(Settings.DensComp_flag)
+
+    
+    v1 = InTrajectory;
+    DCFPreG = zeros([size(v1,2) size(v1,3)]);
+    for SpirPts = 2:size(v1,2)
+        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
+        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
+    end
+    DCFPreG(isnan(DCFPreG)) = 0;
+    
+    if(~Settings.DensCompAutoScale_flag)
+%         FudgeFactor = 1.2743;     % For old trajectory
+%         FudgeFactor = 0.00051078;         % For new trajectory
+        FudgeFactor = 1.9634;
+        Scale = max(DCFPreG(:))*2*Settings.fov_overgrid^2/FudgeFactor;
+        % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
+        % and seeing how it was scaled...
+        
+    else
+        OnesData = ones(RecoPar.DataSize(1:2));
+        OutOnesData = abs(sft2_Oper'*(DCFPreG(:) .* (sft2_Oper*OnesData(:)))*size(OutTrajectory(:,:),2));
+        OutOnesData(OutOnesData == 0) = NaN;
+        Scale = nanmean(OutOnesData);
+    end
+    DCFPreG = DCFPreG/Scale;
+
+
+    clear v1
+    
+    
+end
+AdditionalOut.DCFPreG = DCFPreG;
+
+
+
+
+%% Calculate SensitivityMap
+% Fake it
+Dummy.ResizeMethod = 'Imresize';
+Dummy.ScalingMethod = 'UniformSensitivity';   Dummy2.Data = ones(RecoPar.DataSize); Dummy2.RecoPar = RecoPar; %Dummy2.Par = InData.Par; 
+[DeleteMe, AddOut] = op_CoilCombineData(Dummy2,Smap,Dummy);
+AdditionalOut.SENSE = squeeze_single_dim(AddOut.CoilWeightMap(:,:,:,1,:),3);
+clear DeleteMe AddOut Dummy;
+
+% AdditionalOut.SENSE = squeeze_single_dim(Smap,3);
+% AdditionalOut.SENSE = AdditionalOut.SENSE(:,:,1,:);
+
+Scale = 1 ./ sqrt(sum(abs(AdditionalOut.SENSE(:,:,1,:)).^2,4));
+Scale(isinf(Scale) | isnan(Scale) | Scale == 0 ) = 1;
+AdditionalOut.SENSE = AdditionalOut.SENSE(:,:,1,:).*Scale.*AdditionalOut.Mask;
+AdditionalOut.SENSE(isinf(AdditionalOut.SENSE) | isnan(AdditionalOut.SENSE)) = 0;
 
 
 %% Apply sft2-Operator (Fourier-Transform from spiral k-space --> Cartesian image 
@@ -298,7 +343,7 @@ Opers.B0CorrMat_Spec = reshape(Opers.B0CorrMat_Spec(:,:,1),RecoPar.DataSize([1 2
 % Opers.TiltTrajMat = reshape(Opers.TiltTrajMat(:,1),size(Opers.SamplingOperator));
 Opers.TiltTrajMat = reshape(Opers.TiltTrajMat(:,:,1),[size(Opers.SamplingOperator) size(Opers.TiltTrajMat,2)]);
 Opers.DCFPreG = reshape(Opers.DCFPreG,size(Opers.SamplingOperator));
-Opers.DCFPreG = Opers.DCFPreG / norm(Opers.DCFPreG(:)/sqrt(numel(Opers.DCFPreG)));
+% Opers.DCFPreG = Opers.DCFPreG / norm(Opers.DCFPreG(:)/sqrt(numel(Opers.DCFPreG)));
 
 
 AO = @(x) ModelFunction('NoTransj',x,Opers);
@@ -306,12 +351,12 @@ AOT = @(x) ModelFunction('Transj',x,Opers);
 
 % A = A_operator(@(x) AO(x), @(x) AOT(x)); 
 
-[m,n,p] = size(B0CorrMat_Spec);
+[m,n,p] = size(AdditionalOut.B0CorrMat_Spec);
 maxiter = 20;
-lambda = 0;%1e-16;%0.001;
-eta =10e-2;
+lambda = 0.001;%1e-16;%0.001;
+eta =20e-2;
 
-% Data_i = lr_method(Data_k,AO,AOT,maxiter,lambda,eta,m,n,Settings, InData);
+% Data_i = lr_method(Data_k,AO,AOT,maxiter,lambda,eta,m,n,Settings, RecoPar);
 Data_i = LS_method(Data_k,AO,AOT,maxiter,eta);
 
 

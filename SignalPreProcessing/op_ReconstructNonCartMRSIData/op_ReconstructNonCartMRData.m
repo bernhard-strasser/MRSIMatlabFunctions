@@ -1,4 +1,4 @@
-function [Data_i, AdditionalOut] = op_ReconstructNonCartMRData(Data_k,InTrajectory,OutTrajectory,RecoPar,Settings)
+function [Data_i, AdditionalOut] = op_ReconstructNonCartMRData(Data_k,InTrajectory,OutTrajectory,RecoPar,B0,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -55,6 +55,15 @@ end
 if(~isfield(Settings,'ConjAtEnd_flag'))
    Settings.ConjAtEnd_flag = true;    
 end
+if(~isfield(Settings,'Correct4SpatialB0_flag'))
+   Settings.Correct4SpatialB0_flag = false;    
+end
+if(~isfield(Settings,'CircularSFTFoV_flag'))
+   Settings.CircularSFTFoV_flag = false;    
+end
+if(~isfield(Settings,'DensCompAutoScale_flag'))
+   Settings.DensCompAutoScale_flag = false;    
+end
 
 
 %% FOV SHIFTs
@@ -110,12 +119,14 @@ if(Settings.Phaseroll_flag)
     % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
     % the same anyway
     
-    phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    
+    phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
     phasecorr = myrepmat(phasecorr,size(Data_k));
-    
-    bla = Data_k(:,:,:,:,1,:,:);
+%     phasecorr = conj(phasecorr);
+%     bla = Data_k(:,:,:,:,1,:,:);
     Data_k = fft(fftshift(conj(phasecorr).*fftshift(ifft(Data_k,[],5),5),5),[],5);
-    Data_k(:,:,:,:,1,:,:) = bla;
+%     Data_k = conj(phasecorr).*Data_k;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
+
+%     Data_k(:,:,:,:,1,:,:) = bla;
 
     TiltTrajMat = reshape(phasecorr(:,:,1,1,:,1),[RecoPar.TrajPts*RecoPar.nAngInts RecoPar.vecSize]);   
     
@@ -131,36 +142,6 @@ end
 
 
 
-
-%% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
-
-if(Settings.DensComp_flag)
-    % FudgeFactor = 1.2743;     % For old trajectory
-    FudgeFactor = 0.00051078;         % For new trajectory
-    FudgeFactor = 1.9634;
-    
-    v1 = InTrajectory;
-    DCFPreG = zeros([size(v1,2) size(v1,3)]);
-    for SpirPts = 2:size(v1,2)
-        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
-        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
-    end
-    DCFPreG(isnan(DCFPreG)) = 0;
-    DCFPreG = DCFPreG / max(DCFPreG(:))*2*Settings.fov_overgrid^2/FudgeFactor;  %
-    % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
-    % and seeing how it was scaled...
-
-    clear v1
-    
-    Data_k = Data_k .* myrepmat(DCFPreG,size(Data_k));
-
-    
-end
-if(nargout > 1 && exist('DCFPreG','var'))
-    AdditionalOut.DCFPreG = DCFPreG;
-end
-
-
 %% Calculate sft2-Operator
 
 % sft Operator
@@ -174,25 +155,76 @@ Data_k = reshape(Data_k,[prod(SizeData_k(1:2)) prod(SizeData_k(3:end))]);
 
 sft2_Oper = sft2_Operator(transpose(squeeze(OutTrajectory(:,:))*RecoPar.DataSize(1)),transpose(InTrajectory(:,:)),1);
 
-
+% Restrict to circular FoV
+if(Settings.CircularSFTFoV_flag)
+    FoVMask = EllipticalFilter(ones(RecoPar.DataSize(1:2)),[1 2],[1 1 1 RecoPar.DataSize(1)/2-1],1); 
+    FoVMask = FoVMask(:);
+    sft2_Oper(:,~logical(FoVMask(:))) = 0;
+    clear FoVMask;
+end
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
-% if(Ctrl.SimPar.B0_flag && Ctrl.SimPar.TiltedTraj_flag)
-%     t   = (0:SpSpice.D2.RecoPar.DataSize(1)-1)*SpSpice.D2.RecoPar.ADC_Dt/10^6;
-%     t = repmat(t,[1 1 SpSpice.D2.RecoPar.nAngInts]); t = t(:);
-%     SpSpice.Reco.B0CorrMat_Spatial = exp(myrepmat(-2*pi*1i*SpSpice.D2.B0Map(:),size(sft2_Operator_ForSpir_TrajIdeal)) .* myrepmat(t,size(sft2_Operator_ForSpir_TrajIdeal)));
-% 
-%     % SpSpice.Spi2Cart.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
-%     % SpSpice.Spi2Cart_NoTiltCorr.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
-% 
-% else
-%     SpSpice.Reco.B0CorrMat_Spatial = ones(size(sft2_Operator_ForSpir_TrajIdeal));
-% end
-% if(Ctrl.RecoPar.Correct4B0_flag)
-%     sft2_Operator_ForSpir_TrajIdeal_B0Corr = sft2_Operator_ForSpir_TrajIdeal .* SpSpice.Reco.B0CorrMat_Spatial;
-% else
-%     sft2_Operator_ForSpir_TrajIdeal_B0Corr = sft2_Operator_ForSpir_TrajIdeal;
-% end
+if(Settings.Correct4SpatialB0_flag)
+    t   = (0:RecoPar.TrajPts-1)*RecoPar.ADC_dt/10^9;
+    t = repmat(t,[1 1 RecoPar.nAngInts]); t = t(:);
+    CurB0 = imresize(B0.B0Map,RecoPar.DataSize(1:2));    
+    if(isfield(B0,'Mask'))
+        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),RecoPar.DataSize(1:2),'nearest');
+        CurB0 = CurB0 .* Mask;
+    end
+    
+    B0CorrMat_Spatial = exp(transpose(-2*pi*1i*CurB0(:)) .* t);
+
+    % SpSpice.Spi2Cart.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
+    % SpSpice.Spi2Cart_NoTiltCorr.B0CorrMat_Spatial = SpSpice.Reco.B0CorrMat_Spatial;
+
+    sft2_Oper = sft2_Oper .* B0CorrMat_Spatial;
+    
+end
+
+
+
+
+%% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
+
+if(Settings.DensComp_flag)
+
+    
+    v1 = InTrajectory;
+    DCFPreG = zeros([size(v1,2) size(v1,3)]);
+    for SpirPts = 2:size(v1,2)
+        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
+        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
+    end
+    DCFPreG(isnan(DCFPreG)) = 0;
+    
+    if(~Settings.DensCompAutoScale_flag)
+%         FudgeFactor = 1.2743;     % For old trajectory
+%         FudgeFactor = 0.00051078;         % For new trajectory
+        FudgeFactor = 1.9634;
+        Scale = max(DCFPreG(:))*2*Settings.fov_overgrid^2/FudgeFactor;
+    % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
+    % and seeing how it was scaled...
+        
+    else
+        OnesData = ones(RecoPar.DataSize(1:2));
+        OutOnesData = abs(sft2_Oper'*(DCFPreG(:) .* (sft2_Oper*OnesData(:)))*size(OutTrajectory(:,:),2));
+        OutOnesData(OutOnesData == 0) = NaN;
+        Scale = nanmean(OutOnesData);
+    end
+    DCFPreG = DCFPreG/Scale;
+
+
+    clear v1
+    
+    Data_k = Data_k .* myrepmat(DCFPreG(:),size(Data_k));
+
+    
+end
+if(nargout > 1 && exist('DCFPreG','var'))
+    AdditionalOut.DCFPreG = DCFPreG;
+end
+
 
 
 

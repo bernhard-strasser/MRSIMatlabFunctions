@@ -97,6 +97,7 @@ if(Settings.RoundB0ToIntVecPts)
     CurB0 = round(CurB0/HzPerPt)*HzPerPt;
 end
     
+AdditionalOut.B0Map = CurB0;
 time   = (0:InData.RecoPar.DataSize(4)-1)*InData.RecoPar.Dwelltimes(1)/10^9;
 AdditionalOut.TimeVec = time;
 B0CorrMat_Spec = exp(myrepmat(2*pi*1i*CurB0,size(InData.Data)) .* myrepmat(time,size(InData.Data)));
