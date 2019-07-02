@@ -1,4 +1,4 @@
-function [Data_i, AdditionalOut] = op_ReconstructNonCartMRData(Data_k,InTrajectory,OutTrajectory,RecoPar,B0,Settings)
+function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,B0,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -12,14 +12,13 @@ function [Data_i, AdditionalOut] = op_ReconstructNonCartMRData(Data_k,InTrajecto
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         file                    ...     Path of MRS(I) file.
-% -         DesiredSize             ...     If you want to perform zerofilling or use only a part of the kspace, set
-%                                           DesiredSize to your wanted [kx,ky,kz], e.g. [64 64 1].
-% -         ReadInDataSets          ...     
+% -         ?                     ...     
+% -         ?                     ...     
+% -         ?             ...     
 %
 % Output:
-% -         kSpace                      ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x Samples x Averages
-% -         Info                        ...     
+% -         ?                      ...     
+% -         ?                        ...     
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -48,6 +47,9 @@ if(~isfield(Settings,'Phaseroll_flag'))
 end
 if(~isfield(Settings,'DensComp_flag'))
    Settings.DensComp_flag = true;    
+end
+if(~isfield(Settings,'DensComp'))
+   Settings.DensComp = struct();    
 end
 if(~isfield(Settings,'ConjInBegin_flag'))
    Settings.ConjInBegin_flag = false;    
@@ -91,7 +93,10 @@ end
 %% Conj in Beginning
 
 if(Settings.ConjInBegin_flag)
-    Data_k = conj(Data_k);
+    Output.Data = conj(Output.Data);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = conj(Output.NoiseData);
+    end
 end
 
 %% Try to correct for "tilted trajectory" by doing phaseroll
@@ -99,12 +104,12 @@ end
 % Save the data for reconstructing the pseudo-pcg case
 if(Settings.Phaseroll_flag)
 
-    nTI = RecoPar.nTempInt;
-    vs = RecoPar.vecSize;
-    ns = RecoPar.TrajPts;
-    nc = RecoPar.nAngInts;
-    nrew = RecoPar.RewPts;
-    ncha = size(Data_k,6);
+    nTI = Output.RecoPar.nTempInt;
+    vs = Output.RecoPar.vecSize;
+    ns = Output.RecoPar.TrajPts;
+    nc = Output.RecoPar.nAngInts;
+    nrew = Output.RecoPar.RewPts;
+    ncha = size(Output.Data,6);
 
     timeoffset = 0:(ns-1);
     timeoffset = repmat(transpose(timeoffset),[1 vs]);
@@ -112,27 +117,30 @@ if(Settings.Phaseroll_flag)
     Freq = repmat(Freq,[ns 1]);    
 
     % This comes from:
-    % timeoffset = (0:(ns-1))*RecoPar.ADC_Dt/10^6;
-    % sBW = nTI/((nrew + ns)*RecoPar.ADC_Dt/10^6);
+    % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
+    % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
     % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
-    % RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
+    % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
     % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
     % the same anyway
     
     phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
-    phasecorr = myrepmat(phasecorr,size(Data_k));
+    phasecorr = myrepmat(phasecorr,size(Output.Data));
 %     phasecorr = conj(phasecorr);
-%     bla = Data_k(:,:,:,:,1,:,:);
-    Data_k = fft(fftshift(conj(phasecorr).*fftshift(ifft(Data_k,[],5),5),5),[],5);
-%     Data_k = conj(phasecorr).*Data_k;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
+%     bla = Output.Data(:,:,:,:,1,:,:);
+    Output.Data = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.Data,[],5),5),5),[],5);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.NoiseData,[],5),5),5),[],5);
+    end
+%     Output.Data = conj(phasecorr).*Output.Data;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
 
-%     Data_k(:,:,:,:,1,:,:) = bla;
+%     Output.Data(:,:,:,:,1,:,:) = bla;
 
-    TiltTrajMat = reshape(phasecorr(:,:,1,1,:,1),[RecoPar.TrajPts*RecoPar.nAngInts RecoPar.vecSize]);   
+    TiltTrajMat = reshape(phasecorr(:,:,1,1,:,1),[Output.RecoPar.TrajPts*Output.RecoPar.nAngInts Output.RecoPar.vecSize]);   
     
 else
     
-	TiltTrajMat = ones([RecoPar.TrajPts*RecoPar.nAngInts RecoPar.vecSize]);
+	TiltTrajMat = ones([Output.RecoPar.TrajPts*Output.RecoPar.nAngInts Output.RecoPar.vecSize]);
 
 end
 
@@ -148,16 +156,18 @@ end
 % Reshape trajectories to expected shape
 
 % Collapse data to a matrix (from [nAngInt x nTrajPoints x nTempInt*vecSize x nCha x nPart*nSlc] to [nAngInt*nTrajPoints x Rest])
-SizeData_k = size(Data_k); SizeData_k = cat(2,SizeData_k,ones([1 5-numel(SizeData_k)]));
-Data_k = reshape(Data_k,[prod(SizeData_k(1:2)) prod(SizeData_k(3:end))]);   
+SizeData_k = size(Output.Data); SizeData_k = cat(2,SizeData_k,ones([1 5-numel(SizeData_k)]));
+Output.Data = reshape(Output.Data,[prod(SizeData_k(1:2)) prod(SizeData_k(3:end))]);   
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = reshape(Output.NoiseData,[prod(SizeData_k(1:2)) prod(SizeData_k(3:end))]);   
+end
 
 
-
-sft2_Oper = sft2_Operator(transpose(squeeze(OutTrajectory(:,:))*RecoPar.DataSize(1)),transpose(InTrajectory(:,:)),1);
+sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Output.RecoPar.DataSize(1)),transpose(Output.InTraj.GM(:,:)),1);
 
 % Restrict to circular FoV
 if(Settings.CircularSFTFoV_flag)
-    FoVMask = EllipticalFilter(ones(RecoPar.DataSize(1:2)),[1 2],[1 1 1 RecoPar.DataSize(1)/2-1],1); 
+    FoVMask = EllipticalFilter(ones(Output.RecoPar.DataSize(1:2)),[1 2],[1 1 1 Output.RecoPar.DataSize(1)/2-1],1); 
     FoVMask = FoVMask(:);
     sft2_Oper(:,~logical(FoVMask(:))) = 0;
     clear FoVMask;
@@ -165,11 +175,11 @@ end
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
 if(Settings.Correct4SpatialB0_flag)
-    t   = (0:RecoPar.TrajPts-1)*RecoPar.ADC_dt/10^9;
-    t = repmat(t,[1 1 RecoPar.nAngInts]); t = t(:);
-    CurB0 = imresize(B0.B0Map,RecoPar.DataSize(1:2));    
+    t   = (0:Output.RecoPar.TrajPts-1)*Output.RecoPar.ADC_dt/10^9;
+    t = repmat(t,[1 1 Output.RecoPar.nAngInts]); t = t(:);
+    CurB0 = imresize(B0.B0Map,Output.RecoPar.DataSize(1:2));    
     if(isfield(B0,'Mask'))
-        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),RecoPar.DataSize(1:2),'nearest');
+        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),Output.RecoPar.DataSize(1:2),'nearest');
         CurB0 = CurB0 .* Mask;
     end
     
@@ -188,55 +198,30 @@ end
 %% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
 if(Settings.DensComp_flag)
-
-    
-    v1 = InTrajectory;
-    DCFPreG = zeros([size(v1,2) size(v1,3)]);
-    for SpirPts = 2:size(v1,2)
-        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
-        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
+    [Output,AdditionalOut.DCFPreG] = op_CalcAndApplyDensComp(Output,sft2_Oper,Settings.DensComp);
     end
-    DCFPreG(isnan(DCFPreG)) = 0;
     
-    if(~Settings.DensCompAutoScale_flag)
-%         FudgeFactor = 1.2743;     % For old trajectory
-%         FudgeFactor = 0.00051078;         % For new trajectory
-        FudgeFactor = 1.9634;
-        Scale = max(DCFPreG(:))*2*Settings.fov_overgrid^2/FudgeFactor;
-    % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
-    % and seeing how it was scaled...
         
-    else
-        OnesData = ones(RecoPar.DataSize(1:2));
-        OutOnesData = abs(sft2_Oper'*(DCFPreG(:) .* (sft2_Oper*OnesData(:)))*size(OutTrajectory(:,:),2));
-        OutOnesData(OutOnesData == 0) = NaN;
-        Scale = nanmean(OutOnesData);
-    end
-    DCFPreG = DCFPreG/Scale;
 
-
-    clear v1
-    
-    Data_k = Data_k .* myrepmat(DCFPreG(:),size(Data_k));
 
     
-end
-if(nargout > 1 && exist('DCFPreG','var'))
-    AdditionalOut.DCFPreG = DCFPreG;
-end
-
-
-
-
 
 %% Apply sft2-Operator (Fourier-Transform from spiral k-space --> Cartesian image 
+    
+Output.Data = sft2_Oper' * Output.Data * size(Output.OutTraj.GM(:,:),2);
+Output.Data = reshape(Output.Data,[Output.RecoPar.DataSize(1:2) SizeData_k(3:end)]);
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = sft2_Oper' * Output.NoiseData * size(Output.OutTraj.GM(:,:),2);
+    Output.NoiseData = reshape(Output.NoiseData,[Output.RecoPar.DataSize(1:2) SizeData_k(3:end)]);
+end
 
-Data_i = Data_k; clear Data_k
-Data_i = sft2_Oper' * Data_i * size(OutTrajectory(:,:),2);
-Data_i = reshape(Data_i,[Settings.fov_overgrid*RecoPar.DataSize(1:2) SizeData_k(3:end)]);
-
-bla = ([size(Data_i,1) size(Data_i,2)] - RecoPar.DataSize(1:2))/2+1;
-Data_i = Data_i(bla(1):bla(1)+RecoPar.DataSize(1)-1,bla(1):bla(2)+RecoPar.DataSize(2)-1,:,:,:,:);
+% Remove fov_overgrid
+Output.RecoPar.DataSize(1:2) = Output.RecoPar.DataSize(1:2)/Output.RecoPar.fov_overgrid;
+bla = ([size(Output.Data,1) size(Output.Data,2)] - Output.RecoPar.DataSize(1:2))/2+1;
+Output.Data = Output.Data(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:);
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = Output.NoiseData(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:);
+end
 
 if(nargout > 1)
     AdditionalOut.sft2_Oper = sft2_Oper;
@@ -246,20 +231,29 @@ end
 %% Perform Reconstruction in Slice and z-dimension
 
 % For now just reshape them. We dont have slices or 3D-measurements for now...
-Size = size(Data_i);
-Data_i = reshape(Data_i, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
-
+Size = size(Output.Data);
+Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+end
 
 
 %% Conj at End
 
 if(Settings.ConjAtEnd_flag)
-    Data_i = conj(Data_i);
+    Output.Data = conj(Output.Data);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = conj(Output.NoiseData);
+    end
 end
 
 
 %% Flip left right
 
-% Data_i = flip(Data_i,2);
+% Output.Data = flip(Output.Data,2);
 
+
+%% Postparations
+
+Output = supp_UpdateRecoSteps(Output,Settings);
 

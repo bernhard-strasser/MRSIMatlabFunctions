@@ -1,4 +1,4 @@
-function [Trajectory,Par] = io_ReadSpiralTraj(Par,TrajFile,IncludeRewinder)
+function [DataStruct] = io_ReadSpiralTraj(DataStruct,TrajFile,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -36,44 +36,55 @@ function [Trajectory,Par] = io_ReadSpiralTraj(Par,TrajFile,IncludeRewinder)
 
 %% 0. Preparations
 
-if(~isfield(Par,'GradDelay_x'))
-    Par.GradDelay_x = 0;
+if(~isfield(DataStruct.Par,'GradDelay_x_us'))
+    if(isfield(Settings,'GradDelay_x_us'))
+        DataStruct.Par.GradDelay_x_us = Settings.GradDelay_x_us;
+    else
+        DataStruct.Par.GradDelay_x_us = 0;
 end
-if(~isfield(Par,'GradDelay_y'))
-    Par.GradDelay_y = 0;
 end
-if(exist('IncludeRewinder','var') && strcmpi(IncludeRewinder,'IncludeRewinder'))
-    IncludeRewinder_flag = true;
+if(~isfield(DataStruct.Par,'GradDelay_y_us'))
+    if(isfield(Settings,'GradDelay_x_us'))
+        DataStruct.Par.GradDelay_y_us = Settings.GradDelay_y_us;
 else
-    IncludeRewinder_flag = false;
+        DataStruct.Par.GradDelay_y_us = 0;
 end    
+end
+
+if(~isfield(Settings,'IncludeRewinder_flag'))
+    Settings.IncludeRewinder_flag = false;
+end
+if(~isfield(Settings,'maxR'))
+    Settings.maxR = 0.5;
+end
+
 
 %% 
 
 run(TrajFile);
-AppendZeros = max([ceil(Par.GradDelay_x/10) ceil(Par.GradDelay_y/10)])+2;   % +1 for better interpolation
+AppendZeros = max([ceil(DataStruct.Par.GradDelay_x_us/10) ceil(DataStruct.Par.GradDelay_y_us/10)])+2;   % +1 for better interpolation
 
 % The points in our trajectory are GradRasterTime apart from each other.
 % Simulate ADC_dt = GradientRaterTime/2
 % New interpolation method: The last point has a problem, and I think it's not ok to append a 0 at beginning. So extrapolate
-if(IncludeRewinder_flag)
-    NoOfTrajPoints = NumberOfLoopPoints + NumberOfBrakeRunPoints; 
-else
+if(Settings.IncludeRewinder_flag || DataStruct.Par.RewPts == 0)                % If we set to include the rewinder in io_ReadSpiralPars.
+    NoOfTrajPoints = NumberOfLoopPoints + NumberOfBrakeRunPoints;   % Cannot copy the values from DataStruct.Par directly, because they include alrdy 
+else                                                                % the ADC_OverSamp, while the values here don't
     NoOfTrajPoints = NumberOfLoopPoints; 
 end
 CurTraj = dGradientValues{1}(1:NoOfTrajPoints);    
 
 % CurTraj = interp1(1:NoOfTrajPoints-1,CurTraj(1:NoOfTrajPoints-1),1:1:NoOfTrajPoints+1,'spline','extrap'); 
-% CurTraj = interp1(1:NoOfTrajPoints+1,CurTraj,1:1/Par.ADC_OverSamp:(NoOfTrajPoints+1/Par.ADC_OverSamp)); 
-% blaa = -cumsum(CurTraj*dMaxGradAmpl*10/Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
-% Trajectory.GM = [real(blaa); imag(blaa)];
-% Trajectory.GV = [real(CurTraj); imag(CurTraj)];
+% CurTraj = interp1(1:NoOfTrajPoints+1,CurTraj,1:1/DataStruct.Par.ADC_OverSamp:(NoOfTrajPoints+1/DataStruct.Par.ADC_OverSamp)); 
+% blaa = -cumsum(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
+% DataStruct.InTraj.GM = [real(blaa); imag(blaa)];
+% DataStruct.InTraj.GV = [real(CurTraj); imag(CurTraj)];
 
 
-% Trajectory With Gradient Delays (max 20 us in each direction, steps of 1 us)
+% DataStruct.InTraj With Gradient Delays (max 20 us in each direction, steps of 1 us)
 % Append 2 zeros (--> 20 us) in beginning of trajectory, interpolate to 1us time-grid,
-% take the trajectory points according to the gradient delays, go back to time grid of 10/Par.ADC_OverSamp us
-GradDelay_x = Par.GradDelay_x; GradDelay_y = Par.GradDelay_y;
+% take the trajectory points according to the gradient delays, go back to time grid of 10/DataStruct.Par.ADC_OverSamp us
+GradDelay_x_us = DataStruct.Par.GradDelay_x_us; GradDelay_y_us = DataStruct.Par.GradDelay_y_us;
 % Append 2 0's --> max of 20 us gradient delay
 CurTraj = [zeros([1 AppendZeros]) CurTraj];
 % if(AppendZeros > 0)
@@ -85,12 +96,12 @@ CurTraj = interp1(1:1:NoOfTrajPoints+AppendZeros-1,CurTraj(1:end-1),1:1:NoOfTraj
 % interpolate to fine time grid of 1 us
 CurTraj = interp1(1:1:NoOfTrajPoints+AppendZeros+1,CurTraj,1:0.1:(NoOfTrajPoints+AppendZeros+2-0.1)); 
 % Take the correct points, always remove 10 points at end, because we extrapolated too many time points
-CurTraj = complex(real(CurTraj((AppendZeros*10+1-GradDelay_x):(end-GradDelay_x-10))), imag(CurTraj((AppendZeros*10+1-GradDelay_y):(end-GradDelay_y-10))));
-% undersample trajectory back to 10/Par.ADC_OverSamp us time-grid
-CurTraj = CurTraj(1:10/Par.ADC_OverSamp:end);
-blaa = -cumsum(CurTraj*dMaxGradAmpl*10/Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
-Trajectory.GM(:,:,1) = [real(blaa); imag(blaa)];
-Trajectory.GV(:,:,1) = [real(CurTraj); imag(CurTraj)];
+CurTraj = complex(real(CurTraj((AppendZeros*10+1-GradDelay_x_us):(end-GradDelay_x_us-10))), imag(CurTraj((AppendZeros*10+1-GradDelay_y_us):(end-GradDelay_y_us-10))));
+% undersample trajectory back to 10/DataStruct.Par.ADC_OverSamp us time-grid
+CurTraj = CurTraj(1:10/DataStruct.Par.ADC_OverSamp:end);
+blaa = -cumsum(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
+DataStruct.InTraj.GM(:,:,1) = [real(blaa); imag(blaa)];
+DataStruct.InTraj.GV(:,:,1) = [real(CurTraj); imag(CurTraj)];
 
 
 
@@ -98,14 +109,22 @@ clear dGradientValues NoOfTrajPoints NumberOfBrakeRunPoints
 
 % Rotate spiral trajectory
 ExtraRot = 0;
-InputTraj = Trajectory;
-Trajectory.GM = zeros([2 size(InputTraj.GV,2) Par.nAngInts]); Trajectory.GV = Trajectory.GM;
-for AngIntNo = 1:Par.nAngInts
-    CurRotAngle = (AngIntNo-1)/Par.nAngInts*2*pi + ExtraRot/180*pi; 
+InputTraj = DataStruct.InTraj;
+DataStruct.InTraj.GM = zeros([2 size(InputTraj.GV,2) DataStruct.Par.nAngInts]); DataStruct.InTraj.GV = DataStruct.InTraj.GM;
+for AngIntNo = 1:DataStruct.Par.nAngInts
+    CurRotAngle = (AngIntNo-1)/DataStruct.Par.nAngInts*2*pi + ExtraRot/180*pi; 
     RotMat = [cos(CurRotAngle) sin(CurRotAngle); -sin(CurRotAngle) cos(CurRotAngle)];   
-    Trajectory.GM(:,:,AngIntNo) = RotMat*InputTraj.GM;
-    Trajectory.GV(:,:,AngIntNo) = RotMat*InputTraj.GV;
+    DataStruct.InTraj.GM(:,:,AngIntNo) = RotMat*InputTraj.GM;
+    DataStruct.InTraj.GV(:,:,AngIntNo) = RotMat*InputTraj.GV;
 end
 
 
+%% Normalize DataStruct.InTraj
+
+DataStruct.InTraj.GM = DataStruct.InTraj.GM/(Settings.maxR*2);
+
+
+%% Postparations
+
+DataStruct = supp_UpdateRecoSteps(DataStruct,Settings);
 

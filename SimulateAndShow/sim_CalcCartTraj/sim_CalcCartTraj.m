@@ -1,4 +1,4 @@
-function [Trajectory,Par] = sim_CalcCartTraj(Par)
+function [DataStruct] = sim_CalcCartTraj(DataStruct,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -36,22 +36,51 @@ function [Trajectory,Par] = sim_CalcCartTraj(Par)
 
 %% 0. Preparations
 
+if(~exist('Settings','var'))
+    Settings = struct;
+end
+if(~isfield(Settings,'fov_overgrid'))
+    Settings.fov_overgrid = 1;
+end
+if(~isfield(DataStruct,'RecoPar'))
+    DataStruct.RecoPar = DataStruct.Par;
+end
 
+DataStruct.RecoPar.fov_overgrid = Settings.fov_overgrid;
 
+if(isfield(Settings,'OverwriteDataSize_woOvergrid') && ~isempty(Settings.OverwriteDataSize_woOvergrid))
+    DataStruct.RecoPar.DataSize = Settings.OverwriteDataSize_woOvergrid;    
+else
+    DataStruct.RecoPar.DataSize = [DataStruct.RecoPar.nFreqEnc DataStruct.RecoPar.nPhasEnc DataStruct.RecoPar.nPartEnc*DataStruct.RecoPar.nSLC ...
+                                   DataStruct.RecoPar.vecSize DataStruct.RecoPar.total_channel_no_measured];
+end
+if(DataStruct.RecoPar.fov_overgrid > 1)
+    DataStruct.RecoPar.DataSize(1:2) = DataStruct.RecoPar.DataSize(1:2) * DataStruct.RecoPar.fov_overgrid;   % For 3D Trajectories, this would be wrong! 
+end                                                                                                          % Would also need to modify 3rd dim!
 
-%% 
+%% Calculate Cartesian Trajectory
 
-FoV = Par.FoV_Read/1000*Par.fov_overgrid; % in m
-DeltaGM = 10^9/(FoV*Par.GyroMagnRatioOverTwoPi);           % in mT/m * us
+FoV = DataStruct.RecoPar.FoV_Read/1000*DataStruct.RecoPar.fov_overgrid; % in m
+DeltaGM = 10^9/(FoV*DataStruct.RecoPar.GyroMagnRatioOverTwoPi);           % in mT/m * us
 
 % Calculate a Grid for PhaseEncoding Steps
-[bla_x, bla_y] = find(ones(Par.DataSize(1)*Par.fov_overgrid));
+[bla_x, bla_y] = find(ones(DataStruct.RecoPar.DataSize(1)));
 
-Trajectory.GM(1,1,:) = bla_x - floor(Par.DataSize(1)*Par.fov_overgrid/2) - 1; 
-Trajectory.GM(2,1,:) = bla_y - floor(Par.DataSize(1)*Par.fov_overgrid/2) - 1; 
+DataStruct.OutTraj.GM(1,1,:) = bla_x - floor(DataStruct.RecoPar.DataSize(1)/2) - 1; 
+DataStruct.OutTraj.GM(2,1,:) = bla_y - floor(DataStruct.RecoPar.DataSize(1)/2) - 1; 
 
-Trajectory.GM = Trajectory.GM * DeltaGM;
+DataStruct.OutTraj.GM = DataStruct.OutTraj.GM * DeltaGM;
 
-Trajectory.maxR = DeltaGM*Par.DataSize(1)/2;
+DataStruct.OutTraj.maxR = DeltaGM*DataStruct.RecoPar.DataSize(1)/2;
+
+
+%% Normalize Trajectory
+
+DataStruct.OutTraj.GM = DataStruct.OutTraj.GM/(DataStruct.OutTraj.maxR*2);
+
+
+%% PostParations
+
+DataStruct = supp_UpdateRecoSteps(DataStruct,Settings);
 
 

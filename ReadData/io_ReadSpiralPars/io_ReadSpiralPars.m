@@ -1,4 +1,4 @@
-function [Par] = io_ReadSpiralPars(SpiralFile,TrajFile)
+function [Out] = io_ReadSpiralPars(SpiralFile,TrajFile,Settings,Out)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -37,34 +37,49 @@ function [Par] = io_ReadSpiralPars(SpiralFile,TrajFile)
 %% 0. Preparations
 
 
+if(~exist('Out','var'))
+    Out = struct;
+end
+if(~exist('Settings','var'))
+   Settings = struct; 
+end
+if(~isfield(Settings,'IncludeRewinder_flag'))
+    Settings.IncludeRewinder_flag = false;
+end
+
+Out = supp_UpdateRecoSteps(Out,Settings);
 
 
 %% Read Parameters
 
 
 % Read Parameters of D2
-Par = read_ascconv(SpiralFile);
+Out.Par = read_ascconv(SpiralFile);
 % Find out IceProgramPara to properly reshape data
-Par.IceProgramPara = read_IceProgramParam(SpiralFile);
+Out.Par.IceProgramPara = read_IceProgramParam(SpiralFile);
 
 % Spiral Specific Parameters
 run(TrajFile)
-NumOfGradPtsForAllTIs = Par.Dwelltimes/10^3 / 10;    % Dwelltime in us / GRAD_RASTER_TIME in us = Number Of Pts per TI
-Par.nTempInt = round(numel(dGradientValues{1}) / NumOfGradPtsForAllTIs);
-Par.nAngInts = Par.IceProgramPara.Values(32)/Par.nTempInt;
-Par.ADC_dt = Par.IceProgramPara.Values(8);
-Par.ADC_OverSamp = 10000/Par.ADC_dt;
-Par.TrajPts = NumberOfLoopPoints*Par.ADC_OverSamp;
-Par.RewPts = NumberOfBrakeRunPoints*Par.ADC_OverSamp;
-Par.TrajTotPts = Par.TrajPts + Par.RewPts;
+NumOfGradPtsForAllTIs = Out.Par.Dwelltimes/10^3 / 10;    % Dwelltime in us / GRAD_RASTER_TIME in us = Number Of Pts per TI
+Out.Par.nTempInt = round(numel(dGradientValues{1}) / NumOfGradPtsForAllTIs);
+Out.Par.nAngInts = Out.Par.IceProgramPara.Values(32)/Out.Par.nTempInt;
+Out.Par.ADC_dt = Out.Par.IceProgramPara.Values(8);
+Out.Par.ADC_OverSamp = 10000/Out.Par.ADC_dt;
+Out.Par.TrajPts = NumberOfLoopPoints*Out.Par.ADC_OverSamp;
+Out.Par.RewPts = NumberOfBrakeRunPoints*Out.Par.ADC_OverSamp;
+Out.Par.TrajTotPts = Out.Par.TrajPts + Out.Par.RewPts;
+if(Settings.IncludeRewinder_flag)
+    Out.Par.TrajPts = Out.Par.TrajTotPts;
+    Out.Par.RewPts = 0;
+end
 
 % Find exact vecSize number similar as in sequence
-nperiods = 320000 / (10/Par.ADC_OverSamp*Par.TrajTotPts);
+nperiods = 320000 / (10/Out.Par.ADC_OverSamp*Out.Par.TrajTotPts);
 if(nperiods > 60)
     concat_periods = floor(nperiods / 60 +1);
     nperiods = floor(nperiods / concat_periods);
 end
-Par.vecSize = nperiods * concat_periods*Par.nTempInt;
+Out.Par.vecSize = nperiods * concat_periods*Out.Par.nTempInt;
 
 
 
