@@ -1,0 +1,41 @@
+#!/bin/bash
+
+
+logfile2_flag=0
+CurIteration_flag=0
+while getopts ':l:c:' OPTION
+do
+	case $OPTION in
+
+#mandatory
+	  l)	logfile2_flag=1
+		logfile2="$OPTARG"
+		;;
+	  c)	CurIteration_flag=1
+		CurIteration="$OPTARG"
+		;;
+#optional
+
+
+	  \?)	echo -e "\nUsage: LogMemUsageToFile -l \"logfile\""
+		exit 2
+		;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+if [[ "$logfile2_flag" -eq "0" ]]; then
+	echo "You need to provide a logfile. Abort."
+	exit 2
+fi
+
+namy=$(whoami)
+namyshort=${namy:0:7}
+idy=$(id -u $namy)
+
+numbs=$(ps aux | grep -x "\($idy\|$namyshort\).*" | awk '{print $4"\t"$11}' | grep -i "matlab" | cut -f 1)			# -x line regexp. Must start with idy or namyshort
+CurMemUsage=0
+for subnumb in $numbs; do
+	CurMemUsage=$(echo "$CurMemUsage + $subnumb" | bc)
+done
+echo "CurMem($CurIteration) = $CurMemUsage;" >> $logfile2
