@@ -1,0 +1,43 @@
+Version 0.1 created on March, 1, 2013 based opengrappa_MRSI_1_3.m function and Caipirinha_VisualizingWeightsComputation_And_Application_1_1.m. 
+
+
+
+
+CHANGED IN VERSION 0.2:
+
+- (March 01 2013):	When applying the weights, compute the x,y-components of the  target points directly, 
+				without the intermediate step of finding the linear index first (and then computing the x,y-components).
+
+- (March 01 2013):	kernel are now logicals.
+
+- (March 01 2013):	Fixed bug: SourcePattern was not logical, thus logical indexing was not possible.
+
+
+
+
+CHANGED IN VERSION 0.3:
+
+- (March 04 2013):	Increased speed of applying weights by an factor 10 (from ~800 seconds to ~93 seconds).
+				The SourcePoints are now no longer computed using logical indexing, but using the relative position information between source and target points and then
+				looping over all source points. In the first case, for each (spatial) target point a logical array the same size as the InData array had to be computed.
+				Can the loop be vectorized without logical indexing?
+
+
+
+CHANGED IN VERSION 1.0:
+
+- (March 04 2013):	Increased speed of computing weights by not picking the weights in a loop, but computing the indices of the source and target weights, and picking them with a linear index.
+
+				
+
+
+
+
+
+
+
+
+
+
+
+
