@@ -384,8 +384,16 @@ end
 % Data_i = flip(Data_i,2);
 
 
-%%
+%% Create & Adapt Parameters
+
+
 OutData.Data = Data_i;
 OutData.Par = InData.Par;
 OutData.RecoPar = RecoPar;
+
+OutData.RecoPar.DataSize = size(Data_i);
+OutData.RecoPar.total_channel_no_reco = 1;      % I actually should make an if-condition to determine if coil combination was really done...
+
+
+
 

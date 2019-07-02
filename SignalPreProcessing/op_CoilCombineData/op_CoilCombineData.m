@@ -52,7 +52,9 @@ end
 if(~isfield(Input,'RecoPar'))
     Input.RecoPar = Input.Par;
 end
-
+if(Input.RecoPar.total_channel_no_reco == 1)
+   return; 
+end
 
 %% Resize SensMap
 
