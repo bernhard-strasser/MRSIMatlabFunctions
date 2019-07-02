@@ -739,7 +739,8 @@ function ParList = InterpretWipMemBlock(ParList)
 		
 		TwoDCaipInfoAvail = numel(ParList.WipMemBlock_alFree) > 41 && ParList.WipMemBlock_alFree(41) < 10 && ParList.WipMemBlock_alFree(42) < 10 ...
 			&& sum(ParList.WipMemBlock_alFree(41:50));
-		TwoDCaipInfoDefective = TwoDCaipInfoAvail && numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1;
+		TwoDCaipInfoDefective = TwoDCaipInfoAvail && numel(ParList.WipMemBlock_alFree) > 49 && ParList.WipMemBlock_alFree(50) == -1 ...
+            && ParList.WipMemBlock_alFree(49) ~= 0;
 		
 		if(TwoDCaipInfoDefective)
 			TwoDCaipiInterpretation = -1;

@@ -65,11 +65,14 @@ if(ImResize_flag)
     end
 else
     AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[size(CoilWeightMap.Data,1) Input.RecoPar.DataSize(1:3)],1);
-    AdditionalOut.CoilWeightMap = permute(AdditionalOut.CoilWeightMap,[2 3 1]);
+    AdditionalOut.CoilWeightMap = permute(AdditionalOut.CoilWeightMap,[2 3 4 1]);
 end
 AdditionalOut.CoilWeightMap = myrepmat(AdditionalOut.CoilWeightMap,Input.RecoPar.DataSize);
-AdditionalOut.Mask(:,:) = imresize(squeeze(CoilWeightMap.Mask(1,:,:)),Input.RecoPar.DataSize(1:2),'nearest');       
-   
+if(Input.RecoPar.DataSize(3) == 1)      % imresize3 for some reason doesnt work for 2D-input...
+    AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(1,:,:)),Input.RecoPar.DataSize(1:2),'nearest');       
+else 
+    AdditionalOut.Mask = logical(imresize3(squeeze(uint8(CoilWeightMap.Mask(1,:,:,:))),Input.RecoPar.DataSize(1:3),'nearest'));       
+end
 
 %% Weight Data
 

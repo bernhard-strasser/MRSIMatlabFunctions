@@ -15,7 +15,7 @@ end
 %T_total = (vecSize - 1) * dwelltime;  % Total measurement time; The first point measuring at time 0, second point measuring at time dwelltime, ... So vecSize'th point measures at time (vecSize - 1) * dwelltime
 
 %LarmorFreq = water_frequency/(1+4.65*10^-6);
-water_frequency = LarmorFreq * (1 + 4.65 * 10^-6);
+% water_frequency = LarmorFreq * (1 + 4.65 * 10^-6);
 
 %step_chemshift = 10^6/(LarmorFreq * T_total);	
 
@@ -34,7 +34,7 @@ bandwidth_frequency = 1/dwelltime;
 step_frequency = bandwidth_frequency / vecSize;
 freq_vector = ((ceil(vecSize/2)-1):-1:-floor(vecSize/2)) * step_frequency;
 
-chemshift_vector = 10^6*freq_vector / LarmorFreq + 4.65;
+chemshift_vector = 10^6*freq_vector / LarmorFreq + 4.7;
 
 % max_chemshift = (water_frequency - LarmorFreq + bandwidth_frequency/2)/(LarmorFreq)*10^6;
 % min_chemshift = (water_frequency - LarmorFreq - bandwidth_frequency/2)/(LarmorFreq)*10^6;

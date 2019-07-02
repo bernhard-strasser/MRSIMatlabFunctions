@@ -48,18 +48,30 @@ elseif(~iscell(ImageEdges))
 end
 
 
+%%
+
+if(ischar(FilePaths{1,1}))
+    CellOfFigures = cell(size(FilePaths));
+    for jj = 1:size(FilePaths,2)
+        for ii = 1:size(FilePaths,1)
+            [CellOfFigures{ii,jj}, bla2]  =  imread( FilePaths{ii,jj} );
+        end
+    end
+else
+    CellOfFigures = FilePaths;
+end
+
 %% 1.
 
 
-CellOfFigures = cell(size(FilePaths));
 for jj = 1:size(FilePaths,2)
     for ii = 1:size(FilePaths,1)
-        [bla, bla2]  =  imread( FilePaths{ii,jj} );
+
         if((~iscell(ImageEdges) == 1 && ischar(ImageEdges) && strcmpi(ImageEdges,'all') ) ...
         || (iscell(ImageEdges) && ischar(ImageEdges{ii,jj}) && strcmpi(ImageEdges{ii,jj},'all'))) 
-            CellOfFigures{ii,jj} = bla;    
+%             CellOfFigures{ii,jj} = bla;    
         else
-            CellOfFigures{ii,jj} = bla(ImageEdges{ii,jj}(1):ImageEdges{ii,jj}(2),ImageEdges{ii,jj}(3):ImageEdges{ii,jj}(4),:);
+            CellOfFigures{ii,jj} = CellOfFigures{ii,jj}(ImageEdges{ii,jj}(1):ImageEdges{ii,jj}(2),ImageEdges{ii,jj}(3):ImageEdges{ii,jj}(4),:);
         end
     end
 end
