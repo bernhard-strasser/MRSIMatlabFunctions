@@ -110,11 +110,6 @@ for CurVox = 1:numel(CoordFiles)
     end
     SignalData = CurSpec.Spec - CurSpec.Baseline;
 
-%     % For Debugging
-%     if(XInd(CurVox) == 25 && YInd(CurVox) == 27 && ZInd(CurVox) == 6)
-%         fprintf('asdf')
-%     end
-    
     
     % Loop over all peaks for which the SNR should be calculated
     for CurPeak = 1:numel(SNRCalcPar)
