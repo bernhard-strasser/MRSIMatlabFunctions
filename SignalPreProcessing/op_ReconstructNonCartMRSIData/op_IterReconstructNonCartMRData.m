@@ -49,11 +49,11 @@ end
 if(~isfield(Settings,'DensComp_flag'))
    Settings.DensComp_flag = true;    
 end
-if(~isfield(Settings,'ConjInBegin_flag'))
-   Settings.ConjInBegin_flag = false;    
+if(~isfield(Settings,'ConjInkSpace_flag'))
+   Settings.ConjInkSpace_flag = false;    
 end
-if(~isfield(Settings,'ConjAtEnd_flag'))
-   Settings.ConjAtEnd_flag = true;    
+if(~isfield(Settings,'ConjIniSpace_flag'))
+   Settings.ConjIniSpace_flag = true;    
 end
 if(~isfield(Settings,'Correct4SpatialB0_flag'))
    Settings.Correct4SpatialB0_flag = false;    
@@ -102,7 +102,7 @@ Data_k = InData.Data;
 
 %% Conj in Beginning
 
-if(Settings.ConjInBegin_flag)
+if(Settings.ConjInkSpace_flag)
     Data_k = conj(Data_k);
 end
 
@@ -327,7 +327,7 @@ AdditionalOut.DCFPreG = AdditionalOut.DCFPreG(:);
 % 
 % %% Conj at End
 % 
-% if(Settings.ConjAtEnd_flag)
+% if(Settings.ConjIniSpace_flag)
 %     Data_i = conj(Data_i);
 % end
 
@@ -375,7 +375,7 @@ Data_i = reshape(Data_i, [Size(1:2) prod(Size(3:4)) Size(5:end)]);
 
 %% Conj at End
 
-if(Settings.ConjAtEnd_flag)
+if(Settings.ConjIniSpace_flag)
     Data_i = conj(Data_i);
 end
 

@@ -1,4 +1,4 @@
-function [csi, csi_Nuis] = op_NuisanceRemoval_HSVD(csi, Settings,mask,quiet_flag)
+function [OutStruct, csi_Nuis] = op_NuisanceRemoval_HSVD(OutStruct, Settings,mask,quiet_flag)
 %
 % Remove nuisance (fat, water) signal from spectroscopy data using HSVD
 %
@@ -8,7 +8,7 @@ function [csi, csi_Nuis] = op_NuisanceRemoval_HSVD(csi, Settings,mask,quiet_flag
 % The function ...
 %
 %
-% [csi, csi_Nuis] = NuisanceRemoval_HSVD(csi, Settings,mask,quiet_flag)
+% [OutStruct, csi_Nuis] = NuisanceRemoval_HSVD(OutStruct, Settings,mask,quiet_flag)
 %
 % Input: 
 % -         file                    ...     Path of MRS(I) file.
@@ -43,10 +43,10 @@ end
 % it is f_conj = LarmorFreq/10^6 * (4.65 - Delta) instead of f = LarmorFreq/10^6 * (Delta - 4.65).
 % By default, assume the data were conjugated
 if(~isfield(Settings,'ConjugationFlag'))
-    if(~isfield_recursive(csi,'RecoPar.ConjugationFlag'))
+    if(~isfield_recursive(OutStruct,'RecoPar.ConjugationFlag'))
         Settings.ConjugationSign = -1;
     else
-        Settings.ConjugationSign = (-1)^csi.RecoPar.ConjugationFlag;        
+        Settings.ConjugationSign = (-1)^OutStruct.RecoPar.ConjugationFlag;        
     end
 else
     Settings.ConjugationSign = (-1)^Settings.ConjugationFlag;            
@@ -57,13 +57,13 @@ warning('off','MATLAB:rankDeficientMatrix')
 %% Some definitions
 
 
-dim    = size(csi.Data);
-dt     = csi.Par.Dwelltimes(1)*1e-9;
+dim    = size(OutStruct.Data);
+dt     = OutStruct.Par.Dwelltimes(1)*1e-9;
 
 
 %% water removal 
 
-Factor = csi.Par.LarmorFreq * 1e-6;
+Factor = OutStruct.Par.LarmorFreq * 1e-6;
 
 % Signal selective HSVD params
 selParams               = struct('dt',dt,'n',Settings.NoOfSingVals); % n: Number of singular values that should be kept in the truncated SVD.
@@ -91,34 +91,34 @@ else
     Parallel_flag = [];
 end
     
-SizeCsi = size(csi.Data);
-csi.Data = csi.Data(:,:,:,:,:);       % Put all dimensions > 5 to the 5th dimension
+SizeOutStruct = size(OutStruct.Data);
+OutStruct.Data = OutStruct.Data(:,:,:,:,:);       % Put all dimensions > 5 to the 5th dimension
 NuisTic = tic;
 if(nargout > 1)
-    csi_Nuis = zeros(size(csi.Data));
+    csi_Nuis = zeros(size(OutStruct.Data));
 end
 if(Settings.Debug_flag)
-    bak = csi.Data;
+    bak = OutStruct.Data;
 end
-for OtherDimInd = 1:prod(SizeCsi(5:end))
-    for slc = 1:size(csi.Data,3)
+for OtherDimInd = 1:prod(SizeOutStruct(5:end))
+    for slc = 1:size(OutStruct.Data,3)
         if(nargout > 1 || Settings.Debug_flag)
-            [csi.Data(:,:,slc,:,OtherDimInd),csi_Nuis(:,:,slc,:,OtherDimInd)] = nsRm_bstrchanged ...
-            (squeeze(csi.Data(:,:,slc,:,OtherDimInd)), mask(:,:,slc), zeros(dim(1:2)), selParams,optWat, optLip, optMeta, optOther,Parallel_flag);
+            [OutStruct.Data(:,:,slc,:,OtherDimInd),csi_Nuis(:,:,slc,:,OtherDimInd)] = nsRm_bstrchanged ...
+            (squeeze(OutStruct.Data(:,:,slc,:,OtherDimInd)), mask(:,:,slc), zeros(dim(1:2)), selParams,optWat, optLip, optMeta, optOther,Parallel_flag);
         else
-            csi.Data(:,:,slc,:,OtherDimInd) = nsRm_bstrchanged ...
-            (squeeze(csi.Data(:,:,slc,:,OtherDimInd)), mask(:,:,slc), zeros(dim(1:2)), selParams,optWat, optLip, optMeta, optOther,Parallel_flag);            
+            OutStruct.Data(:,:,slc,:,OtherDimInd) = nsRm_bstrchanged ...
+            (squeeze(OutStruct.Data(:,:,slc,:,OtherDimInd)), mask(:,:,slc), zeros(dim(1:2)), selParams,optWat, optLip, optMeta, optOther,Parallel_flag);            
         end
     end
 end
-csi.Data = reshape(csi.Data,SizeCsi);
+OutStruct.Data = reshape(OutStruct.Data,SizeOutStruct);
 if(~quiet_flag)
     fprintf('%s seconds.',num2str(toc(NuisTic)))
 end
 
 if(Settings.Debug_flag)
     for CurVox = 1:numel(Settings.DebugVoxels)
-        chemy = compute_chemshift_vector_1_2(csi.Par.LarmorFreq,csi.Par.Dwelltimes(1)/10^9,csi.Par.vecSize);
+        chemy = compute_chemshift_vector_1_2(OutStruct.Par.LarmorFreq,OutStruct.Par.Dwelltimes(1)/10^9,OutStruct.Par.veOutStructze);
         figure; 
         plot(chemy,squeeze(abs(fftshift(fft(bak(Settings.DebugVoxels{CurVox}(1),Settings.DebugVoxels{CurVox}(2),Settings.DebugVoxels{CurVox}(3),:,1,1))))))
         hold on
@@ -132,4 +132,6 @@ end
 %% Postparations
 
 warning('on','MATLAB:rankDeficientMatrix')
+OutStruct = supp_UpdateRecoSteps(OutStruct,Settings);
+
 

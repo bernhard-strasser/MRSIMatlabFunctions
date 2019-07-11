@@ -49,11 +49,11 @@ end
 if(~isfield(Settings,'DensComp_flag'))
    Settings.DensComp_flag = true;    
 end
-if(~isfield(Settings,'ConjInBegin_flag'))
-   Settings.ConjInBegin_flag = true;    
+if(~isfield(Settings,'ConjIniSpace_flag'))
+   Settings.ConjIniSpace_flag = false;    
 end
-if(~isfield(Settings,'ConjAtEnd_flag'))
-   Settings.ConjAtEnd_flag = false;    
+if(~isfield(Settings,'ConjInkSpace_flag'))
+   Settings.ConjInkSpace_flag = true;    
 end
 
 
@@ -65,7 +65,7 @@ end
 
 %% Conj in Beginning
 
-if(Settings.ConjInBegin_flag)
+if(Settings.ConjIniSpace_flag)
     Data_i = conj(Data_i);
 end
 
@@ -200,7 +200,7 @@ end
 
 %% Conj at End
 
-if(Settings.ConjAtEnd_flag)
+if(Settings.ConjInkSpace_flag)
     Data_k = conj(Data_k);
 end
 
