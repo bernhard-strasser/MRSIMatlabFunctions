@@ -72,12 +72,13 @@ if(~isfield(Settings,'DensCompAutoScale_flag'))
    Settings.DensCompAutoScale_flag = false;    
 end
 
-% if(~isfield(InData,'RecoPar'))
-%     if(~isfield(InData,'Par'))
-%         error('InData must have field Par or RecoPar.')
-%     end
-%     InData.RecoPar = InData.Par;
-% end
+if(~isfield(Output,'RecoPar'))
+    if(~isfield(Output,'Par'))
+        error('Output must have field Par or RecoPar.')
+    end
+    Output.RecoPar = Output.Par;
+end
+Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.Par.nPartEnc*Output.Par.nSLC Output.Par.vecSize Output.Par.total_channel_no_measured];
 
 
 %% FOV SHIFTs

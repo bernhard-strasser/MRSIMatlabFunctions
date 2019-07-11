@@ -67,6 +67,16 @@ end
 if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
     B0 = AdditionalIn.B0;
 end
+if(~isfield(Output,'RecoPar'))
+    if(~isfield(Output,'Par'))
+        error('Output must have field Par or RecoPar.')
+    end
+    Output.RecoPar = Output.Par;
+end
+Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC ...
+                           Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured];
+
+
 
 %% FOV SHIFTs
 

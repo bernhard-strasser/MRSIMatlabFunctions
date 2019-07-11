@@ -223,6 +223,7 @@ end
 
 %% Postparations
 
+Output.RecoPar.DataSize = size(Output.Data);
 
 Output = supp_UpdateRecoSteps(Output,Settings);
 
