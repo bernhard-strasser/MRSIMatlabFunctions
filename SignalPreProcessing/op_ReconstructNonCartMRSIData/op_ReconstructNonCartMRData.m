@@ -1,4 +1,4 @@
-function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,B0,Settings)
+function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,AdditionalIn,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -9,7 +9,7 @@ function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,B0,Setting
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
+% [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,AdditionalIn,Settings)
 %
 % Input: 
 % -         ?                     ...     
@@ -38,9 +38,7 @@ function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,B0,Setting
 
 
 if(~exist('Settings','var'))
-   Settings.Phaseroll_flag = true;
-   Settings.DensComp_flag = true;   
-    
+   Settings = struct();  
 end
 if(~isfield(Settings,'Phaseroll_flag'))
    Settings.Phaseroll_flag = true;    
@@ -66,7 +64,9 @@ end
 if(~isfield(Settings,'DensCompAutoScale_flag'))
    Settings.DensCompAutoScale_flag = false;    
 end
-
+if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
+    B0 = AdditionalIn.B0;
+end
 
 %% FOV SHIFTs
 
@@ -198,8 +198,9 @@ end
 %% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
 if(Settings.DensComp_flag)
-    [Output,AdditionalOut.DCFPreG] = op_CalcAndApplyDensComp(Output,sft2_Oper,Settings.DensComp);
-    end
+    [Output,Dummy] = op_CalcAndApplyDensComp(Output,sft2_Oper,Settings.DensComp);
+    AdditionalOut.DCFPreG = Dummy.DCFPreG; clear Dummy;
+end
     
         
 
@@ -233,8 +234,10 @@ end
 % For now just reshape them. We dont have slices or 3D-measurements for now...
 Size = size(Output.Data);
 Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+%FFT
 if(isfield(Output,'NoiseData'))
     Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+    %FFT
 end
 
 
