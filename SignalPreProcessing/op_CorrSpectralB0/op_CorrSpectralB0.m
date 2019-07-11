@@ -54,8 +54,18 @@ end
 if(~Settings.Overdiscrete_flag || ~isfield(Settings,'Downsample_flag'))
     Settings.Downsample_flag = false;
 end
+if(~isfield(Settings,'ReverseB0_flag'))
+    Settings.ReverseB0_flag = false;
+end
 if(~isfield(InData,'RecoPar'))
     InData.RecoPar = InData.Par;
+end
+
+
+%% Reverse B0
+
+if(Settings.ReverseB0_flag)
+    B0.B0Map = -1*B0.B0Map;
 end
 
 
@@ -137,4 +147,9 @@ if(Settings.Debug_flag)
     figure; plot(chemy,bla(:,:))
     figure; plot(chemy,sum(bla(:,:),2))
 end
+
+
+%% Postparations
+
+InData = supp_UpdateRecoSteps(InData,Settings);
 

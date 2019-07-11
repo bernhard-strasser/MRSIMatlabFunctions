@@ -34,7 +34,7 @@ bandwidth_frequency = 1/dwelltime;
 step_frequency = bandwidth_frequency / vecSize;
 freq_vector = ((ceil(vecSize/2)-1):-1:-floor(vecSize/2)) * step_frequency;
 
-chemshift_vector = 10^6*freq_vector / LarmorFreq + 4.7;
+chemshift_vector = 10^6*freq_vector / LarmorFreq + 4.65;
 
 % max_chemshift = (water_frequency - LarmorFreq + bandwidth_frequency/2)/(LarmorFreq)*10^6;
 % min_chemshift = (water_frequency - LarmorFreq - bandwidth_frequency/2)/(LarmorFreq)*10^6;

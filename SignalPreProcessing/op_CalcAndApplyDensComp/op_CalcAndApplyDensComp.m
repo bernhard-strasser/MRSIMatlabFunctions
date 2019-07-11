@@ -28,6 +28,8 @@ function [InStruct,AdditionalOut] = op_CalcAndApplyDensComp(InStruct,NUFTOperato
 %                                           AutoScale_flag: When true, the NUFTOperator is used to construct and reconstruct an image of ones. The ground truth
 %                                                           and reconstruction are compared in scale, and the ratio is applied to the DCF.
 %                                                           After that, the DCF should provide properly scaled images.
+%                                           InvertDCF_flag: When true, the 1/DCF instead of DCF is computed and applied. This is rarely necessary, but
+%                                                           If you want to see the k-space density, that's how you could get it.
 %
 % Output:
 % -         InStruct        ...  Same as for input
@@ -55,7 +57,9 @@ end
 if(~isfield(Settings,'AutoScale_flag'))
    Settings.AutoScale_flag = true;    
 end
-
+if(~isfield(Settings,'InvertDCF_flag'))
+   Settings.InvertDCF_flag = false;    
+end
 
 %% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
@@ -92,6 +96,13 @@ end
 DCFPreG = DCFPreG/Scale;
 
 
+
+%% Invert DCF if necessarry
+
+if(Settings.InvertDCF_flag)
+    DCFPreG = 1./DCFPreG; DCFPreG(isnan(DCFPreG) | isinf(DCFPreG)) = 0;
+end
+
 %% Apply DCF
 
 if(isfield(InStruct,'Data'))
@@ -108,6 +119,6 @@ if(nargout > 1 && exist('DCFPreG','var'))
     AdditionalOut.DCFPreG = DCFPreG;
 end
 
-InStruct = supp_UpdateRecoSteps(InStruct,Settings);
+% InStruct = supp_UpdateRecoSteps(InStruct,Settings);
 
 
