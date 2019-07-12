@@ -46,8 +46,8 @@ end
 if(~isfield(Settings,'DensComp_flag'))
    Settings.DensComp_flag = true;    
 end
-if(~isfield(Settings,'DensComp'))
-   Settings.DensComp = struct();    
+if(~isfield_recursive(Settings,'DensComp.AutoScale_flag'))
+   Settings.DensComp.AutoScale_flag = false;    
 end
 if(~isfield(Settings,'ConjInkSpace_flag'))
    Settings.ConjInkSpace_flag = false;    
@@ -60,9 +60,6 @@ if(~isfield(Settings,'Correct4SpatialB0_flag'))
 end
 if(~isfield(Settings,'CircularSFTFoV_flag'))
    Settings.CircularSFTFoV_flag = false;    
-end
-if(~isfield(Settings,'DensCompAutoScale_flag'))
-   Settings.DensCompAutoScale_flag = false;    
 end
 if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
     B0 = AdditionalIn.B0;
