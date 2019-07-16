@@ -71,14 +71,27 @@ if(~isfield(Output,'RecoPar'))
     end
     Output.RecoPar = Output.Par;
 end
+Operators.InDataSize = size(Output.Data);
+
+Operators.OutDataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
+Output.RecoPar.DataSize = Operators.OutDataSize;
+% Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 
 
 %% Sampling Operator
 
 if(~isfield(AdditionalIn,'SamplingOperator'))
-    Operators.SamplingOperator = ones(Output.Par.DataSize(1:2));
+    Operators.SamplingOperator = 1;
 else
-    Operators.SamplingOperator = AdditionalIn.SamplingOperator;    
+    Operators.SamplingOperator = AdditionalIn.SamplingOperator;
+    SizeSamp = size(Operators.SamplingOperator);
+    UnequalSizesInd = find(Operators.InDataSize(1:end-1) ~= SizeSamp,1);
+    if(~isempty(UnequalSizesInd))
+        st = dbstack;
+        FunName = st(1).name;
+        fprintf('\nWarning in %s: Size of given SamplingOperator (size: %s)\ndoes not match InDataSize (%s). Cut SamplingOperator.',FunName,sprintf('%d ',SizeSamp),sprintf('%d ',Operators.InDataSize))
+    end
+    Operators.SamplingOperator = Zerofilling_Spectral(Operators.SamplingOperator,Operators.InDataSize(1:end-1),0);
 end
 
 
@@ -91,12 +104,12 @@ end
 
 if(Settings.Phaseroll_flag)
 
-    nTI = Output.Par.nTempInt;
-    vs = Output.Par.vecSize;
-    ns = Output.Par.TrajPts;
-    nc = Output.Par.nAngInts;
-    nrew = Output.Par.RewPts;
-    ncha = Output.Par.DataSize(6);
+    nTI = Output.RecoPar.nTempInt;
+    vs = Output.RecoPar.vecSize;
+    ns = Output.RecoPar.TrajPts;
+    nc = Output.RecoPar.nAngInts;
+    nrew = Output.RecoPar.RewPts;
+    ncha = Operators.InDataSize(6);
 
     timeoffset = 0:(ns-1);
     timeoffset = repmat(transpose(timeoffset),[1 vs]);
@@ -112,11 +125,11 @@ if(Settings.Phaseroll_flag)
     % the same anyway
     
     Operators.TiltTrajMat = exp(-2*1i*pi*timeoffset .* Freq);    
-    Operators.TiltTrajMat = reshape(Operators.TiltTrajMat,Output.Par.DataSize([1 2 5]));
+    Operators.TiltTrajMat = reshape(Operators.TiltTrajMat,[Operators.InDataSize(1) 1 1 1 Operators.InDataSize(5)]); % [TrajPts nAI nPart nSlc vecSize]
        
 else
     
-	Operators.TiltTrajMat = ones([Output.Par.TrajPts Output.Par.nAngInts Output.Par.vecSize]);
+	Operators.TiltTrajMat = 1;
 
 end
 
@@ -129,11 +142,11 @@ end
 
 % Collapse data to a matrix (from [nAngInt x nTrajPoints x nTempInt*vecSize x nCha x nPart*nSlc] to [nAngInt*nTrajPoints x Rest])
 
-Operators.sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Output.RecoPar.DataSize(1)),transpose(Output.InTraj.GM(:,:)),1);
+Operators.sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Operators.OutDataSize(1)),transpose(Output.InTraj.GM(:,:)),1);
 
 % Restrict to circular FoV
 if(Settings.CircularSFTFoV_flag)
-    FoVMask = EllipticalFilter(ones(Output.RecoPar.DataSize(1:2)),[1 2],[1 1 1 Output.RecoPar.DataSize(1)/2-1],1); 
+    FoVMask = EllipticalFilter(ones(Operators.OutDataSize(1:2)),[1 2],[1 1 1 Operators.OutDataSize(1)/2-1],1); 
     FoVMask = FoVMask(:);
     Operators.sft2_Oper(:,~logical(FoVMask(:))) = 0;
     clear FoVMask;
@@ -144,9 +157,9 @@ end
 if(Settings.Correct4SpatialB0_flag)
     t   = (0:Output.RecoPar.TrajPts-1)*Output.RecoPar.ADC_dt/10^9;
     t = repmat(t,[1 1 Output.RecoPar.nAngInts]); t = t(:);
-    CurB0 = imresize(AdditionalIn.B0.B0Map,Output.RecoPar.DataSize(1:2));    
+    CurB0 = imresize(AdditionalIn.B0.B0Map,Operators.OutDataSize(1:2));    
     if(isfield(AdditionalIn.B0,'Mask'))
-        Mask = imresize(MaskShrinkOrGrow(AdditionalIn.B0.Mask,2,0,1),Output.RecoPar.DataSize(1:2),'nearest');
+        Mask = imresize(MaskShrinkOrGrow(AdditionalIn.B0.Mask,2,0,1),Operators.OutDataSize(1:2),'nearest');
         CurB0 = CurB0 .* Mask;
     end
     
@@ -157,7 +170,7 @@ end
 
 
 %% Mask
-Mask = imresize(AdditionalIn.B0.Mask,Output.RecoPar.DataSize(1:2),'nearest');
+Mask = imresize(AdditionalIn.B0.Mask,Operators.OutDataSize(1:2),'nearest');
 Operators.Mask = Mask;
 
 
@@ -165,24 +178,24 @@ Operators.Mask = Mask;
 
 if(Settings.Correct4SpectralB0_flag)
     % Go to resolution of D1
-    CurB0 = imresize(AdditionalIn.B0.B0Map,Output.RecoPar.DataSize(1:2)) ;
+    CurB0 = imresize(AdditionalIn.B0.B0Map,Operators.OutDataSize(1:2)) ;
     if(exist('Mask','var'))
         CurB0 = CurB0 .* Mask;
     end
 
     % Round to shift only integer number of points
-    HzPerPt = 10^9/Output.Par.Dwelltimes(1) / Output.Par.vecSize;
+    HzPerPt = 10^9/Output.RecoPar.Dwelltimes(1) / Output.RecoPar.vecSize;
     % if(Settings.RoundB0ToIntVecPts)
     %     CurB0 = round(CurB0/HzPerPt)*HzPerPt;
     % end
 
-    time   = (0:Output.Par.DataSize(5)-1)*Output.Par.Dwelltimes(1)/10^9; time = reshape(time,[1 1 numel(time)]);
+    time   = (0:Operators.InDataSize(5)-1)*Output.RecoPar.Dwelltimes(1)/10^9; time = reshape(time,[1 1 1 numel(time)]);
     B0CorrMat_Spec = exp(2*pi*1i*CurB0 .* time);
 
 
     Operators.B0CorrMat_Spec = B0CorrMat_Spec;
 else
-    Operators.B0CorrMat_Spec = ones([Output.RecoPar.DataSize(1:2),Output.RecoPar.DataSize(4)]);
+    Operators.B0CorrMat_Spec = 1;
 end
 
 
@@ -198,20 +211,24 @@ if(Settings.DensComp_flag)
     [~,Dummy2] = op_CalcAndApplyDensComp(Output,Operators.sft2_Oper,Settings.DensComp);
     Operators.DCFPreG = Dummy2.DCFPreG;
     clear Dummy;
+else
+    Operators.DCFPreG = 1;
 end
 
 
 %% Calculate SensitivityMap
 
 Settss.ResizeMethod = 'Imresize';
-Settss.ScalingMethod = 'UniformSensitivity';   Dummy2.Data = ones(Output.RecoPar.DataSize); Dummy2.RecoPar = Output.RecoPar; %Dummy2.Par = Output.Par; 
+Settss.ScalingMethod = 'UniformSensitivity';
+Dummy2.Data = ones([Operators.OutDataSize Output.Par.total_channel_no_measured]); 
+Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = size(Dummy2.Data);  %Dummy2.Par = Output.Par; 
 [DeleteMe, AddOut] = op_CoilCombineData(Dummy2,AdditionalIn.SensMap,Settss);
-Operators.SensMap = squeeze_single_dim(AddOut.CoilWeightMap(:,:,:,1,:),3);
+Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:);
 clear DeleteMe AddOut Settss;
 
-Scale = 1 ./ sqrt(sum(abs(Operators.SensMap(:,:,1,:)).^2,4));
+Scale = 1 ./ sqrt(sum(abs(Operators.SensMap).^2,5));
 Scale(isinf(Scale) | isnan(Scale) | Scale == 0 ) = 1;
-Operators.SensMap = Operators.SensMap(:,:,1,:).*Scale.*Operators.Mask;
+Operators.SensMap = Operators.SensMap.*Scale.*Operators.Mask;
 Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
 
 
