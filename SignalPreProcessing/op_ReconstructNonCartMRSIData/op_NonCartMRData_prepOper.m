@@ -52,6 +52,9 @@ end
 if(~isfield_recursive(Settings,'DensComp.AutoScale_flag'))
    Settings.DensComp.AutoScale_flag = false;    
 end
+if(~isfield(Settings.DensComp,'Normalize_flag'))
+   Settings.DensComp.Normalize_flag = false;    
+end
 if(~isfield(Settings,'Correct4SpatialB0_flag'))
    Settings.Correct4SpatialB0_flag = false;    
 end

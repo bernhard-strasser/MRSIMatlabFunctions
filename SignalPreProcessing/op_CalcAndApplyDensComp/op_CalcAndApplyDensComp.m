@@ -57,6 +57,9 @@ end
 if(~isfield(Settings,'AutoScale_flag'))
    Settings.AutoScale_flag = true;    
 end
+if(~isfield(Settings,'Normalize_flag'))
+   Settings.Normalize_flag = false;    
+end
 if(~isfield(Settings,'InvertDCF_flag'))
    Settings.InvertDCF_flag = false;    
 end
@@ -79,19 +82,21 @@ end
     
 %% Scale DCF
     
-if(~Settings.AutoScale_flag)
-%         FudgeFactor = 1.2743;     % For old trajectory
-%         FudgeFactor = 0.00051078;         % For new trajectory
-    FudgeFactor = 1.9634;
-    Scale = max(DCFPreG(:))*2*InStruct.RecoPar.fov_overgrid^2/FudgeFactor;
-% I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
-% and seeing how it was scaled...
-
-else
+if(Settings.Normalize_flag)
+    Scale = norm(DCFPreG(:))/sqrt(numel(DCFPreG));
+elseif(Settings.AutoScale_flag)
     OnesData = ones(InStruct.RecoPar.DataSize(1:2));
     OutOnesData = abs(NUFTOperator'*(DCFPreG(:) .* (NUFTOperator*OnesData(:)))*size(InStruct.OutTraj.GM(:,:),2));
     OutOnesData(OutOnesData == 0) = NaN;
     Scale = nanmean(OutOnesData);
+else
+    %         FudgeFactor = 1.2743;     % For old trajectory
+%         FudgeFactor = 0.00051078;         % For new trajectory
+    FudgeFactor = 1.9634;
+    Scale = max(DCFPreG(:))*2*InStruct.RecoPar.fov_overgrid^2/FudgeFactor;
+    % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
+    % and seeing how it was scaled...
+    
 end
 DCFPreG = DCFPreG/Scale;
 
