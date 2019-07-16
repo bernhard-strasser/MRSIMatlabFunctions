@@ -73,8 +73,8 @@ if(~isfield(Output,'RecoPar'))
     end
     Output.RecoPar = Output.Par;
 end
-Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.Par.nPartEnc*Output.Par.nSLC Output.Par.vecSize Output.Par.total_channel_no_measured];
-
+Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
+% Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 
 %% FOV SHIFTs
 
