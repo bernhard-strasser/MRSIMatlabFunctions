@@ -1,4 +1,12 @@
-function [Phase_new, Read_new] = compute_dircos_1_3(Slice_new,Rot_angle_around_Slice_new)
+function [Phase_new, Read_new] = compute_dircos(Slice_new_OrPars,Rot_angle_around_Slice_new)
+
+% Assume that Slice_new_OrPars is ascconv part of header read in by my function "read_ascconv".
+if(isstruct(Slice_new_OrPars))
+    Rot_angle_around_Slice_new = Slice_new_OrPars.InPlaneRotation;
+    Slice_new = [Slice_new_OrPars.SliceNormalVector_x(1) Slice_new_OrPars.SliceNormalVector_y(1) Slice_new_OrPars.SliceNormalVector_z(1)];
+else
+    Slice_new = Slice_new_OrPars;
+end
 
 Phase_new = [0 Slice_new(3) -Slice_new(2)] * 1/sqrt(Slice_new(2)^2+Slice_new(3)^2);
 Read_new = cross(Slice_new,Phase_new);
