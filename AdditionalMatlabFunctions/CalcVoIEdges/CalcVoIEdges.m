@@ -1,4 +1,4 @@
-function [VOI_X_MIN,VOI_X_MAX] = CalcVoIEdges(MatrixSize,VoISize,FoVSize,ExtraVoxels)
+function [VOI_X_MIN,VOI_X_MAX] = CalcVoIEdges(MatrixSize,VoISize,FoVSize,ExtraVoxels,RoundUpOrDown)
 %
 % CalcVoIEdges Calculate the edge voxels of the VoI
 %
@@ -49,7 +49,14 @@ function [VOI_X_MIN,VOI_X_MAX] = CalcVoIEdges(MatrixSize,VoISize,FoVSize,ExtraVo
 
 Oddiness = mod(MatrixSize,2);
 
-
+if(~exist('RoundUpOrDown','var'))
+    RoundUpOrDown = 'RoundUp';
+end
+if(strcmpi(RoundUpOrDown,'RoundDown'))
+    RoundDownFlag = true;
+else
+    RoundDownFlag = false;    
+end
 
 
 
@@ -65,11 +72,11 @@ Oddiness = mod(MatrixSize,2);
 % For an odd number of phase encoding steps, the VoI-center is also at the FoV-center, and we can only have odd number of fully
 % excited VoI-voxels.
 
-% Check how many times R the voxel-size fits into the VoISize
-% This maps R to the NoOfVoxels as follows:    
+% Let R be the number of times the voxel-size fits into the VoISize
+% The following formula maps R to the NoOfVoxels as follows (for RoundDownFlag = false):
 % Odd MatrixSizes:  0<=R<2.0 --> 0; 2.0<=R<4.0 --> 2; 4.0<=R<6.0 --> 4; ...
 % Even MatrixSizes: 0<=R<1.0 --> 0; 1.0<=R<3.0 --> 2; 3.0<=R<5.0 --> 4; ...
-NoOfVoxels = 2*floor(VoISize/(2*FoVSize/MatrixSize) + 0.5*(1-Oddiness));
+NoOfVoxels = 2*floor(VoISize/(2*FoVSize/MatrixSize) + 0.5*(1-Oddiness) -double(RoundDownFlag)*0.5);
 
 % Make NoOfVoxels odd for odd MatrixSizes
 NoOfVoxels = NoOfVoxels + Oddiness;

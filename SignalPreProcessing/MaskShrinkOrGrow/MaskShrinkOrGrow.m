@@ -52,43 +52,54 @@ end
 
 % Very slow implementation but works
 if(~MaskGrow_flag)
-	mask = ~mask;
+% 	mask = ~mask;
+    ShrinkOrGrowFunction = @imerode;
+else
+    ShrinkOrGrowFunction = @imdilate;   
 end
 mask_ShrunkOrGrown = mask;	
 
-
 if(SliceBySlice_flag)
-	mask2 = EllipticalFilter(ones(size(mask(:,:,1))), [1 2], [1 1 1 NoOfVoxels],1);
+    for z = 1:size(mask,3)
+        mask_ShrunkOrGrown(:,:,z) = ShrinkOrGrowFunction(mask(:,:,z),strel('disk', NoOfVoxels)); 
+    end
 else
-	mask2 = EllipticalFilter(ones(size(mask)), [1 2 3], [1 1 1 NoOfVoxels],1);
+    mask_ShrunkOrGrown = ShrinkOrGrowFunction(mask,strel('disk', NoOfVoxels)); 
 end
 
-for z = 1:size(mask,3)
-	if(SliceBySlice_flag)
-		mask4 = mask(:,:,z);
-	end
-	for x = 1:size(mask,1)
-		for y = 1:size(mask,2)
-			if(mask(x,y,z) == 1)
-				continue;
-			end			
 
-			% create a second mask with radius NoOfVoxels
-			ShiftBy = [x-(ceil(size(mask2,1)/2))-1, y-(ceil(size(mask2,1)/2))-1, z-(ceil(size(mask2,1)/2))-1];
-			ShiftBy = ShiftBy(1:numel(size(mask2)));
-			mask3 = NonCircShift(mask2,ShiftBy);
-			if(~isempty(find(mask4(logical(mask3)),1)))
-				mask_ShrunkOrGrown(x,y,z) = 1;
-			end
-
-		end
-	end
-end
+% if(SliceBySlice_flag)
+% 	mask2 = EllipticalFilter(ones(size(mask(:,:,1))), [1 2], [1 1 1 NoOfVoxels],1);
+% else
+% 	mask2 = EllipticalFilter(ones(size(mask)), [1 2 3], [1 1 1 NoOfVoxels],1);
+% end
+% 
+% for z = 1:size(mask,3)
+% 	if(SliceBySlice_flag)
+% 		mask4 = mask(:,:,z);
+% 	end
+% 	for x = 1:size(mask,1)
+% 		for y = 1:size(mask,2)
+% 			if(mask(x,y,z) == 1)
+% 				continue;
+% 			end			
+% 
+% 			% create a second mask with radius NoOfVoxels
+% 			ShiftBy = [x-(ceil(size(mask2,1)/2))-1, y-(ceil(size(mask2,1)/2))-1, z-(ceil(size(mask2,1)/2))-1];
+% 			ShiftBy = ShiftBy(1:numel(size(mask2)));
+% 			mask3 = NonCircShift(mask2,ShiftBy);
+% 			if(~isempty(find(mask4(logical(mask3)),1)))
+% 				mask_ShrunkOrGrown(x,y,z) = 1;
+% 			end
+% 
+% 		end
+% 	end
+% end
 
 	
-if(~MaskGrow_flag)
-	mask_ShrunkOrGrown = ~mask_ShrunkOrGrown;
-end
+% if(~MaskGrow_flag)
+% 	mask_ShrunkOrGrown = ~mask_ShrunkOrGrown;
+% end
 
 
    
