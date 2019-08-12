@@ -28,6 +28,7 @@ function [InStruct,AdditionalOut] = op_CalcAndApplyDensComp(InStruct,NUFTOperato
 %                                           AutoScale_flag: When true, the NUFTOperator is used to construct and reconstruct an image of ones. The ground truth
 %                                                           and reconstruction are compared in scale, and the ratio is applied to the DCF.
 %                                                           After that, the DCF should provide properly scaled images.
+%                                           Normalize_flag: If true, normalize DCF so that norm(DCF) = sqrt(numel(DCF)).
 %                                           InvertDCF_flag: When true, the 1/DCF instead of DCF is computed and applied. This is rarely necessary, but
 %                                                           If you want to see the k-space density, that's how you could get it.
 %

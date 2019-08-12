@@ -74,6 +74,9 @@ end
 Operators.InDataSize = size(Output.Data);
 
 Operators.OutDataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
+if(isfield(Output.Par,'TimeUndersamplFactor'))
+    Operators.OutDataSize(end) = Operators.OutDataSize(end)*Output.Par.TimeUndersamplFactor;
+end
 Output.RecoPar.DataSize = Operators.OutDataSize;
 % Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 

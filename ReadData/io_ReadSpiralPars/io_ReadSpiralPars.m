@@ -50,15 +50,16 @@ end
 Out = supp_UpdateRecoSteps(Out,Settings);
 
 
-%% Read Parameters
 
+%% Read Ascconv
 
-% Read Parameters of D2
 Out.Par = read_ascconv(SpiralFile);
 % Find out IceProgramPara to properly reshape data
 Out.Par.IceProgramPara = read_IceProgramParam(SpiralFile);
 
-% Spiral Specific Parameters
+
+%% Spiral Specific Parameters
+
 run(TrajFile)
 NumOfGradPtsForAllTIs = Out.Par.Dwelltimes/10^3 / 10;    % Dwelltime in us / GRAD_RASTER_TIME in us = Number Of Pts per TI
 Out.Par.nTempInt = round(numel(dGradientValues{1}) / NumOfGradPtsForAllTIs);
@@ -73,7 +74,9 @@ if(Settings.IncludeRewinder_flag)
     Out.Par.RewPts = 0;
 end
 
-% Find exact vecSize number similar as in sequence
+
+%% Find exact vecSize number similar as in sequence
+
 nperiods = 320000 / (10/Out.Par.ADC_OverSamp*Out.Par.TrajTotPts);
 if(nperiods > 60)
     concat_periods = floor(nperiods / 60 +1);
@@ -82,5 +85,14 @@ end
 Out.Par.vecSize = nperiods * concat_periods*Out.Par.nTempInt;
 
 
+%% Adapt Dwelltimes
+% The dwelltime stored in the ascconv part of the header is only approximately correct. This is because in the sequence we define a certain SBW. Now because of some
+% sequence constraints (e.g. the dwelltime must be integer multiple of gradient raster time of 10 us, the number of total trajectory points must be dividible by temporal
+% interleaves), the real dwelltime and thus spectral bandwidth will be changed.
+% Anyway, the real dwelltime is just the total ADC trajectory points divided by the temp interleaves, 
+% times 10 (the gradient raster time in us) divided by the ADC-oversampling
+
+Out.Par.DwelltimesFromHeader = Out.Par.Dwelltimes;
+Out.Par.Dwelltimes = (Out.Par.TrajTotPts/Out.Par.nTempInt)*(10/Out.Par.ADC_OverSamp) * 10^3;
 
 
