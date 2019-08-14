@@ -1,4 +1,4 @@
-function [CellOfFigures] = CutImages(FilePaths,ImageEdges)
+function [CellOfFigures] = CutImages(FilePaths,ImageEdges,PixelsOrPercent)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -12,9 +12,16 @@ function [CellOfFigures] = CutImages(FilePaths,ImageEdges)
 % [CellOfFigures] = CutImages(FilePaths,ImageEdges)
 %
 % Input: 
-% -         ?                    ...     ?
+% -         FilePaths                    ...     FilePaths which should be read in ---- OR ---- cell of figures.
+% -         ImageEdges                   ...     The image edges [up down left right] so the images will be cut to Image(up:down,left:right).
+%                                                Can be also specified in percent (see next input), which will be then given in 
+%                                                [up_percent down_percent left_percent right_percent]
+% -         PixelsOrPercent              ...     If 'Percent', then the ImageEdges are interpreted as percent. Values of [100 100 100 100] will then not cut the
+%                                                images at all, [50 100 50 100] will cut the upper side of the image by half, while not cutting from down
+%                                                (resulting in an image which is 75% in size in up-down direction, but cutting only occurs from top), and it will
+%                                                cut 50 % from left, but nothing from right.
 % Output:
-% -         ?                         ...     ?
+% -         CellOfFigures                ...     The cell of all the figures, which can then combined to one image by StitchImages.
 
 % Feel free to change/reuse/copy the function. 
 % If you want to create new versions, don't degrade the options of the function, unless you think the kicked out option is totally useless.
@@ -35,6 +42,9 @@ if(nargin < 1)
 	fprintf('\nProblem: Cannot fft non-existant data. Provide some data.')
 	FigHandle = 0;
 	return;
+end
+if(~exist('PixelsOrPercent','var'))
+    PixelsOrPercent = 'Pixels';
 end
 
 if(~exist('AllEdgesSame_flag','var'))
@@ -59,6 +69,19 @@ if(ischar(FilePaths{1,1}))
     end
 else
     CellOfFigures = FilePaths;
+end
+
+
+%% Convert from Percent To Pixels, if necessary
+
+if(strcmpi(PixelsOrPercent,'Percent'))
+    for jj = 1:size(CellOfFigures,2)
+        for ii = 1:size(CellOfFigures,1)
+            CurSiz = size(CellOfFigures{ii,jj});
+            CurSiz = [CurSiz(1),CurSiz(1),CurSiz(2),CurSiz(2)]/2;
+            ImageEdges{ii,jj} = round([1 0 1 0] + CurSiz + [-1, 1, -1, 1].*CurSiz .* ImageEdges{ii,jj}/100);
+        end
+    end
 end
 
 %% 1.

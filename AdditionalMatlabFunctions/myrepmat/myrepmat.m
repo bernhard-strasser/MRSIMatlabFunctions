@@ -88,8 +88,9 @@ if(~exist('DimensionCorrespondence', 'var'))
 			DimensionCorrespondence(curoutind) = IndexOfInArrayWhichMatched(1);
 			Size_InArray_dum(IndexOfInArrayWhichMatched(1)) = 0;
 		end
-	end
-	
+    end
+	Size_InArray_dum(Size_InArray_dum == 1) = 0;
+    
 	% If not all of the indices of Size_InArray were found in DesiredSize, the automatic calculation of DimensionCorespondence doesnt work. Display error.  
 	if(sum(Size_InArray_dum) > 0)
        display([ char(10) 'Error: All elements of size(InArray) must occur in DesiredSize.' char(10) 'Automatic calculation of DimensionCorrespondence failed. Manual input needed.' ])

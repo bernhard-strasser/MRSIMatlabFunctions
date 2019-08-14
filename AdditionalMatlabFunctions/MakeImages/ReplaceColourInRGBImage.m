@@ -12,7 +12,12 @@ function [Figgy] = ReplaceColourInRGBImage(Figgy,ReplaceColour_RGB,ColourSimilar
 % [OutImage,CellOfImages] = StitchImages(CellOfImages,SameExactSize)
 %
 % Input: 
-% -         ?                    ...     ?
+% -         Figgy                    ...     The Figure where the colours should be replaced
+% -         ReplaceColour_RGB        ...     The RGB colour which should be replaced
+% -         ColourSimilarity         ...     The similarity. If 0, only exactly this colour will be replaced. In general, 
+%                                            norm(ActualColour - ReplaceColour_RGB) < ColourSimilarity. Keep in mind that RGB values are uint8, so each
+%                                            channel can have values between 0 and 255.
+% -         ReplaceColourWith_RGB    ...     The colour which will replace the matching colours.
 % Output:
 % -         ?                         ...     ?
 
