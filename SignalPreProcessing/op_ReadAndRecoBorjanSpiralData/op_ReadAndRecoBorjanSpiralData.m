@@ -52,7 +52,7 @@ if(~exist('Settings','var'))
 end
 
 if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
-    Settings.Debug.ShowTrajs = true;
+    Settings.Debug.ShowTrajs = false;
 end
 
 if(~isfield_recursive(Settings,'io_ReadSpiralPars.IncludeRewinder_flag'))

@@ -1,4 +1,4 @@
-function [RGBImageCell] = MakeRGBImageCell(ImageCell,CLims,SetFunction,AxisSquare)
+function [RGBImageCell] = MakeRGBImageCell(ImageCell,CLims,SetFunction,AxisSquare,colormaptype)
 %
 % MakeRGBImageCell This function takes data and imagesc's them to create cell of RGB-images.
 %
@@ -41,14 +41,18 @@ if(~exist('ImageCell','var'))
     return
 end
 if(~exist('CLims','var') || isempty(CLims))
-    CLims = 0;
+    CLims = [-Inf Inf];
 end
 if(~exist('SetFunction','var') || isempty(SetFunction))
     SetFunction = @(x) FunctionTemplateBstrasser(x);   % Just to have a dummy. This function will do nothing, and therefore not change the images.
 end
 if(~exist('AxisSquare','var') || isempty(AxisSquare))
-    AxisSquare = 'AxisNormal';   % Just to have a dummy. This function will do nothing, and therefore not change the images.
+    AxisSquare = 'AxisNormal';
 end
+if(~exist('colormaptype','var') || isempty(colormaptype))
+    colormaptype = 'hot';  
+end
+
 
 if(~iscell(CLims))
     CLims = repmat({CLims},size(ImageCell));
@@ -71,7 +75,7 @@ fighaendel = figure;
 for xInd = 1:size(ImageCell,1)
     for yInd = 1:size(ImageCell,2)
         for ContLoop = 1:500
-            imagesc(squeeze(ImageCell{xInd,yInd}),CLims{xInd,yInd}),  SetFunction{xInd,yInd}(gca);
+            imagesc(squeeze(ImageCell{xInd,yInd}),CLims{xInd,yInd}), colormap(colormaptype),  SetFunction{xInd,yInd}(gca);
             if(strcmpi(AxisSquare, 'AxisSquare'))
                 axis square
             end

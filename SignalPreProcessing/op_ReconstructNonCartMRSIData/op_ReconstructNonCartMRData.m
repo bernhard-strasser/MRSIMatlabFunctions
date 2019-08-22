@@ -74,27 +74,16 @@ Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPa
                            Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured];
 
 
-
-%% FOV SHIFTs
-
-% NOT YET IMPLEMENTED
-
-% THATS HOW LUKAS HINGERL DOES IT (CODE FROM LUKAS HINGERL):
-% %Inplane FOV shift
-% kspace_max=sqrt(kx(1,end).^2+ky(1,end).^2);
-% yIPFOVshift=-ReadInInfo.General.Ascconv.PosVOI_Sag; %this should be right!
-% xIPFOVshift=-ReadInInfo.General.Ascconv.PosVOI_Cor;
-% zIPFOVshift=ReadInInfo.General.Ascconv.PosVOI_Tra;
-% FOV=ReadInInfo.General.Ascconv.FoV_Phase;
-% FOVz=ReadInInfo.General.Ascconv.FoV_Partition;
-% 
-% 
-% for circles=1:nc
-%     for samplepoint=1:ns
-%         csi_k(:,circles,samplepoint,1,:)=csi_k(:,circles,samplepoint,1,:)*exp(1i*kx(samplepoint,circles)/kspace_max*((REShalbe-0.5)/FOV)*2*pi*xIPFOVshift)*exp(1i*ky(samplepoint,circles)/kspace_max*((REShalbe-0.5)/FOV)*2*pi*yIPFOVshift);
-%     end
-% end
-
+%% FOV SHIFTs Add correct phaseses to the data and shift the FOV to the image center.
+LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
+Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];
+Normal2=[0 0 1];
+v=vrrotvec(Normal1,Normal2);
+Rot=vrrotvec2mat(v);
+PRS=Rot*LPH';
+FOVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.nFreqEnc*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
+FOVShift = FOVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.nPhasEnc*pi*PRS(1)/Output.RecoPar.FoV_Phase));
+Output.Data = Output.Data.*FOVShift;
 
 
 %% Conj in Beginning

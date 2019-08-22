@@ -1,27 +1,25 @@
-function [OrigPaths,NewPaths] = ReplacePath(PathToAdd,CellSearchFor)
+function [OrigPaths,NewPaths] = ReplacePath(PathToAdd,PathToRemove,Verbosity)
 %
-% ReplacePath search for occurances of certain strings in a cell string
+% ReplacePath Replace matlab-functions by matlab-functions found in PathToAdd 
 %
-% This function was written by Bernhard Strasser, [month] [year].
+% This function was written by Bernhard Strasser, June 2019.
 %
 %
-% You can give two Cell Arrays of strings, CellToSearch and CellSearchFor to the function.
-% The function will then tell you, where ANY of the strings in CellSearchFor matches
-% CellToSearch.
+% The functions searches the PathToAdd for matlab functions and then searches the current functions for matches.
+% If there is a match in the function names, the current one will be replaced by the new one. If it doesn't find a match, it will just add the new function.
 %
-% E.g. CellToSearch = {'A','B','BCDEFA'}; CellSearchFor = {'A','G'}
-% Output: [1] [] [6], because A occurs in first and third cell of CellToSearch.
 % 
 %
 %
-% [A,B] = read_csi_dat_1_10(inputvar1,inputvar2)
+% [OrigPaths,NewPaths] = ReplacePath(PathToAdd,Verbosity)
 %
 % Input: 
-% -         CellToSearch                   ...    This is the first input
-% -         CellSearchFor                   ...    And this the second
+% -         PathToAdd                   ...    The Path where matlab-functions are searched, and which will replace the old matlab-functions
+% -         Verbosity                   ...    If 0, no text output will be printed, if 1 only warning-like outputs are printed, if 2 all outputs are printed
 %
 % Output:
-% -         Matches                           ...     This is output A
+% -         OrigPaths                   ...     All original matlab-functions that were replaced
+% -         NewPaths                    ...     All new matlab-functions that replaced the old ones
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -38,22 +36,54 @@ function [OrigPaths,NewPaths] = ReplacePath(PathToAdd,CellSearchFor)
 
 % 0.1 Preparations
 
+if(~exist('Verbosity','var'))
+	Verbosity = 1;
+end
+
 
 % 0.3 Definitions
     
 OrigPaths = path;
 
 
+%% If PathToRemove is given, short-circuit
 
-%% Get Existing Paths
+% In that case, just remove old path, and add new path.
+if(exist('PathToRemove','var') && ~isempty(PathToRemove))
+    RemovePath(PathToRemove,Verbosity);
+    AddPath(PathToAdd,Verbosity);
+    NewPaths = path;
+    return;
+end
 
-OrigPaths = regexp(OrigPaths,':','split');
-test = contains(OrigPaths,'.git');
-OrigPaths = OrigPaths(~test);
-% CurPath_LastFold = regexprep(OrigPaths,'.*/','');
 
 
-%% Get Paths that should be added
+
+%% Get Existing Functions
+
+OrigPaths2 = regexp(OrigPaths,':','split');
+
+% Remove git folders
+test = contains(OrigPaths2,'.git');
+OrigPaths2 = OrigPaths2(~test); OrigPaths2(cellfun(@isempty,OrigPaths2)) = [];
+
+% Remove all matlabroot subdirectories. We don't want to touch them!!!
+OrigPaths2 = OrigPaths2(cellfun(@isempty,regexp(OrigPaths2,matlabroot)));
+
+% Find all .m files in OrigPaths2
+LoadedFun = [];
+LoadedFunPaths = [];
+for ii = 1:numel(OrigPaths2)
+    Dummy = dir(OrigPaths2{ii}); Dummy = {Dummy.name};
+    Dummy = regexp(Dummy(3:end),'.*\.m','match','once');
+    Dummy(cellfun(@isempty,Dummy)) = [];
+    Dummy = regexprep(Dummy,'\.m','');
+    LoadedFun = cat(2,LoadedFun,Dummy);
+    LoadedFunPaths = cat(2,LoadedFunPaths,repmat(OrigPaths2(ii),size(Dummy)));
+end
+
+
+%% Get Functions that should be added
 
 PathToAdd2 = genpath(PathToAdd);
 PathToAdd2 = regexp(PathToAdd2,':','split');
@@ -62,88 +92,61 @@ PathToAdd2 = regexp(PathToAdd2,':','split');
 test = contains(PathToAdd2,'.git');
 PathToAdd2 = PathToAdd2(~test); PathToAdd2(cellfun(@isempty,PathToAdd2)) = [];
 
-% % Remove exact matches (folders that should be replaced
-% ExactMatchesInd = regexp_SearchCellInCell(PathToAdd2,strcat(OrigPaths,'$'));
-% PathToAdd2(cell2mat(ExactMatchesInd)) = [];
-
-% Remove the path-part PathToAdd (e.g. if PathToAdd is '/sub1/sub2' and it has the subfolder '/sub1/sub2/sub3/sub4', only search '/sub3/sub4' in the original paths
-% that should be replaced. If we only used /sub4 we would find probably too many replacements)
-PathToAdd2_LastFold = PathToAdd2;
-PathToAdd2_LastFold(2:end) = regexprep(PathToAdd2(2:end),PathToAdd,''); PathToAdd2_LastFold(cellfun(@isempty,PathToAdd2_LastFold)) = [];
-
-% If we passed only one folder for replacing, always add this
-if(isempty(PathToAdd2_LastFold))
-    PathToAdd2_LastFold = regexprep(PathToAdd,'.*/','/');
+% Find all .m files in FunsToAddPaths
+FunsToAdd = [];
+FunsToAddPaths = [];
+for ii = 1:numel(PathToAdd2)
+    Dummy = dir(PathToAdd2{ii}); Dummy = {Dummy.name};
+    Dummy = regexp(Dummy(3:end),'.*\.m','match','once');
+    Dummy(cellfun(@isempty,Dummy)) = [];
+    Dummy = regexprep(Dummy,'\.m','');
+    FunsToAdd = cat(2,FunsToAdd,Dummy);
+    FunsToAddPaths = cat(2,FunsToAddPaths,repmat(PathToAdd2(ii),size(Dummy)));
 end
 
-% Add $, so that regexp is forced to match only end of path
-% (otherwise e.g. /sub1/sub2 will be found in /sub1/sub2/sub3)
-PathToAdd2_LastFold = strcat(PathToAdd2_LastFold,'$');
 
 
 
-%% Compare Paths, and Replace
+%% Compare Functions
+% If identical, remove current function
+% In any case, add new functions
 
-ReplaceInd = regexp_SearchCellInCell(OrigPaths,PathToAdd2_LastFold);
-
-% Remove paths
-for ii = 1:numel(ReplaceInd)
-    
-    CurRm = [];
-    for jj = 1:numel(ReplaceInd{ii})
-        CurRm = strcat(CurRm,OrigPaths{ReplaceInd{ii}(jj)},':');
-    end
-    CurRm = CurRm(1:end-1);
+RmPath = [];
+AddPathlis = [];
+for ii = 1:numel(FunsToAdd)
         
-    
-    if(~isempty(CurRm))
-        if(strcmp(CurRm,PathToAdd2{ii}))       % dont text things like 'Replacing /sub1/sub2 with /sub1/sub2'
-            continue
+    FoundFun = find(strcmp(LoadedFun,FunsToAdd{ii}));
+    if(numel(FoundFun) > 0)
+        
+%         if(strcmp([FunsToAddPaths{ii} '/' FunsToAdd{ii}],[LoadedFunPaths{ii} '/' FunsToAdd{ii}]))
+%             continue
+%         end
+        
+        if(Verbosity > 1)
+            fprintf('\nReplacing function %s with %s/%s.',FunsToAdd{ii},FunsToAddPaths{ii},FunsToAdd{ii})
         end
-        fprintf('\nReplacing path: %s with %s.',CurRm,PathToAdd2{ii})
-        rmpath(CurRm)
+        for jj = FoundFun
+            RmPath = strcat(RmPath,LoadedFunPaths{jj},':');
+        end
     else
-        fprintf('\nPath %s not found on current search-paths. Adding path %s without replacement.',PathToAdd2_LastFold{ii}(1:end-1),PathToAdd2{ii})
+        if(Verbosity > 0)
+            fprintf('\nFunction %s not found on current search-paths. Adding path %s/%s without replacement.',FunsToAdd{ii},FunsToAddPaths{ii},FunsToAdd{ii})
+        end
     end
-    addpath(PathToAdd2{ii})
-    
+    AddPathlis = strcat(AddPathlis,FunsToAddPaths{ii},':');
 end
-
-fprintf('\n')
-
-
+RmPath = RmPath(1:end-1);
+AddPathlis = AddPathlis(1:end-1);
 
 
+%% Remove and add Functions
 
-
-
-
-
-%% old
-% Pathlis2 = cell([1 2*numel(RmPaths)]);
-% Pathlis2(1:2:end) = RmPaths;
-% Pathlis2(2:2:end) = {':'};
-% RmPaths2 = [Pathlis2{:}];
-% if(~isempty(RmPaths2))
-%     rmpath(RmPaths2);
-% end
-% 
-% 
-% % Add Paths
-% Pathlis2 = cell([1 2*numel(PathToAdd2)]);
-% Pathlis2(1:2:end) = PathToAdd2;
-% Pathlis2(2:2:end) = {':'};
-% PathsToAdd3 = [Pathlis2{:}];
-% if(~isempty(PathsToAdd3))
-%     for ii = 1:numel(PathToAdd2)
-%        fprintf('\nReplacing paths: %s with %s.',RmPaths{ii},PathToAdd2{ii}) 
-%     end
-%     
-%     
-%     addpath(PathsToAdd3);
-% end
-
-
+if(~isempty(RmPath))
+    rmpath(RmPath);
+end
+if(~isempty(AddPathlis))
+    addpath(AddPathlis);
+end
 
 
 %%

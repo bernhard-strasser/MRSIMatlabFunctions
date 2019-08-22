@@ -34,7 +34,7 @@ function [Pos_PRS,Pars] = supp_CalcPhaseReadShiftFromLeftPosteriorHeadPos(Pars)
 
 
 % Compute direction cosine from x,y and z components of slice normal vector
-[Pars.PhaseNormalVector, Pars.ReadNormalVector] = compute_dircos_1_3([Pars.SliceNormalVector_x(1) Pars.SliceNormalVector_y(1) Pars.SliceNormalVector_z(1)],Pars.InPlaneRotation);
+[Pars.PhaseNormalVector, Pars.ReadNormalVector] = compute_dircos([Pars.SliceNormalVector_x(1) Pars.SliceNormalVector_y(1) Pars.SliceNormalVector_z(1)],Pars.InPlaneRotation);
 Pars.SliceNormalVector = [Pars.SliceNormalVector_x(1) Pars.SliceNormalVector_y(1) Pars.SliceNormalVector_z(1)];    
 
 MinusVec1 = [-1 -1 1];        % MinusVec are here only for "tuning" signs of the final rotation matrix (RotMat). The values of MinusVecs are 
@@ -51,7 +51,7 @@ Pars.SliceNormalVector = Pars.SliceNormalVector .* MinusVec3;
 RotMat = cat(1,Pars.ReadNormalVector,Pars.PhaseNormalVector,Pars.SliceNormalVector);
 
 % Do we need to reverse x- and y-coordinates (taking the negative values)?
-Pos_LPH = [Pars.Pos_Sag(1),Pars.Pos_Cor(1),Pars.Pos_Tra(1)];
+Pos_LPH = [-Pars.Pos_Sag(1),-Pars.Pos_Cor(1),Pars.Pos_Tra(1)];
 
 Pos_PRS = RotMat * transpose(Pos_LPH); 
 
