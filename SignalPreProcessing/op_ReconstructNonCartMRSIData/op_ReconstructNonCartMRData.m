@@ -61,6 +61,9 @@ end
 if(~isfield(Settings,'CircularSFTFoV_flag'))
    Settings.CircularSFTFoV_flag = false;    
 end
+if(~isfield(Settings,'PerformZFFT_flag'))
+    Settings.PerformZFFT_flag = true;
+end
 if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
     B0 = AdditionalIn.B0;
 end
@@ -229,11 +232,22 @@ end
 
 % For now just reshape them. We dont have slices or 3D-measurements for now...
 Size = size(Output.Data);
+
+if(Size(3) > 1 && Settings.PerformZFFT_flag)
+    Output.Data = FFTOfMRIData(Output.Data,0,3,0,1,0);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = FFTOfMRIData(Output.NoiseData,0,3,0,1,0);
+    end
+end
+% Some special slice-reco necessary? E.g. Hadamard decoding. 
+% % if(Size(4) > 1)
+% %     
+% % end
+
+% Merge slice and z-dimensions. Normally they are exclusive anyway...
 Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
-%FFT
 if(isfield(Output,'NoiseData'))
     Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
-    %FFT
 end
 
 

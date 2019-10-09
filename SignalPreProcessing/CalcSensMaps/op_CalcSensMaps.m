@@ -32,6 +32,10 @@ function [SensMap,AdditionalOut] = op_CalcSensMaps(AC,BC,AdditionalMaskData,Targ
 % This function expects the input to be of form
 % [nCha, nAngInt 
 
+% Input data must be structure with at least fields 'Data' and 'Par'.
+% 'Data' must be of size 
+
+
 
 %% 0. Preparations
 
@@ -45,24 +49,24 @@ end
 if(exist('AdditionalMaskData','var') && isempty(AdditionalMaskData))
     clear AdditionalMaskData;
 end
+if(exist('BC','var') && isempty(BC))
+    clear BC;
+end
 % if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
 %     Settings.Debug.ShowTrajs = true;
 % end
 
 
 
-%% Calculate Sensitivity Map: The ESPIRit way
-    
-% addpath(genpath('/autofs/space/carpathia_001/users/bstrasser/Projects/Project6_SPICE/Step8_InitTestOnScanner/Code/SensMap'))
-
-% Input data must be structure with at least fields 'Data' and 'Par'.
-% 'Data' must be of size 
-
-
 %% Resize & Cut Image to Fit Target Data
+% The image used for the sensitivity map calculation might have different FoV and matrix size than the data which should be coil combined.
+% Therefore need to resample the SensMapImage to the target image.
+% CAUTION: THE ANGULATION OF THE SensMapImage (AC) AND THE TARGET IMAGE NEED TO BE THE SAME!
+% This is done here, although I think a bit complicated. It would be probably easier to interpolate using the original grid and the new grid, and then
+% use some interpolation method. This way, even angulations could be handled.
 
 RoundingFactor = 1;         % Maximum error for calculated FoV: 0.5/RoundingFactor mm
-MatSize_SensMap = size_MultiDims(BC.Data,2:4);
+MatSize_SensMap = size_MultiDims(AC.Data,2:4);
 FoV_D2 = [TargetPars.FoV_Read TargetPars.FoV_Phase TargetPars.FoV_Partition];
 FoV_SensMap = [AC.Par.FoV_Read(1) AC.Par.FoV_Phase(1) AC.Par.FoV_Partition(1)];
 
@@ -83,11 +87,9 @@ for cha = 1:size(AC.Data,1)
     dummy3(cha,:,:,:) = imresize3(squeeze(AC.Data(cha,:,:,:)),ImresizeSize);        
 end
 AC.Data = dummy3;
-BC.Data = reshape(imresize3(squeeze(BC.Data),ImresizeSize),[1 ImresizeSize]);
 
 % In case the FoV was too small, zerofill in image-domain
 AC.Data = ZerofillOrCutkSpace(AC.Data,[size(AC.Data,1) TargetSize],0);
-BC.Data = ZerofillOrCutkSpace(BC.Data,[size(BC.Data,1) TargetSize],0);
 
 
 % Imresize in z-dimension
@@ -97,9 +99,8 @@ for cha = 1:size(AC.Data,1)
     Temp(cha,:,:,:) = imresize3(squeeze(AC.Data(cha,:,:,:)),TargetSize_z);
 end
 AC.Data = Temp;
-Temp(1,:,:,:) = imresize3(squeeze(BC.Data(1,:,:,:)),TargetSize_z);
-BC.Data = Temp(1,:,:,:);
-clear Temp
+
+
 % % Legacy Code:
 % AC.Data = mean(AC.Data,4);
 % BC.Data = mean(BC.Data,4);
@@ -121,12 +122,22 @@ clear Temp
 
 % Dont know if that is necessary
 AC.Data = circshift(AC.Data,[0 -1 -1 0]);
-BC.Data = circshift(BC.Data,[0 -1 -1 0]);
 
 
+%% Process BC Data if Available
+
+if(exist('BC','var'))
+    BC.Data = reshape(imresize3(squeeze(BC.Data),ImresizeSize),[1 ImresizeSize]);
+    BC.Data = ZerofillOrCutkSpace(BC.Data,[size(BC.Data,1) TargetSize],0);
+    Temp(1,:,:,:) = imresize3(squeeze(BC.Data(1,:,:,:)),TargetSize_z);
+    BC.Data = Temp(1,:,:,:);
+    clear Temp
+    BC.Data = circshift(BC.Data,[0 -1 -1 0]);
+end
+    
 %% Calculate Mask
 
-if(exist('AdditionalMaskData','var'))
+if(exist('AdditionalMaskData','var') && exist('BC','var'))
     % Mask BC Data
     Maxi = abs(imresize(AdditionalMaskData,[size(BC.Data,2) size(BC.Data,3)])); 
     Maskk = Maxi > 0.025*max(max(Maxi));
@@ -136,7 +147,7 @@ if(exist('AdditionalMaskData','var'))
     BC.Data = Maskk .* BC.Data;
 else
     ACSoS = squeeze_single_dim(sqrt(sum(abs(AC.Data).^2)),1);
-    Maskk = ACSoS > 0.035*max(max(max(ACSoS)));
+    Maskk = ACSoS > 0.035*max(max(max(ACSoS)));     % Kind of arbitrary for now... Better mask creation would be useful!
 end
 
 for slc = 1:size(AC.Data,4)
@@ -167,6 +178,8 @@ SensMap.ACPar = AC.Par;
 if(exist('BC','var'))
     SensMap.BCPar = BC.Par;
 end
+
+
 %% Normalize ESpirit Maps
 
 %     for ii=1:32; Normy(ii) = norm(squeeze(SensMap.Data(ii,:,:))); end
@@ -174,6 +187,7 @@ end
 % blubb = abs(SensMap.Data(end,:)); blubb(blubb == 0) = NaN;
 % SensMap.Data = SensMap.Data(1:end-1,:,:,:) / nanmean(blubb)*1;
 % SensMap.Data = SensMap.Data(1:end-1,:,:,:);
+
 
 %% Debug: Show SensMaps
 

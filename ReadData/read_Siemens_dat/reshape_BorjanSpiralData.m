@@ -30,13 +30,29 @@ CurSize = size(kSpace.Data); CurSize = cat(2,CurSize,ones([1 8-numel(CurSize)]))
 kSpace.Data = reshape(kSpace.Data,[kSpace.Par.nTempInt CurSize(1)/kSpace.Par.nTempInt CurSize(2:end)]);
 % kSpace.Data = reshape(kSpace.Data,[CurSize(1)/kSpace.Par.nTempInt kSpace.Par.nTempInt CurSize(2:5) prod(CurSize(6:7))]);
 
+% Define Noise
+if(~isfield(kSpace,'NoiseData') && Settings.ProduceNoiseThroughAvgs_flag && size(kSpace.Data,6) > 1)
+    kSpace.NoiseData = kSpace.Data(:,:,:,:,:,2,:,:) - kSpace.Data(:,:,:,:,:,1,:,:);
+    kSpace.NoiseData = kSpace.NoiseData * sqrt(size(kSpace.Data,6)/2); % Scale the noise to be the same as the noise in the actual data is
+end
+if(isfield(kSpace,'NoiseData') && isempty(kSpace.NoiseData))
+    kSpace = rmfield(kSpace,'NoiseData');
+end
+    
+% Add averages together
+kSpace.Data = squeeze_single_dim(sum(kSpace.Data,6),6);  % squeeze causes non-problematic error in case there is no part/slc
+% kSpace.Data = kSpace.Data(:,:,:,:,:,1,:,:);
+
+
 
 % Reshape to [nTempInt x nAngInt x samples*nADCs x nCha x nAvg x nPart x nSlc]
 % Cut those ADC-points that are noise only away
 ADC_Points = kSpace.Par.vecSize * kSpace.Par.TrajTotPts/kSpace.Par.nTempInt;        % 
 Size_D2 = size(kSpace.Data);
 kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) prod(Size_D2(3:4)) Size_D2(5:end)]);
-
+if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
+    kSpace.NoiseData = reshape(kSpace.NoiseData,size(kSpace.Data));
+end
 
 % Cut together the useful data from the different temp interleaves
 % (for the first TI the points 1:ADC_Points are useful, for the second TI the points kSpace.Par.TrajTotPts/kSpace.Par.nTempInt+1:ADC_Points+kSpace.Par.TrajTotPts/kSpace.Par.nTempInt are useful,
@@ -44,10 +60,17 @@ kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) prod(Size_D2(3:4)) Size_D2(5:end
 PtNumber = size(kSpace.Data,3) - ADC_Points;
 LastPts = kSpace.Data(:,:,end-PtNumber+1:end,:,:,:,:);
 kSpace.Data = kSpace.Data(:,:,1:ADC_Points,:,:,:,:);
+if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
+    kSpace.NoiseData = kSpace.NoiseData(:,:,1:ADC_Points,:,:,:,:);
+end
 for curTempInt = 1:kSpace.Par.nTempInt
     StartPt = (curTempInt-1)/kSpace.Par.nTempInt*kSpace.Par.TrajTotPts;        
 %     EndPt = ADC_Points - StartPt;
     kSpace.Data(curTempInt,:,:,:,:,:,:) = cat(3,kSpace.Data(curTempInt,:,StartPt+1:ADC_Points,:,:,:,:), LastPts(curTempInt,:,1:StartPt,:,:,:,:));
+    if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
+        kSpace.NoiseData(curTempInt,:,:,:,:,:,:) = cat(3,kSpace.NoiseData(curTempInt,:,StartPt+1:ADC_Points,:,:,:,:), LastPts(curTempInt,:,1:StartPt,:,:,:,:));        
+    end
+    
 end
 clear LastPts
 
@@ -55,24 +78,15 @@ clear LastPts
 % Cut the rewinder away, and save the final size
 kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) kSpace.Par.TrajTotPts kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
 kSpace.Data = kSpace.Data(:,:,1:kSpace.Par.TrajPts,:,:,:,:,:);
-
+if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
+    kSpace.NoiseData = reshape(kSpace.NoiseData,[Size_D2(1:2) kSpace.Par.TrajTotPts kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
+    kSpace.NoiseData = kSpace.NoiseData(:,:,1:kSpace.Par.TrajPts,:,:,:,:,:);
+end
 
 % % DEBUG: ONLY USE FIRST FID POINT
 % kSpace.Data = kSpace.Data(:,1,:,1,1,1);
 % kSpace.Par.vecSize = 1; kSpace.Par.nTempInt = 1; kSpace.Par.total_channel_no_measured = 1; kSpace.Par.vecSize = 1;
 
-
-% Define Noise
-if(~isfield(kSpace,'NoiseData') && Settings.ProduceNoiseThroughAvgs_flag && size(kSpace.Data,6) > 1)
-    kSpace.NoiseData = kSpace.Data(:,:,:,:,:,2,:,:) - kSpace.Data(:,:,:,:,:,1,:,:);
-    kSpace.NoiseData = kSpace.NoiseData * sqrt(size(kSpace.Data,6)/2); % Scale the noise to be the same as the noise in the actual data is
-else
-    kSpace.NoiseData = [];
-end
-    
-% Add averages together
-kSpace.Data = squeeze_single_dim(sum(kSpace.Data,6),6);  % squeeze causes non-problematic error in case there is no part/slc
-% kSpace.Data = kSpace.Data(:,:,:,:,:,1,:,:);
 
 % Permute from [nTempInt x nAngInt x nTrajPoints x vecSize x nCha x nPart x nSlc] 
 %           to [nTrajPoints x nAngInt x nPart x nSlc x nTempInt x vecSize x nCha]

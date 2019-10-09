@@ -57,7 +57,7 @@ end
 
 Info = dir(RawFile);
 if(numel(Info) < 1 || Info.bytes == 0)
-	fprintf('\nScusi, but the file you gave me is zero-sized. Why should I even try to eat that?\n')
+	fprintf('\nError in read_RawFiles: Scusi, but the file you gave me is zero-sized. Why should I even try to eat that?\n')
 	image = [];
 	return;
 end
