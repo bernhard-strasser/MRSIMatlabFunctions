@@ -1,4 +1,4 @@
-function [Input, AdditionalOut] = op_CoilCombineData(Input,CoilWeightMap,Settings)
+function [MRStruct, AdditionalOut] = op_CoilCombineData(MRStruct,CoilWeightMap,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -12,13 +12,14 @@ function [Input, AdditionalOut] = op_CoilCombineData(Input,CoilWeightMap,Setting
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         Input                    ...     The Input. Must have fields 'Data', and 'Par'.
-% -         CoilWeightMap             ...     The Coil-weighting-map. Must have field 'Data'
-% -         Settings          ...            Structure to specify how the coil combination should be performed.
+% -         MRStruct                    ...     The Input. The structure containing the MR data. Can have different fields. For this function, it
+%                                               must have fields 'Data', and 'Par'.
+% -         CoilWeightMap               ...     The Coil-weighting-map. Must have field 'Data'
+% -         Settings                    ...     Structure to specify how the coil combination should be performed.
 %
 % Output:
-% -         Input                      ...     The Output (Input is overwritten). Will have field 'RecoPar' additionally.
-% -         AdditionalOut                        ...  Variable for storing additional output (if asked for by user).   
+% -         MRStruct                    ...     The Output (Input is overwritten). Will have field 'RecoPar' additionally.
+% -         AdditionalOut               ...     Variable for storing additional output (if asked for by user).   
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -26,7 +27,7 @@ function [Input, AdditionalOut] = op_CoilCombineData(Input,CoilWeightMap,Setting
 % Easier ways to achieve the same result & improvement of the program or the programming style are always welcome!
 % File dependancy: memused_linux,Analyze_csi_mdh_1_3, read_ascconv_1_2, hadamard_encoding_7.m
 
-% Further remarks: For now, the coil index in CoilWeightMap is the first, but in Input it's the last. Change that later!
+% Further remarks: For now, the coil index in CoilWeightMap is the first, but in MRStruct it's the last. Change that later!
 % Also, the function cannot handle 3D / multislice data for now. And the channel index is fixed for now.
 
 
@@ -37,7 +38,7 @@ function [Input, AdditionalOut] = op_CoilCombineData(Input,CoilWeightMap,Setting
 %% 0. Preparations
 
 if(~exist('Settings','var'))
-    Settings = [];
+    Settings = struct;
 end
 if(isfield(Settings,'ResizeMethod') && strdist(Settings.ResizeMethod,'Imresize') < strdist(Settings.ResizeMethod,'Zerofill'))
     ImResize_flag = true;
@@ -49,38 +50,48 @@ if(isfield(Settings,'ScalingMethod') && strdist(Settings.ScalingMethod,'UniformN
 else
     UniformSignal_flag = true;
 end
-if(~isfield(Input,'RecoPar'))
-    Input.RecoPar = Input.Par;
+if(~isfield(MRStruct,'Par'))
+    MRStruct.Par = struct;
+    if(isfield(MRStruct,'Data_file'))
+        MRStruct.Par = read_ascconv(MRStruct.Data_file); 
+    end
 end
-if(Input.RecoPar.total_channel_no_reco == 1)
+if(~isfield(MRStruct.Par,'DataSize'))
+    MRStruct.Par.DataSize = size(MRStruct.Data);
+end
+if(~isfield(MRStruct,'RecoPar'))
+    MRStruct.RecoPar = MRStruct.Par;
+end
+if(MRStruct.RecoPar.total_channel_no_reco == 1)
    return; 
 end
+
 
 %% Resize SensMap
 
 if(ImResize_flag)
-    AdditionalOut.CoilWeightMap = zeros([Input.RecoPar.DataSize(1:2) Input.RecoPar.DataSize(end)]);
+    AdditionalOut.CoilWeightMap = zeros([MRStruct.RecoPar.DataSize(1:2) MRStruct.RecoPar.DataSize(end)]);
     for cha = 1:size(CoilWeightMap.Data,1)
-        AdditionalOut.CoilWeightMap(:,:,cha) = imresize(squeeze(CoilWeightMap.Data(cha,:,:)),Input.RecoPar.DataSize(1:2));
+        AdditionalOut.CoilWeightMap(:,:,cha) = imresize(squeeze(CoilWeightMap.Data(cha,:,:)),MRStruct.RecoPar.DataSize(1:2));
     end
 else
-    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[size(CoilWeightMap.Data,1) Input.RecoPar.DataSize(1:3)],1);
+    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[size(CoilWeightMap.Data,1) MRStruct.RecoPar.DataSize(1:3)],1);
     AdditionalOut.CoilWeightMap = permute(AdditionalOut.CoilWeightMap,[2 3 4 1]);
 end
-AdditionalOut.CoilWeightMap = myrepmat(AdditionalOut.CoilWeightMap,Input.RecoPar.DataSize);
-if(Input.RecoPar.DataSize(3) == 1)      % imresize3 for some reason doesnt work for 2D-input...
-    AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(1,:,:)),Input.RecoPar.DataSize(1:2),'nearest');       
+AdditionalOut.CoilWeightMap = myrepmat(AdditionalOut.CoilWeightMap,MRStruct.RecoPar.DataSize);
+if(MRStruct.RecoPar.DataSize(3) == 1)      % imresize3 for some reason doesnt work for 2D-input...
+    AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(1,:,:)),MRStruct.RecoPar.DataSize(1:2),'nearest');       
 else 
-    AdditionalOut.Mask = logical(imresize3(squeeze(uint8(CoilWeightMap.Mask(1,:,:,:))),Input.RecoPar.DataSize(1:3),'nearest'));       
+    AdditionalOut.Mask = logical(imresize3(squeeze(uint8(CoilWeightMap.Mask(1,:,:,:))),MRStruct.RecoPar.DataSize(1:3),'nearest'));       
 end
 
 %% Weight Data
 
-Input.Data = Input.Data .* AdditionalOut.CoilWeightMap;
-Input.Data = sum(Input.Data,5);
-if(isfield(Input,'NoiseData'))
-    Input.NoiseData = Input.NoiseData .* AdditionalOut.CoilWeightMap;
-    Input.NoiseData = sum(Input.NoiseData,5);    
+MRStruct.Data = MRStruct.Data .* AdditionalOut.CoilWeightMap;
+MRStruct.Data = sum(MRStruct.Data,5);
+if(isfield(MRStruct,'NoiseData'))
+    MRStruct.NoiseData = MRStruct.NoiseData .* AdditionalOut.CoilWeightMap;
+    MRStruct.NoiseData = sum(MRStruct.NoiseData,5);    
 end
 
 
@@ -93,18 +104,19 @@ else
 end
 AdditionalOut.Scaling(isinf(AdditionalOut.Scaling) | isnan(AdditionalOut.Scaling)) = 0;
 
-Input.Data = Input.Data .* AdditionalOut.Scaling;
-Input.Data(isinf(Input.Data)) = 0;
-if(isfield(Input,'NoiseData'))
-    Input.NoiseData = Input.NoiseData .* AdditionalOut.Scaling;
-    Input.NoiseData(isinf(Input.NoiseData)) = 0;
+MRStruct.Data = MRStruct.Data .* AdditionalOut.Scaling;
+MRStruct.Data(isinf(MRStruct.Data)) = 0;
+if(isfield(MRStruct,'NoiseData'))
+    MRStruct.NoiseData = MRStruct.NoiseData .* AdditionalOut.Scaling;
+    MRStruct.NoiseData(isinf(MRStruct.NoiseData)) = 0;
 end
 
-%% Adapt Sizes
+%% Postparations
 
-Input.RecoPar.DataSize = Input.RecoPar.DataSize(1:end-1);
-Input.RecoPar.total_channel_no_reco = 1;
+MRStruct.RecoPar.DataSize = MRStruct.RecoPar.DataSize(1:end-1);
+MRStruct.RecoPar.total_channel_no_reco = 1;
 
+MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
 
 
 
