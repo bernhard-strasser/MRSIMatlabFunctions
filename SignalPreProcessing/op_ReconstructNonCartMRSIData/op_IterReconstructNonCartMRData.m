@@ -73,7 +73,7 @@ if(~isfield(Output,'RecoPar'))
     end
     Output.RecoPar = Output.Par;
 end
-Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
+Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc Output.RecoPar.nSLC Output.RecoPar.vecSize];
 % Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 
 %% FOV SHIFTs
@@ -133,17 +133,18 @@ Output.Data = Output.Data(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(
 % as for the normal data...
 if(isfield(Output,'NoiseData'))
     Output.NoiseData = AOT(Output.NoiseData);
+    Output.NoiseData = reshape(Output.NoiseData,[Settings.fov_overgrid*Output.RecoPar.DataSize(1:2) Output.Par.DataSize(3:end-1)]);
 end
 
 
 %% Perform Reconstruction in Slice and z-dimension
 
-% For now just reshape them. We dont have slices or 3D-measurements for now...
-Size = size(Output.Data);
-Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]);
-if(isfield(Output,'NoiseData'))
-    Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]);
-end
+% % For now just reshape them. We dont have slices or 3D-measurements for now...
+% Size = size(Output.Data);
+% Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]);
+% if(isfield(Output,'NoiseData'))
+%     Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]);
+% end
 
 
 %% Conj at End

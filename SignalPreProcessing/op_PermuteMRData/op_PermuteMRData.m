@@ -46,6 +46,9 @@ end
 if(~isfield(MRStruct.Par,'DataSize'))
     MRStruct.Par.DataSize = size(MRStruct.Data);
 end
+if(~isfield(MRStruct,'RecoPar'))
+    MRStruct.RecoPar = MRStruct.Par;
+end
 
 
 %% Permute Data
@@ -54,7 +57,7 @@ MRStruct.Data = permute(MRStruct.Data,Settings.PermuteVec);
 if(isfield(MRStruct,'NoiseData'))
     MRStruct.NoiseData = permute(MRStruct.NoiseData,Settings.PermuteVec);    
 end
-MRStruct.Par.DataSize = size(MRStruct.Data);
+MRStruct.RecoPar.DataSize = size(MRStruct.Data);
 
 
 %% Postparations

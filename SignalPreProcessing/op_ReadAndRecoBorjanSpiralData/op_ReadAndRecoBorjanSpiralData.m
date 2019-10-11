@@ -156,5 +156,9 @@ end
 [SpiralOut_xt,AdditionalOut.RecoOperators] = op_ReconstructNonCartMRData(SpiralOut_xt,[],Settings.NonCartReco);
 
 
+%% Slice Reco
+
+SpiralOut_xt = op_SliceReco(SpiralOut_xt);
+
 
 

@@ -266,9 +266,9 @@ while(~ACQEND_flag)
 		CurInfoPt.(CurrentMeasSet) = CurInfoPt.(CurrentMeasSet) + 1;
 
 		Info.(CurrentMeasSet).mdhInfo(1,CurInfoPt.(CurrentMeasSet)) = CurCha;										% channel
-		Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt.(CurrentMeasSet)) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx
-		Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt.(CurrentMeasSet)) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky
-		Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt.(CurrentMeasSet)) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz
+		Info.(CurrentMeasSet).mdhInfo(2,CurInfoPt.(CurrentMeasSet)) = chak_header(10) + 1 - kSpaceShift.(CurrentMeasSet)(1);		% kx (Line Index)
+		Info.(CurrentMeasSet).mdhInfo(3,CurInfoPt.(CurrentMeasSet)) = chak_header(15) + 1 - kSpaceShift.(CurrentMeasSet)(2);		% ky (Phase Index)
+		Info.(CurrentMeasSet).mdhInfo(4,CurInfoPt.(CurrentMeasSet)) = chak_header(13) + 1 - kSpaceShift.(CurrentMeasSet)(3);		% kz (Part. Index)
 		Info.(CurrentMeasSet).mdhInfo(5,CurInfoPt.(CurrentMeasSet)) = chak_header(12) + 1;										% slice (also hada step)
 		Info.(CurrentMeasSet).mdhInfo(6,CurInfoPt.(CurrentMeasSet)) = chak_header(14) + 1;										% echo
 		Info.(CurrentMeasSet).mdhInfo(7,CurInfoPt.(CurrentMeasSet)) = chak_header(17) + 1;										% avg

@@ -73,7 +73,7 @@ if(~isfield(Output,'RecoPar'))
     end
     Output.RecoPar = Output.Par;
 end
-Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC ...
+Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc Output.RecoPar.nSLC ...
                            Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured];
 
 
@@ -244,11 +244,11 @@ end
 % %     
 % % end
 
-% Merge slice and z-dimensions. Normally they are exclusive anyway...
-Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
-if(isfield(Output,'NoiseData'))
-    Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
-end
+% % Merge slice and z-dimensions. Normally they are exclusive anyway...
+% Output.Data = reshape(Output.Data, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+% if(isfield(Output,'NoiseData'))
+%     Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) prod(Size(3:4)) Size(5:end)]); 
+% end
 
 
 %% Conj at End
