@@ -45,6 +45,9 @@ end
 if(~isfield(Settings,'Debug_ShowSensMaps_flag'))
     Settings.Debug_ShowSensMaps_flag = false;
 end
+if(~isfield(Settings,'Extrapolate_flag'))
+    Settings.Extrapolate_flag = false;
+end
 
 if(exist('AdditionalMaskData','var') && isempty(AdditionalMaskData))
     clear AdditionalMaskData;
@@ -137,22 +140,26 @@ end
     
 %% Calculate Mask
 
-if(exist('AdditionalMaskData','var') && exist('BC','var'))
-    % Mask BC Data
-    Maxi = abs(imresize(AdditionalMaskData,[size(BC.Data,2) size(BC.Data,3)])); 
-    Maskk = Maxi > 0.025*max(max(Maxi));
-    Maskk = reshape(Maskk,[1 size(Maskk)]);
-    Maxi = max(max(max(abs(BC.Data))));
-    Maskk = Maskk .* single(abs(BC.Data) > 0.08*Maxi);
-    BC.Data = Maskk .* BC.Data;
+if(exist('AdditionalMaskData','var') && sum(AdditionalMaskData(:) == 0) + sum(AdditionalMaskData(:) == 1) == numel(AdditionalMaskData))% If AdditionalMaskData is mask
+    Maskk = imresize(AdditionalMaskData,[size(AC.Data,2) size(AC.Data,3)],'nearest');
 else
-    ACSoS = squeeze_single_dim(sqrt(sum(abs(AC.Data).^2)),1);
-    Maskk = ACSoS > 0.035*max(max(max(ACSoS)));     % Kind of arbitrary for now... Better mask creation would be useful!
+    if( exist('AdditionalMaskData','var') && exist('BC','var'))% If AdditionalMaskData is magnitude
+        % Mask BC Data
+        Maxi = abs(imresize(AdditionalMaskData,[size(BC.Data,2) size(BC.Data,3)])); 
+        Maskk = Maxi > 0.025*max(max(Maxi));
+        Maxi = max(max(max(abs(BC.Data))));
+        Maskk = Maskk .* single(abs(squeeze(BC.Data)) > 0.08*Maxi);
+        BC.Data = Maskk .* BC.Data;
+    else
+        ACSoS = squeeze_single_dim(sqrt(sum(abs(AC.Data).^2)),1);
+        Maskk = ACSoS > 0.035*max(max(max(ACSoS)));     % Kind of arbitrary for now... Better mask creation would be useful!
+    end
+    for slc = 1:size(AC.Data,4)
+        Maskk(:,:,slc) = imfill(Maskk(:,:,slc),'holes');  % Fill holes
+    end
 end
 
-for slc = 1:size(AC.Data,4)
-    Maskk(:,:,slc) = imfill(Maskk(:,:,slc),'holes');  % Fill holes
-end
+
 SensMap.Mask = reshape(Maskk,[1 size(Maskk)]); 
 
 
@@ -177,6 +184,19 @@ end
 SensMap.ACPar = AC.Par;
 if(exist('BC','var'))
     SensMap.BCPar = BC.Par;
+end
+
+
+%% Extrapolate a bit
+
+if(Settings.Extrapolate_flag)
+    Maskk_NaN = double(SensMap.Mask); Maskk_NaN(Maskk_NaN == 0) = NaN;
+    SensMap.Data = SensMap.Data .* Maskk_NaN;
+    for cha = 1:size(SensMap.Data,1)
+        SensMap.Data(cha,:,:) = single(inpaint_nans(double(squeeze(SensMap.Data(cha,:,:))))); 
+    end
+    Maskk_Big = reshape(MaskShrinkOrGrow(squeeze(SensMap.Mask),2,1,1),size(SensMap.Mask));
+    SensMap.Data = Maskk_Big .* SensMap.Data;
 end
 
 
