@@ -1,4 +1,4 @@
-function chemshift_vector = compute_chemshift_vector(LarmorFreq,dwelltime,vecSize,LowestPPMPoint)
+function chemshift_vector = compute_chemshift_vector(LarmorFreqOrPar,dwelltime,vecSize,LowestPPMPoint)
 % In units of:
 % water_frequency: Hz
 % dwelltime: s
@@ -7,8 +7,19 @@ function chemshift_vector = compute_chemshift_vector(LarmorFreq,dwelltime,vecSiz
 
 %% Preparations
 
-if(~exist('LowestPPMPoint'))
+if(~exist('LowestPPMPoint','var'))
     LowestPPMPoint = [];
+end
+if(isstruct(LarmorFreqOrPar))
+    LarmorFreq = LarmorFreqOrPar.LarmorFreq;
+    if(~exist('dwelltime','var') || isempty(dwelltime))
+        dwelltime = LarmorFreqOrPar.Dwelltimes(1)/1E9;
+    end
+    if(~exist('vecSize','var') || isempty(vecSize))
+        vecSize = LarmorFreqOrPar.vecSize(1);
+    end
+else
+    LarmorFreq = LarmorFreqOrPar;
 end
 
 %% 

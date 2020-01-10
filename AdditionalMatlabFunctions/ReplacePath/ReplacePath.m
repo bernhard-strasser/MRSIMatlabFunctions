@@ -50,8 +50,8 @@ OrigPaths = path;
 
 % In that case, just remove old path, and add new path.
 if(exist('PathToRemove','var') && ~isempty(PathToRemove))
-    RemovePath(PathToRemove,Verbosity);
     AddPath(PathToAdd,Verbosity);
+    RemovePath(PathToRemove,Verbosity);
     NewPaths = path;
     return;
 end
@@ -75,8 +75,7 @@ LoadedFun = [];
 LoadedFunPaths = [];
 for ii = 1:numel(OrigPaths2)
     Dummy = dir(OrigPaths2{ii}); Dummy = {Dummy.name};
-    Dummy = regexp(Dummy(3:end),'.*\.m','match','once');
-    Dummy(cellfun(@isempty,Dummy)) = [];
+    Dummy = Dummy(endsWith(Dummy,'.m'));
     Dummy = regexprep(Dummy,'\.m','');
     LoadedFun = cat(2,LoadedFun,Dummy);
     LoadedFunPaths = cat(2,LoadedFunPaths,repmat(OrigPaths2(ii),size(Dummy)));

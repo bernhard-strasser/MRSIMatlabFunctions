@@ -94,8 +94,9 @@ if(Verbosity > 0)
     fprintf('\n')
 end
 RmPaths = RmPaths(1:end-1);
-rmpath(RmPaths)
-
+if(~isempty(RmPaths))
+    rmpath(RmPaths)
+end
 
 
 %%

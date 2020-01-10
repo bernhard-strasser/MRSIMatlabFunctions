@@ -171,7 +171,8 @@ for x = 1:size(OutArray,1)
 			if(~OnlyApplyShiftMap_flag)
 				% Calculate ShiftMap
 				DotProd = abs(ReferenceSpecMat) * abs(squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts)));
-				ShiftMap(x,y,z) = -round( CircShiftVec(DotProd == max(DotProd)) / ZerofillingFactor); % - because we shifted the reference, but below we want to shift the other spectra
+                MaxDotProdMatch = find(DotProd == max(DotProd)); MaxDotProdMatch = MaxDotProdMatch(1);
+				ShiftMap(x,y,z) = -round( CircShiftVec(MaxDotProdMatch) / ZerofillingFactor); % - because we shifted the reference, but below we want to shift the other spectra
 			end
 			
 			% Apply ShiftMap
