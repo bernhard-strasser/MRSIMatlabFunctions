@@ -92,14 +92,17 @@ end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.Method'))
    Settings.NonCartReco.DensComp.Method = 'SpiralHoge1997AbruptChanges';    
 end
-if(~isfield_recursive(Settings,'NonCartReco.ConjInBegin_flag'))
-   Settings.NonCartReco.ConjInBegin_flag = false;    
+if(~isfield_recursive(Settings,'NonCartReco.ConjInkSpace_flag'))
+   Settings.NonCartReco.ConjInkSpace_flag = false;    
 end
-if(~isfield_recursive(Settings,'NonCartReco.ConjAtEnd_flag'))
-   Settings.NonCartReco.ConjAtEnd_flag = false;    
+if(~isfield_recursive(Settings,'NonCartReco.ConjIniSpace_flag'))
+   Settings.NonCartReco.ConjIniSpace_flag = true;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.Correct4SpatialB0_flag'))
    Settings.NonCartReco.Correct4SpatialB0_flag = false;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.FlipDim_flag'))
+    Settings.NonCartReco.FlipDim_flag = false;
 end
 
 

@@ -81,6 +81,20 @@ Output.RecoPar.DataSize = Operators.OutDataSize;
 % Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 
 
+%% FoV-Shift Operator
+
+LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
+Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];
+Normal2=[0 0 1];
+v=vrrotvec(Normal1,Normal2);
+Rot=vrrotvec2mat(v);
+PRS=Rot*LPH';
+Operators.FoVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
+Operators.FoVShift = Operators.FoVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
+clear LPH Normal1 Normal2 v Rot PRS 
+
+
+
 %% Sampling Operator
 
 if(~isfield(AdditionalIn,'SamplingOperator'))
@@ -173,7 +187,7 @@ end
 
 
 %% Mask
-Mask = imresize(AdditionalIn.B0.Mask,Operators.OutDataSize(1:2),'nearest');
+Mask = imresize(AdditionalIn.B0.BrainMask,Operators.OutDataSize(1:2),'nearest');
 Operators.Mask = Mask;
 
 
@@ -226,12 +240,9 @@ Settss.ScalingMethod = 'UniformSensitivity';
 Dummy2.Data = ones([Operators.OutDataSize Output.Par.total_channel_no_measured]); 
 Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = size(Dummy2.Data);  %Dummy2.Par = Output.Par; 
 [DeleteMe, AddOut] = op_CoilCombineData(Dummy2,AdditionalIn.SensMap,Settss);
-Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:);
+Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:) .* AddOut.Scaling;
 clear DeleteMe AddOut Settss;
 
-Scale = 1 ./ sqrt(sum(abs(Operators.SensMap).^2,5));
-Scale(isinf(Scale) | isnan(Scale) | Scale == 0 ) = 1;
-Operators.SensMap = Operators.SensMap.*Scale.*Operators.Mask;
 Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
 
 

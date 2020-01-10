@@ -64,6 +64,9 @@ end
 if(~isfield(Settings,'PerformZFFT_flag'))
     Settings.PerformZFFT_flag = true;
 end
+if(~isfield(Settings,'FlipDim_flag'))
+    Settings.FlipDim_flag = false;
+end
 if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
     B0 = AdditionalIn.B0;
 end
@@ -84,8 +87,8 @@ Normal2=[0 0 1];
 v=vrrotvec(Normal1,Normal2);
 Rot=vrrotvec2mat(v);
 PRS=Rot*LPH';
-FOVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.nFreqEnc*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
-FOVShift = FOVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.nPhasEnc*pi*PRS(1)/Output.RecoPar.FoV_Phase));
+FOVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
+FOVShift = FOVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
 Output.Data = Output.Data.*FOVShift;
 
 
@@ -230,7 +233,6 @@ end
 
 %% Perform Reconstruction in Slice and z-dimension
 
-% For now just reshape them. We dont have slices or 3D-measurements for now...
 Size = size(Output.Data);
 
 if(Size(3) > 1 && Settings.PerformZFFT_flag)
@@ -263,7 +265,14 @@ end
 
 %% Flip left right
 
-% Output.Data = flip(Output.Data,2);
+if(Settings.FlipDim_flag)
+    Output.Data = flip(Output.Data,1);
+    Output.Data = circshift(Output.Data,[1 -1 0 0 0 0 0]);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = flip(Output.NoiseData,1);
+        Output.NoiseData = circshift(Output.NoiseData,[1 -1 0 0 0 0 0]);        
+    end
+end
 
 
 %% Postparations

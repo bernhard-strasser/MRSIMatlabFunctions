@@ -83,15 +83,13 @@ end
 
 %% Perform Construction in Slice and z-dimension
 
-% For now just reshape them. We dont have slices or 3D-measurements for now...
 Size = size(Output.Data);
-Output.Data = reshape(Output.Data, [Size(1:2) 1 1 Size(4:end)]); 
-%FFT
-if(isfield(Output,'NoiseData'))
-    Output.NoiseData = reshape(Output.NoiseData, [Size(1:2) 1 1 Size(4:end)]); 
-    %FFT
+if(Size(3) > 1 && Settings.PerformZFFT_flag)
+    Output.Data = FFTOfMRIData(Output.Data,0,3,1,1,0);
+    if(isfield(Output,'NoiseData'))
+        Output.NoiseData = FFTOfMRIData(Output.NoiseData,0,3,1,1,0);
+    end
 end
-
 
 %% Calculate & Apply sft2-Operator
 
@@ -216,6 +214,18 @@ if(Settings.ConjInkSpace_flag)
         Output.NoiseData = conj(Output.NoiseData);
     end    
 end
+
+
+%% FOV SHIFTs Add correct phaseses to the data and shift the FOV to the image center.
+LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
+Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];
+Normal2=[0 0 1];
+v=vrrotvec(Normal1,Normal2);
+Rot=vrrotvec2mat(v);
+PRS=Rot*LPH';
+FOVShift = squeeze(exp(-1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
+FOVShift = FOVShift .* squeeze(exp(-1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
+Output.Data = Output.Data.*FOVShift;
 
 
 %% Postparations
