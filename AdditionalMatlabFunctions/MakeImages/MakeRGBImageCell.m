@@ -1,4 +1,4 @@
-function [RGBImageCell] = MakeRGBImageCell(ImageCell,CLims,SetFunction,AxisAspect,colormaptype,DemandImageSize)
+function [RGBImageCell] = MakeRGBImageCell(ImageCell,CLims,SetFunction,AxisAspect,colormaptype,DemandImageSize,Settings)
 %
 % MakeRGBImageCell This function takes data and imagesc's them to create cell of RGB-images.
 %
@@ -53,6 +53,15 @@ end
 if(~exist('colormaptype','var') || isempty(colormaptype))
     colormaptype = 'hot';  
 end
+if(~exist('Settings','var'))
+    Settings = struct; 
+end
+if(~isfield(Settings,'PlotNaNsTransparent_flag'))
+    Settings.PlotNaNsTransparent_flag = true;
+end
+if(~isfield(Settings,'BackGroundColour'))
+    Settings.BackGroundColour = [1 0 0];    % Default Red
+end
 
 
 if(~iscell(CLims))
@@ -74,26 +83,65 @@ end
 RGBImageCell = cell(size(ImageCell));
 fighaendel = figure;
 DemImSiExists = exist('DemandImageSize','var') && ~isempty(DemandImageSize);
+
+if(DemImSiExists)
+   ImSz = DemandImageSize;
+   Sizzerl = ImSz;
+end
 for xInd = 1:size(ImageCell,1)
     for yInd = 1:size(ImageCell,2)
-        for ContLoop = 1:100
-            imagesc(squeeze(ImageCell{xInd,yInd}),CLims{xInd,yInd}), colormap(colormaptype),  SetFunction{xInd,yInd}(gca);
+        for ContLoop = 1:200
+            
+            
+            % Draw Image
+            imagesc(squeeze(ImageCell{xInd,yInd}),CLims{xInd,yInd});
+            % ColorMap & Additional Userspecified set-function in form of (set(gca,...))
+            colormap(colormaptype),  SetFunction{xInd,yInd}(gca); 
+            % Set Transparency if necessary
+            if(isfield(Settings,'PlotNaNsTransparent_flag') && Settings.PlotNaNsTransparent_flag)
+                imAlpha=ones(size(ImageCell{xInd,yInd})); imAlpha(isnan(ImageCell{xInd,yInd}))=0;
+                alpha(imAlpha);
+            end
+            % Set Background colour if necessary
+            if(isfield(Settings,'BackGroundColour') && numel(Settings.BackGroundColour)>1)
+                set(gca,'color',Settings.BackGroundColour);
+            end
+            % Image Size
             if(ischar(AxisAspect) && strcmpi(AxisAspect, 'AxisSquare'))
                 axis square
             elseif(isnumeric(AxisAspect) && numel(AxisAspect) == 3)
                 daspect(AxisAspect)
             end
-            CurFiggy = getframe();
-
+            if(exist('DemandImageSize','var') && ~isempty(DemandImageSize))                
+                ImSz = ImSz + DemandImageSize - Sizzerl;
+                set(fighaendel, 'Position',  [200, 200, ImSz(2), ImSz(1)]);
+            end
             % Check if we are satisfied with Figure sizes
             if( strcmpi(AxisAspect, 'AxisSquare') )
-                ImageSizeRatio = 1;       % For AxisSquare, the size of the images must be square, i.e. same amount of x- and y-pixels
-            else                          % Otherwise, we can caluclate the number of pixels by the sizes of the image in x and y, and the AxisAspect
+                ImageSizeRatio = 1;        % For AxisSquare, the size of the images must be square, i.e. same amount of x- and y-pixels
+            elseif(~ischar(AxisAspect))% Otherwise, we can caluclate the number of pixels by the sizes of the image in x and y, and the AxisAspect
                 ImageSizeRatio = size(ImageCell{xInd,yInd},2)*AxisAspect(2)/(size(ImageCell{xInd,yInd},1)*AxisAspect(1));
+            else
+                ImageSizeRatio = NaN;
+            end
+            
+            
+            % Get Image
+            drawnow
+            CurFiggy = getframe();
+            
+            
+            % Check if Image Size is ok
+            Sizzerl = size(CurFiggy.cdata); Sizzerl = Sizzerl(1:2); Sizzerl
+            if(ContLoop > 40 && (DemImSiExists && sum(abs(DemandImageSize - Sizzerl)) < 2))
+                CurFiggy.cdata = ZerofillOrCutkSpace(CurFiggy.cdata,[DemandImageSize 3],0);
+                break
+            elseif(ContLoop > 40 && ~DemImSiExists)
+                break
             end
             BreakCondition = DemImSiExists && all(size_MultiDims(CurFiggy.cdata,[1 2]) == DemandImageSize);
-            BreakCondition = BreakCondition || (~DemImSiExists && round(size(CurFiggy.cdata,1)*ImageSizeRatio) == size(CurFiggy.cdata,2));
-            BreakCondition = BreakCondition || (xInd > 1 || yInd > 1);
+            BreakCondition = BreakCondition || (~DemImSiExists && ~isnan(ImageSizeRatio) && round(size(CurFiggy.cdata,1)*ImageSizeRatio) == size(CurFiggy.cdata,2));
+%             BreakCondition = BreakCondition || (xInd > 1 || yInd > 1);
             if(BreakCondition )
                 break
             else
@@ -102,6 +150,9 @@ for xInd = 1:size(ImageCell,1)
             end
                                       
         end
+        
+        
+        % Save Image
         RGBImageCell{xInd,yInd} = CurFiggy.cdata;
         
     end

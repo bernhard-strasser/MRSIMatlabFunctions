@@ -67,7 +67,17 @@ uid = uid{:}; uid = str2num(uid{:});
 [stat,memused] = unix(['ps aux | grep "' uname(1:end-1) '\|' num2str(uid) '" | awk ''{print $4"\t"$11}'' | grep -i "matlab" | cut -f 1']);     % unix just performs the unix-command.
 memused = sum(str2num(memused));                                                               % str2double does not work
 
-[stat,memfree] = unix('free -m | awk ''NR==3'' | awk ''{print $4}''');                         % unix just performs the unix-command. perform free -g command, take 3rd line of that, and 4th column.
+% free changed from version 3.3.9 to 3.3.10 outputting different fields
+[stat,freeVersion] = unix('free -V');
+freeVersion = freeVersion(regexp(freeVersion,'[\d+\.]+\d+'):end);
+freeVersion = strsplit(freeVersion,'.');
+freeVersion = str2double(regexprep(freeVersion,'\D',''));
+
+if(freeVersion(1) > 3 || freeVersion(2) > 3 || freeVersion(3) > 9)
+    [stat,memfree] = unix('free -m | awk ''NR==2'' | awk ''{print $7}''');     
+else
+    [stat,memfree] = unix('free -m | awk ''NR==3'' | awk ''{print $4}''');  % unix just performs the unix-command. perform free -g command,
+end                                                                         % take 3rd line of that, and 4th column, i.e. "-/+ buffers/cache" of free column
 clear stat
 memfree = sum(str2num(memfree));                                                               % str2double does not work
 

@@ -1,4 +1,4 @@
-function [OutImage,CellOfImages] = StitchImages(CellOfImages,SameExactSize)
+function [OutImage,CellOfImages] = StitchImages(CellOfImages,SameExactSize,FillWithRGB)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -36,7 +36,12 @@ if(nargin < 1)
 	FigHandle = 0;
 	return;
 end
-
+if(~exist('FillWithRGB','var'))
+    FillWithRGB = [102 102 102]; % some grey
+end
+if(exist('SameExactSize','var') && isempty(SameExactSize))
+    clear SameExactSize;
+end
 
 
 
@@ -49,7 +54,7 @@ if(~exist('SameExactSize','var'))
     Sizes = permute(reshape(cell2mat(Sizes),[CellSize(1) 3 CellSize(2)]),[1 3 2]);
     Sizes = Sizes(:,:,1:2);     % First entry in 3rd dim: height, Second entry: width of image
 
-    TargetWidths = max(Sizes(:,:,2));
+    TargetWidths = max(Sizes(:,:,2),[],1);
     TargetHeights = max(Sizes(:,:,1),[],2);
 else
     TargetWidths = repmat(SameExactSize(2),[1 size(CellOfImages,2)]);
@@ -67,7 +72,7 @@ for CurRow = 1:size(CellOfImages,1)
         % Will place voxels [12/2+1 - 1 : 12/2+1 + 1, 14/2+1 - 2 : 14/2+1 + 3]
         % General: [floor(12/2)+1 - floor(3/2) : floor(12/2)+1 + floor(3/2), floor(14/2)+1 - floor(6/2) : floor(12/2)+1 + floor(3/2)]
         CellOfImages{CurRow,CurCol} = ...
-        ZerofillOrCutkSpace(CellOfImages{CurRow,CurCol},transpose(squeeze(TargetSize(CurRow,CurCol,:))),0);
+        XFillOrCutData(CellOfImages{CurRow,CurCol},transpose(squeeze(TargetSize(CurRow,CurCol,:))),0,FillWithRGB);
         
     end
 end
