@@ -57,8 +57,31 @@ end
 if(~isfield(Settings,'ReverseB0_flag'))
     Settings.ReverseB0_flag = false;
 end
+if(~isfield(Settings,'RoundB0ToIntVecPts'))
+    Settings.RoundB0ToIntVecPts = false;
+end
+if(~isfield(InData.Par,'DataSize'))
+    InData.Par.DataSize = size(InData.Data);
+end
 if(~isfield(InData,'RecoPar'))
     InData.RecoPar = InData.Par;
+end
+if(~isfield(InData.RecoPar,'DataSize'))
+    InData.RecoPar.DataSize = size(InData.Data);
+end
+
+
+%% Calculate B0-Map 
+% From Residual water and lipids in case B0-map is not provided
+
+if(~exist('B0','var') || isempty(B0))
+    TestIn.csi = InData.Data;
+    TestIn.mask = InData.Mask;
+    Sett = struct('PeakSearchPPM',[4.7],'PolyfitRegion',[4.4 5.0],'PeakSearchRangePPM',0.5); 
+    Sett.LarmorFreq = InData.RecoPar.LarmorFreq; Sett.Dwelltime = InData.RecoPar.Dwelltimes(1); Sett.vecsize = InData.RecoPar.vecSize; 
+    TestIn.csi = InData.Data; TestIn.mask = InData.Mask;
+    [TestOut,ShiftMap] = FrequencyAlignment(TestIn,Sett,4,2); 
+    InData.Data = TestOut;
 end
 
 
@@ -91,9 +114,17 @@ if(Settings.Overdiscrete_flag)
     end
 end
 
-CurB0 = imresize(B0.B0Map,size_MultiDims(InData.Data,1:2));
-Mask = imresize(Mask,size(CurB0),'nearest');
+if(ndims(B0.B0Map) == 3)
+    CurB0 = imresize3(B0.B0Map,size_MultiDims(InData.Data,1:3));
+else   
+    CurB0 = imresize(B0.B0Map,size_MultiDims(InData.Data,1:2));
+end
 if(exist('Mask','var'))
+    if(ndims(Mask) == 3)
+        Mask = imresize3(double(Mask),size(CurB0),'nearest');
+    else
+        Mask = imresize(double(Mask),size(CurB0),'nearest');        
+    end
     CurB0 = CurB0 .* Mask;
 end
 
@@ -139,13 +170,7 @@ end
 %% DEBUG: Plot Spectra After B0Corr
 
 if(Settings.Debug_flag)
-    bla = InData.Data(:,:,1,:,1);
-    bla = bla .* myrepmat(InData.Mask,size(bla));
-    bla = abs(fftshift(fft(bla,[],4),4));
-    bla = permute(bla,[4 1 2 3]);
-    chemy = compute_chemshift_vector_1_2(InData.RecoPar.LarmorFreq,InData.RecoPar.Dwelltimes(1)/10^9,InData.RecoPar.vecSize);
-    figure; plot(chemy,bla(:,:))
-    figure; plot(chemy,sum(bla(:,:),2))
+    plot_SpecOfAllVoxels(InData);
 end
 
 

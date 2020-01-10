@@ -33,6 +33,11 @@ function [MRStruct] = op_PermuteMRData(MRStruct, Settings)
 %% Prep
 if(~exist('Settings','var'))
    Settings = struct; 
+else
+    if(~isstruct(Settings))
+        Bak = Settings; clear Settings;
+        Settings.PermuteVec = Bak; clear Bak;
+    end
 end
 if(~isfield(Settings,'PermuteVec'))
     Settings.PermuteVec = 1:numel(size(MRStruct.Data));
@@ -56,6 +61,9 @@ end
 MRStruct.Data = permute(MRStruct.Data,Settings.PermuteVec);
 if(isfield(MRStruct,'NoiseData'))
     MRStruct.NoiseData = permute(MRStruct.NoiseData,Settings.PermuteVec);    
+end
+if(isfield(MRStruct,'Mask'))
+    MRStruct.Mask = permute(MRStruct.Mask,Settings.PermuteVec);    
 end
 MRStruct.RecoPar.DataSize = size(MRStruct.Data);
 

@@ -70,19 +70,17 @@ end
 %% Resize SensMap
 
 if(ImResize_flag)
-    AdditionalOut.CoilWeightMap = zeros([MRStruct.RecoPar.DataSize(1:2) MRStruct.RecoPar.DataSize(end)]);
-    for cha = 1:size(CoilWeightMap.Data,1)
-        AdditionalOut.CoilWeightMap(:,:,cha) = imresize(squeeze(CoilWeightMap.Data(cha,:,:)),MRStruct.RecoPar.DataSize(1:2));
+    AdditionalOut.CoilWeightMap = zeros([MRStruct.RecoPar.DataSize(1:2) size_MultiDims(CoilWeightMap.Data,3:5)]);
+    for cha = 1:prod(size_MultiDims(CoilWeightMap.Data,3:5))
+        AdditionalOut.CoilWeightMap(:,:,cha) = imresize(CoilWeightMap.Data(:,:,cha),MRStruct.RecoPar.DataSize(1:2));
     end
 else
-    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[size(CoilWeightMap.Data,1) MRStruct.RecoPar.DataSize(1:3)],1);
-    AdditionalOut.CoilWeightMap = permute(AdditionalOut.CoilWeightMap,[2 3 4 1]);
+    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[MRStruct.RecoPar.DataSize(1:3) size_MultiDims(CoilWeightMap.Data,4:5)],1);
 end
-AdditionalOut.CoilWeightMap = myrepmat(AdditionalOut.CoilWeightMap,MRStruct.RecoPar.DataSize);
 if(MRStruct.RecoPar.DataSize(3) == 1)      % imresize3 for some reason doesnt work for 2D-input...
-    AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(1,:,:)),MRStruct.RecoPar.DataSize(1:2),'nearest');       
+    AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(:,:)),MRStruct.RecoPar.DataSize(1:2),'nearest');       
 else 
-    AdditionalOut.Mask = logical(imresize3(squeeze(uint8(CoilWeightMap.Mask(1,:,:,:))),MRStruct.RecoPar.DataSize(1:3),'nearest'));       
+    AdditionalOut.Mask = logical(imresize3(squeeze(uint8(CoilWeightMap.Mask(:,:,:))),MRStruct.RecoPar.DataSize(1:3),'nearest'));       
 end
 
 %% Weight Data

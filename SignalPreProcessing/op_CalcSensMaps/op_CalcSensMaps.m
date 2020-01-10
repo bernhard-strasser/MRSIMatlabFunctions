@@ -181,10 +181,11 @@ for slc = 1:size(AC.Data,4)
     SensMap.Data(:,:,:,slc) = ComputeSENSEProfilesWithESPIRiT_bstr(Data4Espirit);
 
 end
-SensMap.ACPar = AC.Par;
+SensMap.Par = AC.Par;
 if(exist('BC','var'))
     SensMap.BCPar = BC.Par;
 end
+SensMap.Par.DataSize = size(SensMap.Data);
 
 
 %% Extrapolate a bit
@@ -197,6 +198,7 @@ if(Settings.Extrapolate_flag)
     end
     Maskk_Big = reshape(MaskShrinkOrGrow(squeeze(SensMap.Mask),2,1,1),size(SensMap.Mask));
     SensMap.Data = Maskk_Big .* SensMap.Data;
+    SensMap.Mask = Maskk_Big;
 end
 
 
@@ -228,8 +230,14 @@ if(Settings.Debug_ShowSensMaps_flag)
 
 end
     
-    
+
+%% Permute
+
+SensMap = op_PermuteMRData(SensMap,[2 3 4 5 1]);
+
+
 %% Postparations
+
 
 SensMap = supp_UpdateRecoSteps(SensMap,Settings);
 
