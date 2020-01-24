@@ -87,7 +87,7 @@ if(~isfield_recursive(Settings,'NonCartReco.DensComp_flag'))
    Settings.NonCartReco.DensComp_flag = true;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.AutoScale_flag'))
-   Settings.NonCartReco.DensComp.DensCompAutoScale_flag = true;    
+   Settings.NonCartReco.DensComp.AutoScale_flag = true;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.Method'))
    Settings.NonCartReco.DensComp.Method = 'SpiralHoge1997AbruptChanges';    

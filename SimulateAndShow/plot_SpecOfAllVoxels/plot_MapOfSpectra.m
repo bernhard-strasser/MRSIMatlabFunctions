@@ -9,7 +9,9 @@ function [] = plot_MapOfSpectra(InStruct, Settings, Mask)
 
 %% Preparations
 
-
+if(~exist('Settings','var'))
+    Settings = struct();
+end
 if (~isfield(Settings,'x_start') || isempty(Settings.x_start))
     Settings.x_start = 1;
 end
@@ -33,6 +35,16 @@ if(~isfield(Settings,'plot_z') || isempty(Settings.plot_z))
 end
 if(~isfield(Settings,'plot_linewidth') || isempty(Settings.plot_linewidth))
     Settings.plot_linewidth = 1;
+end
+if(~isfield(Settings,'PlotPPM_flag') || isempty(Settings.PlotPPM_flag))
+    Settings.PlotPPM_flag = true;
+end
+if(~isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var'))
+    if(isfield(InStruct,'BrainMask'))
+        Settings.UseThisInStructMask = 'BrainMask';
+    elseif(isfield(InStruct,'Mask'))
+        Settings.UseThisInStructMask = 'Mask';        
+    end
 end
 
 OpenFigs = get(groot, 'Children');
@@ -89,6 +101,16 @@ yorig = Settings.y_start;
 x = xorig:xorig+nnx-1;
 y = yorig:yorig+nny-1;
 
+if(Settings.PlotPPM_flag)
+    if(isfield(InStruct,'RecoPar'))
+        ChemyOrPtsVec = compute_chemshift_vector(InStruct.RecoPar);
+    else
+        ChemyOrPtsVec = compute_chemshift_vector(InStruct.Par);        
+    end
+else
+    ChemyOrPtsVec = 1:size(Data_fft,3);
+end
+PlotVec = [ChemyOrPtsVec(Settings.f_first),ChemyOrPtsVec(Settings.f_end)];
 
 figure(Settings.figno_1);
 for i=1:nnx
@@ -96,8 +118,8 @@ for i=1:nnx
 %        subplot('Position', [originx(i), originy(j), widthx, widthy])
         subplot('Position', [originy(nny-j+1), originx(nnx-i+1), widthy, widthx])
         
-        plot(Settings.f_first:Settings.f_end, abs((squeeze(Data_fft(x(i),y(j),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
-        axis([Settings.f_first,Settings.f_end, 0, y_max/1]); axis off;
+        plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), abs((squeeze(Data_fft(x(i),y(j),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
+        axis([min(PlotVec),max(PlotVec), 0, y_max/1]); axis off;
 
     end
 end
