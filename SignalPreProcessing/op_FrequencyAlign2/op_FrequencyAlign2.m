@@ -95,7 +95,9 @@ end
 if(~isfield(Settings.PeakDetection,'MinDotProd'))
     Settings.PeakDetection.MinDotProd = 0.55;
 end
-
+if(~isfield(Settings,'FindShiftAlgorithm'))
+    Settings.FindShiftAlgorithm = 'DotProduct';
+end
 
 
 if(~exist('AdditionalIn','var') || ~isfield(AdditionalIn,'RefSpecIn'))
@@ -266,9 +268,16 @@ for x = 1:size(MRStruct.Data,1)
             AdditionalOut.DotProdMap(x,y,z) = max(DotProd);
             if(~OnlyApplyShiftMap_flag && max(abs(TmpSpec)) > Settings.PeakDetection.MinSNR*std(TmpSpec))
 				% Calculate ShiftMap
-                MaxDotProdMatch = find(DotProd == max(DotProd)); MaxDotProdMatch = MaxDotProdMatch(1);
-                ShiftPoint = -( CircShiftVec(MaxDotProdMatch) / Settings.ZerofillingFactor);
-                if(max(DotProd) > Settings.PeakDetection.MinDotProd && ShiftPoint > min(MaxShifts_Pts) && ShiftPoint < max(MaxShifts_Pts))
+                if(strcmpi(Settings.FindShiftAlgorithm,'DotProduct'))
+                    MaxDotProd =  max(DotProd);
+                    MaxDotProdMatch = find(DotProd == MaxDotProd); MaxDotProdMatch = MaxDotProdMatch(1);
+                    ShiftPoint = -( CircShiftVec(MaxDotProdMatch) / Settings.ZerofillingFactor);
+                else
+                    [~, MaxPos] = max(abs(abs(TmpSpec))); 
+                    ShiftPoint = (ceil(numel(TmpSpec)/2) - MaxPos )/ Settings.ZerofillingFactor; % Max should be always in center of TmpSpec!
+                    MaxDotProd = 1E9;    % So that we have no condition on DotProd
+                end
+                if(MaxDotProd > Settings.PeakDetection.MinDotProd && ShiftPoint > min(MaxShifts_Pts) && ShiftPoint < max(MaxShifts_Pts))
                     AdditionalOut.ShiftMap(x,y,z) = ShiftPoint; % - because we shifted the reference, but below we want to shift the other spectra
                 else
                     AdditionalOut.ShiftMap(x,y,z) = NaN; continue;

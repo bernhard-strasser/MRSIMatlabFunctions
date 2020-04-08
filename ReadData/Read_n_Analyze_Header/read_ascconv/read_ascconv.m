@@ -104,6 +104,9 @@ ParList_Search =  { ...
 'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
 'lTotalScanTimeSec'                                             ...     % 53    Total scan time
 'sTXSPEC\.asNucleusInfo\[0\]\.tNucleus'                         ...     % 54    Nucleus
+'sAdjData\.sAdjVolume.dThickness'                               ...     % 55    AdjBoxSize slice
+'sAdjData\.sAdjVolume.dPhaseFOV'                                ...     % 56    AdjBoxSize Phase
+'sAdjData\.sAdjVolume.dReadoutFOV'                              ...     % 57    AdjBoxSize Read
 };
 
 
@@ -161,9 +164,12 @@ ParList_Assign = { ...
 'tSequenceFileName',												...		% 42
 'TIs',                                                              ...		% 51
 'TR',                                                               ...		% 52
-'RefAmplitude'                                                      ...     % 50
-'TotalScanTime'                                                     ...     % 53
-'Nucleus'                                                           ...     % 54
+'RefAmplitude',                                                     ...     % 50
+'TotalScanTime',                                                    ...     % 53
+'Nucleus',                                                          ...     % 54
+'AdjBoxSize_Slice',                                                 ...     % 55
+'AdjBoxSize_Phase',                                                 ...     % 56
+'AdjBoxSize_Read'                                                   ...     % 57
 };
 
 
@@ -220,9 +226,12 @@ ParList_Convert = { ...
 'char',																...		% 42
 'str2double',                                                       ...     % 51
 'str2double',                                                       ...     % 52
-'str2double'														...		% 50
-'str2double'														...		% 53
-'char'                                                              ...     % 54
+'str2double',														...		% 50
+'str2double',														...		% 53
+'char',                                                             ...     % 54
+'str2double',                                                       ...     % 55
+'str2double',														...		% 56
+'str2double',														...		% 57
 };
 
 

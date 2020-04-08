@@ -1,13 +1,9 @@
+function write_RawFiles(RawArray,RawFile,precision)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%           FUNCTION TO READ IN RAW FILES          %%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%           FUNCTION TO WRITE IN RAW FILES          %%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-
-
-
-function write_RawFiles(RawArray,RawFile,precision)
-
-
+% write_RawFiles(RawArray,RawFile,precision)
 
 
 
@@ -30,8 +26,8 @@ end
 %% 1. Write data
 
 raw_fid = fopen(RawFile,'w');
-for Slice_no = 1:size(RawArray,3)
-    fwrite(raw_fid, RawArray(:,:,Slice_no), precision);
-end
+fwrite(raw_fid, RawArray, precision);
+
+
 fclose(raw_fid);
 

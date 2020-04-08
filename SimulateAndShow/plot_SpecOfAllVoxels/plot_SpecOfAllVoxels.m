@@ -37,7 +37,7 @@ end
 if(~isfield(Settings,'UseThisInStructMask'))
     Settings.UseThisInStructMask = 'BrainMask';
 end
-if(isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var'))
+if(isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var') && isfield(MRStruct,(Settings.UseThisInStructMask)))
     Mask = MRStruct.(Settings.UseThisInStructMask);
 end
 if(~exist('Mask','var'))

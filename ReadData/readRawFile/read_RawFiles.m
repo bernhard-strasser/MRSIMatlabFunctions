@@ -109,15 +109,9 @@ end
 %% 1. Read data
 
 raw_fid = fopen(RawFile,'r');
-image = zeros(ROW,COL,SLC);
-for Slice_no = 1:SLC
-	try
-		image(:,:,Slice_no) = fread(raw_fid, [ROW,COL], precision);
-	catch err
-		image = [];
-		fprintf('\nSome Error occurred when reading the raw file:\n%s',err.message)
-	end
-end
+
+image = fread(raw_fid, precision);
+image = reshape(image,[ROW COL SLC]);
 
 fclose(raw_fid);
 

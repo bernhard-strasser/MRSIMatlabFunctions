@@ -137,7 +137,10 @@ HzPerPt = 10^9/InData.RecoPar.Dwelltimes(1) / InData.RecoPar.vecSize;
 if(Settings.RoundB0ToIntVecPts)
     CurB0 = round(CurB0/HzPerPt)*HzPerPt;
 end
-    
+
+% Remove NaN's
+CurB0(isnan(CurB0)) = 0;
+
 AdditionalOut.B0Map = CurB0;
 time   = (0:InData.RecoPar.DataSize(4)-1)*InData.RecoPar.Dwelltimes(1)/10^9;
 AdditionalOut.TimeVec = time;

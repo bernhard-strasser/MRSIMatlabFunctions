@@ -9,17 +9,16 @@ function Operators = op_NonCartMRData_prepOper(Output,AdditionalIn,Settings)
 % some easy Postprocessing steps like zerofilling, Hadamard decoding, Noise Decorrelation etc.
 %
 %
-% [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
+% [Output, AdditionalOut] = op_NonCartMRData_prepOper(Output,AdditionalIn,Settings)
 %
 % Input: 
-% -         file                    ...     Path of MRS(I) file.
-% -         DesiredSize             ...     If you want to perform zerofilling or use only a part of the kspace, set
-%                                           DesiredSize to your wanted [kx,ky,kz], e.g. [64 64 1].
-% -         ReadInDataSets          ...     
+% -         ?                     ...     
+% -         ?                     ...     
+% -         ?             ...     
 %
 % Output:
-% -         kSpace                      ...     Output data in k-space. In case of SVS this is zero. size: channel x ROW x COL x SLC x Samples x Averages
-% -         Info                        ...     
+% -         ?                      ...     
+% -         ?                        ...     
 %
 %
 % Feel free to change/reuse/copy the function. 
@@ -44,16 +43,16 @@ if(~exist('Settings','var'))
     Settings = struct();
 end
 if(~isfield(Settings,'Phaseroll_flag'))
-   Settings.Phaseroll_flag = true;    
+    Settings.Phaseroll_flag = true;    
 end
 if(~isfield(Settings,'DensComp_flag'))
-   Settings.DensComp_flag = true;    
+    Settings.DensComp_flag = true;    
 end
 if(~isfield_recursive(Settings,'DensComp.AutoScale_flag'))
-   Settings.DensComp.AutoScale_flag = false;    
+    Settings.DensComp.AutoScale_flag = false;    
 end
 if(~isfield(Settings.DensComp,'Normalize_flag'))
-   Settings.DensComp.Normalize_flag = false;    
+    Settings.DensComp.Normalize_flag = false;    
 end
 if(~isfield(Settings,'Correct4SpatialB0_flag'))
    Settings.Correct4SpatialB0_flag = false;    
@@ -187,8 +186,13 @@ end
 
 
 %% Mask
-Mask = imresize(AdditionalIn.B0.BrainMask,Operators.OutDataSize(1:2),'nearest');
-Operators.Mask = Mask;
+
+if(isfield_recursive(AdditionalIn,'B0.BrainMask'))
+    Mask = imresize(AdditionalIn.B0.BrainMask,Operators.OutDataSize(1:2),'nearest');
+    Operators.Mask = Mask;
+else
+    Mask = ones(Operators.OutDataSize(1:2)); 
+end
 
 
 %% Calculate B0CorrMat_Spec

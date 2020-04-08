@@ -64,6 +64,18 @@ run(TrajFile)
 NumOfGradPtsForAllTIs = Out.Par.Dwelltimes/10^3 / 10;    % Dwelltime in us / GRAD_RASTER_TIME in us = Number Of Pts per TI
 Out.Par.nTempInt = round(numel(dGradientValues{1}) / NumOfGradPtsForAllTIs);
 Out.Par.nAngInts = Out.Par.IceProgramPara.Values(32)/Out.Par.nTempInt;
+
+if(~Out.Par.nAngInts > 0 || mod(Out.Par.nAngInts,1) ~= 0)       % If it wasn't saved in the header
+    Test = mapVBVD(SpiralFile);
+    Out.Par.nAngInts = Test.image.NSeg / Out.Par.nTempInt;
+    clear Test;
+    if(~Out.Par.nAngInts > 0 || mod(Out.Par.nAngInts,1) ~= 0)
+        fprintf('\nError in io_ReadSpiralPars: Could not retrieve number of angular interleaves. Stop here')
+        Out = [];
+        return
+    end
+end
+
 Out.Par.ADC_dt = Out.Par.IceProgramPara.Values(8);
 Out.Par.ADC_OverSamp = 10000/Out.Par.ADC_dt;
 Out.Par.TrajPts = NumberOfLoopPoints*Out.Par.ADC_OverSamp;

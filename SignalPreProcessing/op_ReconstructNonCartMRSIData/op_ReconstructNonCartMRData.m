@@ -36,18 +36,23 @@ function [Output, AdditionalOut] = op_ReconstructNonCartMRData(Output,Additional
 %% 0. Preparations
 
 
-
+if(~exist('AdditionalIn','var'))
+    AdditionalIn = struct();
+end
 if(~exist('Settings','var'))
-   Settings = struct();  
+    Settings = struct();
 end
 if(~isfield(Settings,'Phaseroll_flag'))
-   Settings.Phaseroll_flag = true;    
+    Settings.Phaseroll_flag = true;    
 end
 if(~isfield(Settings,'DensComp_flag'))
-   Settings.DensComp_flag = true;    
+    Settings.DensComp_flag = true;    
 end
 if(~isfield_recursive(Settings,'DensComp.AutoScale_flag'))
-   Settings.DensComp.AutoScale_flag = false;    
+    Settings.DensComp.AutoScale_flag = false;    
+end
+if(~isfield(Settings.DensComp,'Normalize_flag'))
+    Settings.DensComp.Normalize_flag = false;    
 end
 if(~isfield(Settings,'ConjInkSpace_flag'))
    Settings.ConjInkSpace_flag = false;    
@@ -267,10 +272,10 @@ end
 
 if(Settings.FlipDim_flag)
     Output.Data = flip(Output.Data,1);
-    Output.Data = circshift(Output.Data,[1 -1 0 0 0 0 0]);
+%     Output.Data = circshift(Output.Data,[1 -1 0 0 0 0 0]);
     if(isfield(Output,'NoiseData'))
         Output.NoiseData = flip(Output.NoiseData,1);
-        Output.NoiseData = circshift(Output.NoiseData,[1 -1 0 0 0 0 0]);        
+%         Output.NoiseData = circshift(Output.NoiseData,[1 -1 0 0 0 0 0]);        
     end
 end
 
