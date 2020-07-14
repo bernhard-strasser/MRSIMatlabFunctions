@@ -87,7 +87,7 @@ end
 
 MRStruct.Data = MRStruct.Data .* AdditionalOut.CoilWeightMap;
 MRStruct.Data = sum(MRStruct.Data,5);
-if(isfield(MRStruct,'NoiseData'))
+if(isfield(MRStruct,'NoiseData') && numel(MRStruct.NoiseData) > 1)
     MRStruct.NoiseData = MRStruct.NoiseData .* AdditionalOut.CoilWeightMap;
     MRStruct.NoiseData = sum(MRStruct.NoiseData,5);    
 end
@@ -104,7 +104,7 @@ AdditionalOut.Scaling(isinf(AdditionalOut.Scaling) | isnan(AdditionalOut.Scaling
 
 MRStruct.Data = MRStruct.Data .* AdditionalOut.Scaling;
 MRStruct.Data(isinf(MRStruct.Data)) = 0;
-if(isfield(MRStruct,'NoiseData'))
+if(isfield(MRStruct,'NoiseData') && numel(MRStruct.NoiseData) > 1)
     MRStruct.NoiseData = MRStruct.NoiseData .* AdditionalOut.Scaling;
     MRStruct.NoiseData(isinf(MRStruct.NoiseData)) = 0;
 end

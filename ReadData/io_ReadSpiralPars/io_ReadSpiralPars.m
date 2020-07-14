@@ -106,5 +106,10 @@ Out.Par.vecSize = nperiods * concat_periods*Out.Par.nTempInt;
 
 Out.Par.DwelltimesFromHeader = Out.Par.Dwelltimes;
 Out.Par.Dwelltimes = (Out.Par.TrajTotPts/Out.Par.nTempInt)*(10/Out.Par.ADC_OverSamp) * 10^3;
+Out.Par.DwelltimesPerAngInt_ns = repmat(Out.Par.Dwelltimes(1),[1 Out.Par.nAngInts]);
 
+
+%% Fix Pars
+
+Out = supp_FixPars(Out);
 

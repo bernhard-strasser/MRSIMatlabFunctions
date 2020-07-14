@@ -76,7 +76,7 @@ end
 
 if(Settings.ConjIniSpace_flag)
     Output.Data = conj(Output.Data);
-    if(isfield(Output,'NoiseData'))
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
         Output.NoiseData = conj(Output.NoiseData);
     end
 end
@@ -86,7 +86,7 @@ end
 Size = size(Output.Data);
 if(Size(3) > 1 && Settings.PerformZFFT_flag)
     Output.Data = FFTOfMRIData(Output.Data,0,3,1,1,0);
-    if(isfield(Output,'NoiseData'))
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
         Output.NoiseData = FFTOfMRIData(Output.NoiseData,0,3,1,1,0);
     end
 end
@@ -112,7 +112,7 @@ Output.Data = reshape(Output.Data,[prod(SizeData_i(1:2)) prod(SizeData_i(3:end))
 Output.Data = sft2_Op * Output.Data;  %/ size(Output.OutTraj.GM(:,:),2)
 Output.Data = reshape(Output.Data,[Output.Par.DataSize(1:2) SizeData_i(3:end)]);
 
-if(isfield(Output,'NoiseData'))
+if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
     Output.NoiseData = reshape(Output.NoiseData,[prod(SizeData_i(1:2)) prod(SizeData_i(3:end))]);   
     Output.NoiseData = sft2_Op * Output.NoiseData;  %/ size(Output.OutTraj.GM(:,:),2)
     Output.NoiseData = reshape(Output.NoiseData,[Output.Par.DataSize(1:2) SizeData_i(3:end)]);
@@ -164,7 +164,7 @@ if(Settings.Phaseroll_flag)
     Output.Data = fft(fftshift((phasecorr).*fftshift(ifft(Output.Data,[],5),5),5),[],5);
     Output.Data(:,:,:,:,1,:,:) = bla;
     
-    if(isfield(Output,'NoiseData'))
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
         bla = Output.NoiseData(:,:,:,:,1,:,:);        
         Output.NoiseData = fft(fftshift((phasecorr).*fftshift(ifft(Output.NoiseData,[],5),5),5),[],5);
         Output.NoiseData(:,:,:,:,1,:,:) = bla;
@@ -210,7 +210,7 @@ end
 if(Settings.ConjInkSpace_flag)
     Output.Data = conj(Output.Data);
     
-    if(isfield(Output,'NoiseData'))
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
         Output.NoiseData = conj(Output.NoiseData);
     end    
 end

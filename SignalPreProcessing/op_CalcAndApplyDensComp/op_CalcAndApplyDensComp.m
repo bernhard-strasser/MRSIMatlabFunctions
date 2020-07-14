@@ -1,4 +1,4 @@
-function [InStruct,AdditionalOut] = op_CalcAndApplyDensComp(InStruct,NUFTOperator,Settings)
+function [MRStruct,AdditionalOut] = op_CalcAndApplyDensComp(MRStruct,NUFTOperator,Settings)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -12,7 +12,7 @@ function [InStruct,AdditionalOut] = op_CalcAndApplyDensComp(InStruct,NUFTOperato
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         InStruct            ...  InStruct-struct with fields (only InTraj.GM and RecoPar have to be present)
+% -         MRStruct            ...  MRStruct-struct with fields (only InTraj.GM and RecoPar have to be present)
 %                                           RecoSteps:  All the settings of the performed reconstruction steps
 %                                           Par:        The original parameters of the read in data
 %                                           RecoPar:    The parameters after reconstruction
@@ -33,7 +33,7 @@ function [InStruct,AdditionalOut] = op_CalcAndApplyDensComp(InStruct,NUFTOperato
 %                                                           If you want to see the k-space density, that's how you could get it.
 %
 % Output:
-% -         InStruct        ...  Same as for input
+% -         MRStruct        ...  Same as for input
 % -         AdditionalOut   ...  Struct with additional output, e.g. Density Compensation Function, etc.
 %
 %
@@ -68,17 +68,29 @@ end
 %% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
 if(strcmpi(Settings.Method,'SpiralHoge1997AbruptChanges'))
-    v1 = InStruct.InTraj.GM;
+    v1 = MRStruct.InTraj.GM;
     DCFPreG = zeros([size(v1,2) size(v1,3)]);
     for SpirPts = 2:size(v1,2)
         DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
         abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
     end
     DCFPreG(isnan(DCFPreG)) = 0;
+elseif(strcmpi(Settings.Method,'ConcentricRingTrajectory_Theoretical'))
+    nc = MRStruct.RecoPar.nAngInts;
+    R = sqrt(squeeze(MRStruct.InTraj.GM(1,1,:).^2 + MRStruct.InTraj.GM(2,1,:).^2));
+    
+    DCFPreG = zeros([1 nc]);
+    for i=2:nc-1
+        DCFPreG(i)=((R(i)/max(R)+R(i+1)/max(R))^2/4-(R(i-1)/max(R)+R(i)/max(R))^2/4)^(1)*pi;
+    end
+    DCFPreG(1)=(0.25*pi*(R(1)/max(R)+R(2)/max(R))^2);    
+    DCFPreG(nc)=pi*((1.5*R(nc)/max(R)-0.5*R(nc-1)/max(R))^2-(0.5*R(nc)/max(R)+0.5*R(nc-1)/max(R))^2);
+    DCFPreG = repmat(DCFPreG,[MRStruct.RecoPar.TrajPts 1]);
+    clear nc R;
 else
    st = dbstack;
    fprintf('\nWarning in %s: Did not recognize method for calculating density compensation function ''%s''.\nUse DCF = 1 instead.\n',st(1).name,Settings.Method)
-   DCFPreG = ones(size_MultiDims(InStruct.InTraj.GM,[2 3]));
+   DCFPreG = ones(size_MultiDims(MRStruct.InTraj.GM,[2 3]));
 end
     
 %% Scale DCF
@@ -86,15 +98,15 @@ end
 if(Settings.Normalize_flag)
     Scale = norm(DCFPreG(:))/sqrt(numel(DCFPreG));
 elseif(Settings.AutoScale_flag)
-    OnesData = ones(InStruct.RecoPar.DataSize(1:2));
-    OutOnesData = abs(NUFTOperator'*(DCFPreG(:) .* (NUFTOperator*OnesData(:)))*size(InStruct.OutTraj.GM(:,:),2));
+    OnesData = ones(MRStruct.RecoPar.DataSize(1:2));
+    OutOnesData = abs(NUFTOperator'*(DCFPreG(:) .* (NUFTOperator*OnesData(:)))*size(MRStruct.OutTraj.GM(:,:),2));
     OutOnesData(OutOnesData == 0) = NaN;
     Scale = nanmean(OutOnesData);
 else
     %         FudgeFactor = 1.2743;     % For old trajectory
 %         FudgeFactor = 0.00051078;         % For new trajectory
     FudgeFactor = 1.9634;
-    Scale = max(DCFPreG(:))*2*InStruct.RecoPar.fov_overgrid^2/FudgeFactor;
+    Scale = max(DCFPreG(:))*2*MRStruct.RecoPar.fov_overgrid^2/FudgeFactor;
     % I dont know what these factors are. The 2*SpSpice.SimPar.fov_overgrid^2 I guessed. The FudgeFactor I got by inputting a image of ones
     % and seeing how it was scaled...
     
@@ -111,11 +123,11 @@ end
 
 %% Apply DCF
 
-if(isfield(InStruct,'Data'))
-    InStruct.Data = InStruct.Data .* myrepmat(DCFPreG(:),size(InStruct.Data));
+if(isfield(MRStruct,'Data'))
+    MRStruct.Data = MRStruct.Data .* myrepmat(single(DCFPreG(:)),size(MRStruct.Data));
 end
-if(isfield(InStruct,'NoiseData'))
-    InStruct.NoiseData = InStruct.NoiseData .* myrepmat(DCFPreG(:),size(InStruct.NoiseData));
+if(isfield(MRStruct,'NoiseData') && numel(MRStruct.NoiseData) > 1)
+    MRStruct.NoiseData = MRStruct.NoiseData .* myrepmat(DCFPreG(:),size(MRStruct.NoiseData));
 end
     
 
@@ -125,6 +137,6 @@ if(nargout > 1 && exist('DCFPreG','var'))
     AdditionalOut.DCFPreG = DCFPreG;
 end
 
-% InStruct = supp_UpdateRecoSteps(InStruct,Settings);
+% MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
 
 

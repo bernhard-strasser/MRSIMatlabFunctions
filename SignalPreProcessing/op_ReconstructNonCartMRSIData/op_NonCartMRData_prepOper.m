@@ -70,7 +70,7 @@ if(~isfield(Output,'RecoPar'))
     end
     Output.RecoPar = Output.Par;
 end
-Operators.InDataSize = size(Output.Data);
+Operators.InDataSize = Output.RecoPar.DataSize;
 
 Operators.OutDataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
 if(isfield(Output.Par,'TimeUndersamplFactor'))
@@ -78,6 +78,9 @@ if(isfield(Output.Par,'TimeUndersamplFactor'))
 end
 Output.RecoPar.DataSize = Operators.OutDataSize;
 % Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
+
+Output = supp_FixPars(Output);  % To hard-code/hack parameters for special cases, or to make Parameters consistent between different read-in-methods.
+
 
 
 %% FoV-Shift Operator
@@ -120,7 +123,7 @@ end
 
 if(Settings.Phaseroll_flag)
 
-    nTI = Output.RecoPar.nTempInt;
+    nTI = Output.RecoPar.nTempIntsPerAngInt;
     vs = Output.RecoPar.vecSize;
     ns = Output.RecoPar.TrajPts;
     nc = Output.RecoPar.nAngInts;
@@ -128,9 +131,9 @@ if(Settings.Phaseroll_flag)
     ncha = Operators.InDataSize(6);
 
     timeoffset = 0:(ns-1);
-    timeoffset = repmat(transpose(timeoffset),[1 vs]);
-    Freq = ((0:vs-1)/vs-0.5)/(nrew + ns)*nTI;
-    Freq = repmat(Freq,[ns 1]);    
+    timeoffset = repmat(transpose(timeoffset),[1 nc vs]);
+    Freq = ((0:vs-1)/vs-0.5)/(nrew + ns).*nTI(:);
+    Freq = myrepmat(Freq,size(timeoffset));    
 
     % This comes from:
     % timeoffset = (0:(ns-1))*Output.Par.ADC_Dt/10^6;
@@ -141,7 +144,7 @@ if(Settings.Phaseroll_flag)
     % the same anyway
     
     Operators.TiltTrajMat = exp(-2*1i*pi*timeoffset .* Freq);    
-    Operators.TiltTrajMat = reshape(Operators.TiltTrajMat,[Operators.InDataSize(1) 1 1 1 Operators.InDataSize(5)]); % [TrajPts nAI nPart nSlc vecSize]
+    Operators.TiltTrajMat = reshape(Operators.TiltTrajMat,Operators.InDataSize(1:5)); % [TrajPts nAI nPart nSlc vecSize]
        
 else
     
@@ -171,8 +174,8 @@ end
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
 if(Settings.Correct4SpatialB0_flag)
-    t   = (0:Output.RecoPar.TrajPts-1)*Output.RecoPar.ADC_dt/10^9;
-    t = repmat(t,[1 1 Output.RecoPar.nAngInts]); t = t(:);
+    t   = (0:Output.RecoPar.TrajPts-1).*reshape(Output.RecoPar.ADCdtPerAngInt_ns,[1 1 Output.RecoPar.nAngInts])/10^9;
+    t = t(:);
     CurB0 = imresize(AdditionalIn.B0.B0Map,Operators.OutDataSize(1:2));    
     if(isfield(AdditionalIn.B0,'Mask'))
         Mask = imresize(MaskShrinkOrGrow(AdditionalIn.B0.Mask,2,0,1),Operators.OutDataSize(1:2),'nearest');

@@ -423,20 +423,25 @@ end
 
 % Corrections
 
-
+ParList.AssumedSequence = 'CSIOrSVS';
+if((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
+    ParList.AssumedSequence = 'ViennaCRT';
+elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
+        ParList.AssumedSequence = 'BorjanSpiral';
+end
+    
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
 if(numel(strfind(file_path, '.dat')) > 0 ...
 	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
  	ParList.vecSize = 2 * ParList.vecSize;
-    if( isfield(ParList,'WipMemBlockInterpretation') && isfield(ParList.WipMemBlockInterpretation,'Rollercoaster') && isfield(ParList.WipMemBlockInterpretation.Rollercoaster,'sNoADCPointsPerCircle') ...
-        && ~isnan(ParList.WipMemBlockInterpretation.Rollercoaster.sNoADCPointsPerCircle) )      % if Rollercoaster
+    if( strcmp(ParList.AssumedSequence,'ViennaCRT') )      % if Rollercoaster
         ParList.Dwelltimes = 2 * ParList.Dwelltimes;    % Because we have oversampling enabled, and the scanner interprets that we oversample in the spectral domain, which we dont...
     end
 end
 if( numel(strfind(file_path, '.IMA') > 0) ) 
-	if( isempty(regexpi(ParList.tProtocolName,'spiral')) && isempty(regexpi(ParList.tSequenceFileName,'spiral')))	% PREVIOUSLY HAD: ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 &&. BUT SOMETIMES CSI IS ALSO WEIGHTED!!! % WITH THAT I ASSUME THAT 
+	if( strcmp(ParList.AssumedSequence,'BorjanSpiral'))	% PREVIOUSLY HAD: ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 &&. BUT SOMETIMES CSI IS ALSO WEIGHTED!!! % WITH THAT I ASSUME THAT 
 	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes;																													% DATASET IS NOT SPIRAL!
 	else																																								% THIS IS A HACK!
 		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
@@ -475,7 +480,6 @@ ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
 
 
 % Add field gyromagnetic ratio based on nucleus
-
 if(~isempty(regexp(ParList.Nucleus,'1H','ONCE')))
     ParList.GyroMagnRatioOverTwoPi = 42.57747892 * 10^6;
 end
