@@ -178,7 +178,7 @@ function MRStruct = ReadAndReshapeCRTData(MRStruct)
     %     MRStruct.Data{CurCrcl} = zeros([MRStruct.Par.TrajPts MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]);
     % end
     for CurCrcl = 1:MRStruct.Par.nAngInts
-        TmpData3 = reshape(TmpData2{CurCrcl},[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC*MRStruct.Par.nADCsPerAngInt(CurCrcl) ]); 
+        TmpData3 = reshape(TmpData2{CurCrcl},[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl)*MRStruct.Par.nADCsPerAngInt(CurCrcl) ]); 
         TmpData3 = TmpData3(:,:,:,:,1:MRStruct.Par.UsefulADCPtsPerAngInt(CurCrcl));
         TmpData3 = reshape(TmpData3,[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl)]); 
         TmpData3 = permute(TmpData3,[5 3 4 2 6 1]); % New size : [nTrajPoints x nPart x nSlc x vecSize x nTempIntsPerAngInt x nCha]

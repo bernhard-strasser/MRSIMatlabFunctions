@@ -72,8 +72,9 @@ for CurParName2 = {'Par','RecoPar'}
     
     
     %% Cut dimnames
-    MRStruct.(CurParName).dimnames = MRStruct.(CurParName).dimnames(1:numel(size(MRStruct.Data)));
-
+    if(isfield(MRStruct,'Data'))
+        MRStruct.(CurParName).dimnames = MRStruct.(CurParName).dimnames(1:numel(size(MRStruct.Data)));
+    end
     
     
     %% Create dims

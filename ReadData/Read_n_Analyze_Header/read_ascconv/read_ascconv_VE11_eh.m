@@ -1,4 +1,4 @@
-function [ParList,ascconv] = read_ascconv(file_path)
+function [ParList,ascconv] = read_ascconv_VE11_eh(file_path)
 %
 % read_ascconv Read ascconv header part of DICOM and Siemens raw data
 %
@@ -92,16 +92,21 @@ ParList_Search =  { ...
 'sRXSPEC.lGain',                                                ...     % 32 
 'sSpecPara\.lPhaseEncodingType',                                ...     % 33    % 1 For Full kSpace Sampling, 2 For Elliptical Weighted Sampling, 3 for Weighted Acquisition
 'alTE\[\d+\]',                                                  ...     % 35
-'sWiPMemBlock\.tFree',						...	% 36
-'(?<!a)lAverages',						...	% 37	Only search for lAverages excluding alAverages, because this belongs to 'sDiffusion.alAverages.__attribute__.size'
-'sWipMemBlock\.alFree\[(\d){1,2}\]',				...	% 38	All variables set in Special Card + those from above
-'sKSpace.ucPhasePartialFourier',				...	% 39
-'sKSpace.ucSlicePartialFourier',				...	% 40
-'tProtocolName',						...	% 41	How the "Sequence" at the scanner when it was measured was named
-'tSequenceFileName',						...	% 42	Which sequence was used
-'alTI\[\d+\]',							...	% 42	Which sequence was used
-'alTR\[\d+\]',							...	% 42	Which sequence was used
+'sWiPMemBlock\.tFree',														...		% 36
+'(?<!a)lAverages',												...		% 37	Only search for lAverages excluding alAverages, because this belongs to 'sDiffusion.alAverages.__attribute__.size'
+'sWipMemBlock\.alFree\[(\d){1,2}\]',							...		% 38	All variables set in Special Card + those from above
+'sKSpace.ucPhasePartialFourier',								...		% 39
+'sKSpace.ucSlicePartialFourier',								...		% 40
+'tProtocolName',												...		% 41	How the "Sequence" at the scanner when it was measured was named
+'tSequenceFileName',											...		% 42	Which sequence was used
+'alTI\[\d+\]',                                                  ...		% 51	TI
+'alTR\[\d+\]',                                                  ...		% 52	TR
 'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
+'lTotalScanTimeSec'                                             ...     % 53    Total scan time
+'sTXSPEC\.asNucleusInfo\[0\]\.tNucleus'                         ...     % 54    Nucleus
+'sAdjData\.sAdjVolume.dThickness'                               ...     % 55    AdjBoxSize slice
+'sAdjData\.sAdjVolume.dPhaseFOV'                                ...     % 56    AdjBoxSize Phase
+'sAdjData\.sAdjVolume.dReadoutFOV'                              ...     % 57    AdjBoxSize Read
 };
 
 
@@ -157,9 +162,14 @@ ParList_Assign = { ...
 'SlicePartialFourier',												...		% 40
 'tProtocolName',													...		% 41
 'tSequenceFileName',												...		% 42
-'TIs',												...		% 42
-'TR',												...		% 42
-'RefAmplitude'                                                      ...     % 50
+'TIs',                                                              ...		% 51
+'TR',                                                               ...		% 52
+'RefAmplitude',                                                     ...     % 50
+'TotalScanTime',                                                    ...     % 53
+'Nucleus',                                                          ...     % 54
+'AdjBoxSize_Slice',                                                 ...     % 55
+'AdjBoxSize_Phase',                                                 ...     % 56
+'AdjBoxSize_Read'                                                   ...     % 57
 };
 
 
@@ -214,9 +224,14 @@ ParList_Convert = { ...
 'char',																...		% 40
 'char',																...		% 41
 'char',																...		% 42
-'str2double',                                                       ...     % 35
-'str2double',                                                       ...     % 35
-'str2double'														...		% 50
+'str2double',                                                       ...     % 51
+'str2double',                                                       ...     % 52
+'str2double',														...		% 50
+'str2double',														...		% 53
+'char',                                                             ...     % 54
+'str2double',                                                       ...     % 55
+'str2double',														...		% 56
+'str2double',														...		% 57
 };
 
 
@@ -255,7 +270,7 @@ while(sLine > -1)
     else                                                            % If begin of ascconv has already been found
         
         if(not(isempty(strfind(sLine,'### ASCCONV END ###'))))      % If the end was found --> stop while loop
-            if(Ascconv_No < 5)
+            if(Ascconv_No < 3) 		% THIS IS A HACK!
                 begin_found = false;
                 ascconv = [];
             else
@@ -466,7 +481,10 @@ end
 ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
 
 
-
+% Add field gyromagnetic ratio based on nucleus
+if(~isempty(regexp(ParList.Nucleus,'1H','ONCE')))
+    ParList.GyroMagnRatioOverTwoPi = 42.57747892 * 10^6;
+end
 
 
 
