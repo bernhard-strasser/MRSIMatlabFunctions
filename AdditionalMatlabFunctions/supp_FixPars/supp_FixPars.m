@@ -27,6 +27,9 @@ function MRStruct = supp_FixPars(MRStruct)
 
 %% 0. Preparations
 
+if(~isfield(MRStruct,'Par'))
+    MRStruct.Par = struct;
+end
 
 
 %% Loop over Par and RecoPar
@@ -38,6 +41,70 @@ for CurParName2 = {'Par','RecoPar'}
         continue;
     end
 
+    % Some 'trivial' stuff
+    if( ~isfield(MRStruct.(CurParName),'GyroMagnRatioOverTwoPi'))
+        MRStruct.(CurParName).GyroMagnRatioOverTwoPi = 42.57747892 * 10^6;
+    end
+    if( ~isfield(MRStruct.(CurParName),'DataSize') && isfield(MRStruct,'Data'))
+        MRStruct.(CurParName).DataSize = cellfun(@size,MRStruct.Data,'uni',false);     % Generalize later for more than 1 partition!
+    end
+    if( ~isfield(MRStruct.(CurParName),'nFreqEnc'))
+        MRStruct.(CurParName).nFreqEnc = 64;
+    end
+    if( ~isfield(MRStruct.(CurParName),'nPhasEnc'))
+        MRStruct.(CurParName).nPhasEnc = 64;
+    end
+    if( ~isfield(MRStruct.(CurParName),'nPartEnc'))
+        MRStruct.(CurParName).nPartEnc = size(MRStruct.Data{1},3);
+    end
+    if( ~isfield(MRStruct.(CurParName),'nSLC'))
+        MRStruct.(CurParName).nSLC = 1;
+    end
+    if( ~isfield(MRStruct.(CurParName),'vecSize'))
+        MRStruct.(CurParName).vecSize = size(MRStruct.Data{1},5);
+    end
+    if( ~isfield(MRStruct.(CurParName),'FoV_Read'))
+        MRStruct.(CurParName).FoV_Read = 220;
+    end
+    if( ~isfield(MRStruct.(CurParName),'FoV_Phase'))
+        MRStruct.(CurParName).FoV_Phase = 220;
+    end
+    if( ~isfield(MRStruct.(CurParName),'FoV_Partition'))
+        MRStruct.(CurParName).FoV_Partition = 12;
+    end
+    if( ~isfield(MRStruct.(CurParName),'Pos_Cor'))
+        MRStruct.(CurParName).Pos_Cor = 0;
+    end
+    if( ~isfield(MRStruct.(CurParName),'Pos_Sag'))
+        MRStruct.(CurParName).Pos_Sag = 0;
+    end
+    if( ~isfield(MRStruct.(CurParName),'Pos_Tra'))
+        MRStruct.(CurParName).Pos_Tra = 0;
+    end
+    if( ~isfield(MRStruct.(CurParName),'SliceNormalVector_x'))
+        MRStruct.(CurParName).SliceNormalVector_x = 0;
+    end
+    if( ~isfield(MRStruct.(CurParName),'SliceNormalVector_y'))
+        MRStruct.(CurParName).SliceNormalVector_y = 0;
+    end
+    if( ~isfield(MRStruct.(CurParName),'SliceNormalVector_z'))
+        MRStruct.(CurParName).SliceNormalVector_z = 1;
+    end
+    
+    
+    if( ~isfield(MRStruct.(CurParName),'total_channel_no_measured'))
+        MRStruct.(CurParName).total_channel_no_measured = 1;
+    end
+    if( ~isfield(MRStruct.(CurParName),'ADC_dt'))
+        MRStruct.(CurParName).ADC_dt = 5000;
+    end
+    if( ~isfield(MRStruct.(CurParName),'ADC_OverSamp'))
+        MRStruct.(CurParName).ADC_OverSamp = 10000/MRStruct.(CurParName).ADC_dt;
+    end
+    if( ~isfield(MRStruct.(CurParName),'nAngInts'))
+        MRStruct.(CurParName).nAngInts = size(MRStruct.Data,2);
+    end
+    
     
     %% Create nTempIntsPerAngInt
     if(~isfield(MRStruct.(CurParName),'nTempIntsPerAngInt') && isfield(MRStruct.(CurParName),'nTempInt'))

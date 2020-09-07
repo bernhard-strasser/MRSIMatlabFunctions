@@ -1,4 +1,4 @@
-function [SensMap,AdditionalOut] = op_CalcSensMaps(AC,BC,AdditionalMaskData,TargetPars,Settings)
+function [SensMap,AdditionalOut] = op_CalcSensMaps(SensMapData,AdditionalMaskData,TargetPars,Settings)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -48,12 +48,12 @@ end
 if(~isfield(Settings,'Extrapolate_flag'))
     Settings.Extrapolate_flag = false;
 end
+if(~isfield(Settings,'RatioToMax4MaskThreshold'))
+    Settings.RatioToMax4MaskThreshold = 0.035;
+end
 
 if(exist('AdditionalMaskData','var') && isempty(AdditionalMaskData))
     clear AdditionalMaskData;
-end
-if(exist('BC','var') && isempty(BC))
-    clear BC;
 end
 % if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
 %     Settings.Debug.ShowTrajs = true;
@@ -68,93 +68,78 @@ end
 % This is done here, although I think a bit complicated. It would be probably easier to interpolate using the original grid and the new grid, and then
 % use some interpolation method. This way, even angulations could be handled.
 
-RoundingFactor = 1;         % Maximum error for calculated FoV: 0.5/RoundingFactor mm
-MatSize_SensMap = size_MultiDims(AC.Data,2:4);
-FoV_D2 = [TargetPars.FoV_Read TargetPars.FoV_Phase TargetPars.FoV_Partition];
-FoV_SensMap = [AC.Par.FoV_Read(1) AC.Par.FoV_Phase(1) AC.Par.FoV_Partition(1)];
+if(TargetPars.FoV_Read ~= SensMapData.Par.FoV_Read(1) || TargetPars.FoV_Phase ~= SensMapData.Par.FoV_Phase(1) || TargetPars.FoV_Partition ~= SensMapData.Par.FoV_Partition(1) || ...
+   TargetPars.Pos_Sag(1) ~= SensMapData.Par.Pos_Sag(1) || TargetPars.Pos_Cor(1) ~= SensMapData.Par.Pos_Cor(1) || TargetPars.Pos_Tra(1) ~= SensMapData.Par.Pos_Tra(1) || ...
+   TargetPars.nFreqEnc ~= SensMapData.Par.nFreqEnc || TargetPars.nPhasEnc ~= SensMapData.Par.nPhasEnc || TargetPars.nPartEnc ~= SensMapData.Par.nPartEnc || ...
+   TargetPars.nSLC ~= SensMapData.Par.nSLC || ...
+   TargetPars.SliceNormalVector_x ~= SensMapData.Par.SliceNormalVector_x || TargetPars.SliceNormalVector_y ~= SensMapData.Par.SliceNormalVector_y || ...
+   TargetPars.SliceNormalVector_z ~= SensMapData.Par.SliceNormalVector_z || TargetPars.InPlaneRotation ~= SensMapData.Par.InPlaneRotation)
 
-% Take care of oversampling. THIS IS A HACK! HOW CAN I BETTER FIND OUT WHICH DIRECTION WAS ZEROFILLED?!?!?
-if(AC.Par.ThreeD_flag)  
-    FoV_SensMap(3) = 2*FoV_SensMap(3);
-else
-    FoV_SensMap(1) = 2*FoV_SensMap(1);    
-end
+    RoundingFactor = 1;         % Maximum error for calculated FoV: 0.5/RoundingFactor mm
+    MatSize_SensMap = size_MultiDims(SensMapData.Data,2:4);
+    FoV_D2 = [TargetPars.FoV_Read TargetPars.FoV_Phase TargetPars.FoV_Partition];
+    FoV_SensMap = [SensMapData.Par.FoV_Read(1) SensMapData.Par.FoV_Phase(1) SensMapData.Par.FoV_Partition(1)];
 
-LeastCommMult = lcm(round(FoV_D2*RoundingFactor),round(FoV_SensMap*RoundingFactor));
-ImresizeSize = LeastCommMult ./ round(FoV_D2*RoundingFactor);
-ImresizeSize = ceil(MatSize_SensMap./ImresizeSize) .* ImresizeSize;        % Dont allow TargetSize < InputSize
-TargetSize = round(FoV_D2 ./ (FoV_SensMap./ImresizeSize));
+    % % Take care of oversampling. THIS IS A HACK! HOW CAN I BETTER FIND OUT WHICH DIRECTION WAS ZEROFILLED?!?!?
+    % if(SensMapData.Par.ThreeD_flag && SensMapData.Par.nPartEnc > 1)  
+    %     FoV_SensMap(3) = 2*FoV_SensMap(3);
+    % else
+    %     FoV_SensMap(1) = 2*FoV_SensMap(1);    
+    % end
 
-dummy3 = zeros([size(AC.Data,1) ImresizeSize]);
-for cha = 1:size(AC.Data,1)
-    dummy3(cha,:,:,:) = imresize3(squeeze(AC.Data(cha,:,:,:)),ImresizeSize);        
-end
-AC.Data = dummy3;
+    LeastCommMult = lcm(round(FoV_D2*RoundingFactor),round(FoV_SensMap*RoundingFactor));
+    ImresizeSize = LeastCommMult ./ round(FoV_D2*RoundingFactor);
+    ImresizeSize = ceil(MatSize_SensMap./ImresizeSize) .* ImresizeSize;        % Dont allow TargetSize < InputSize
+    TargetSize = round(FoV_D2 ./ (FoV_SensMap./ImresizeSize));
 
-% In case the FoV was too small, zerofill in image-domain
-AC.Data = ZerofillOrCutkSpace(AC.Data,[size(AC.Data,1) TargetSize],0);
+    dummy3 = zeros([size(SensMapData.Data,1) ImresizeSize]);
+    for cha = 1:size(SensMapData.Data,1)
+        dummy3(cha,:,:,:) = imresize3(squeeze(SensMapData.Data(cha,:,:,:)),ImresizeSize);        
+    end
+    SensMapData.Data = dummy3;
 
-
-% Imresize in z-dimension
-TargetSize_z = [TargetSize(1:2) TargetPars.DataSize(3)];
-Temp = zeros([size(AC.Data,1) TargetSize_z]);
-for cha = 1:size(AC.Data,1)
-    Temp(cha,:,:,:) = imresize3(squeeze(AC.Data(cha,:,:,:)),TargetSize_z);
-end
-AC.Data = Temp;
+    % In case the FoV was too small, zerofill in image-domain
+    SensMapData.Data = ZerofillOrCutkSpace(SensMapData.Data,[size(SensMapData.Data,1) TargetSize],0);
 
 
-% % Legacy Code:
-% AC.Data = mean(AC.Data,4);
-% BC.Data = mean(BC.Data,4);
+    % Imresize in z-dimension
+    TargetSize_z = [TargetSize(1:2) TargetPars.DataSize(3)];
+    Temp = zeros([size(SensMapData.Data,1) TargetSize_z]);
+    for cha = 1:size(SensMapData.Data,1)
+        Temp(cha,:,:,:) = imresize3(squeeze(SensMapData.Data(cha,:,:,:)),TargetSize_z);
+    end
+    SensMapData.Data = Temp;
 
 
-% % Resample Data using griddedInterpolant
-% % Assume input points at locations [1,2,...,N_i] for dimension i
-% % Points to which we want to interpolate:
-% 
-% MatSzDiff = - MatSize_SensMap;
-% 
-% xq = (0:5/6:sx)';
-% yq = (0:5/6:sy)';
-% zq = (1:sz)';
-% for cha = 1:size(AC.Data,1)
-%     F = griddedInterpolant(AC.Data(cha,:,:,:));
-%     
-% end
 
-% Dont know if that is necessary
-AC.Data = circshift(AC.Data,[0 -1 -1 0]);
+    % % Resample Data using griddedInterpolant
+    % % Assume input points at locations [1,2,...,N_i] for dimension i
+    % % Points to which we want to interpolate:
+    % 
+    % MatSzDiff = - MatSize_SensMap;
+    % 
+    % xq = (0:5/6:sx)';
+    % yq = (0:5/6:sy)';
+    % zq = (1:sz)';
+    % for cha = 1:size(AC.Data,1)
+    %     F = griddedInterpolant(AC.Data(cha,:,:,:));
+    %     
+    % end
 
+    % Dont know if that is necessary
+    SensMapData.Data = circshift(SensMapData.Data,[0 -1 -1 0]);
 
-%% Process BC Data if Available
-
-if(exist('BC','var'))
-    BC.Data = reshape(imresize3(squeeze(BC.Data),ImresizeSize),[1 ImresizeSize]);
-    BC.Data = ZerofillOrCutkSpace(BC.Data,[size(BC.Data,1) TargetSize],0);
-    Temp(1,:,:,:) = imresize3(squeeze(BC.Data(1,:,:,:)),TargetSize_z);
-    BC.Data = Temp(1,:,:,:);
-    clear Temp
-    BC.Data = circshift(BC.Data,[0 -1 -1 0]);
 end
     
+
 %% Calculate Mask
 
 if(exist('AdditionalMaskData','var') && sum(AdditionalMaskData(:) == 0) + sum(AdditionalMaskData(:) == 1) == numel(AdditionalMaskData))% If AdditionalMaskData is mask
-    Maskk = imresize(AdditionalMaskData,[size(AC.Data,2) size(AC.Data,3)],'nearest');
+    Maskk = imresize(AdditionalMaskData,[size(SensMapData.Data,2) size(SensMapData.Data,3)],'nearest');
 else
-    if( exist('AdditionalMaskData','var') && exist('BC','var'))% If AdditionalMaskData is magnitude
-        % Mask BC Data
-        Maxi = abs(imresize(AdditionalMaskData,[size(BC.Data,2) size(BC.Data,3)])); 
-        Maskk = Maxi > 0.025*max(max(Maxi));
-        Maxi = max(max(max(abs(BC.Data))));
-        Maskk = Maskk .* single(abs(squeeze(BC.Data)) > 0.08*Maxi);
-        BC.Data = Maskk .* BC.Data;
-    else
-        ACSoS = squeeze_single_dim(sqrt(sum(abs(AC.Data).^2)),1);
-        Maskk = ACSoS > 0.035*max(max(max(ACSoS)));     % Kind of arbitrary for now... Better mask creation would be useful!
-    end
-    for slc = 1:size(AC.Data,4)
+    ACSoS = squeeze_single_dim(sqrt(sum(abs(SensMapData.Data).^2)),1);
+    Maskk = ACSoS > Settings.RatioToMax4MaskThreshold*max(max(max(ACSoS)));     % Kind of arbitrary for now... Better mask creation would be useful!
+    for slc = 1:size(SensMapData.Data,4)
         Maskk(:,:,slc) = imfill(Maskk(:,:,slc),'holes');  % Fill holes
     end
 end
@@ -167,12 +152,11 @@ SensMap.Mask = reshape(Maskk,[1 size(Maskk)]);
 
 
 % ESpirit seems to only handle 2D-data. Thus do the reco slice-by-slice or partition-by-partition
-% AC.Data = cat(1,AC.Data,BC.Data); size(AC.Data)
 
-SensMap.Data = zeros(size(AC.Data));
-for slc = 1:size(AC.Data,4)
+SensMap.Data = zeros(size(SensMapData.Data));
+for slc = 1:size(SensMapData.Data,4)
 
-    CurData = AC.Data(:,:,:,slc);
+    CurData = SensMapData.Data(:,:,:,slc);
     Data4Espirit.Water_ctkk = reshape(FFTOfMRIData(CurData,0,[2 3],0,1,0),[size(CurData,1) 1 size_MultiDims(CurData,[2 3])]);
     Data4Espirit.NbPtForWaterPhAmp = 1;
     Data4Espirit.Water_kmask = ones(size_MultiDims(CurData,[2 3]));
@@ -181,10 +165,7 @@ for slc = 1:size(AC.Data,4)
     SensMap.Data(:,:,:,slc) = ComputeSENSEProfilesWithESPIRiT_bstr(Data4Espirit);
 
 end
-SensMap.Par = AC.Par;
-if(exist('BC','var'))
-    SensMap.BCPar = BC.Par;
-end
+SensMap.Par = SensMapData.Par;
 SensMap.Par.DataSize = size(SensMap.Data);
 
 
@@ -199,6 +180,10 @@ if(Settings.Extrapolate_flag)
     Maskk_Big = reshape(MaskShrinkOrGrow(squeeze(SensMap.Mask),2,1,1),size(SensMap.Mask));
     SensMap.Data = Maskk_Big .* SensMap.Data;
     SensMap.Mask = Maskk_Big;
+    
+    SensMap.Data(isnan(SensMap.Data)) = 0;
+    SensMap.Mask(isnan(SensMap.Mask)) = 0;
+   
 end
 
 

@@ -428,6 +428,8 @@ if((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParLi
     ParList.AssumedSequence = 'ViennaCRT';
 elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
         ParList.AssumedSequence = 'BorjanSpiral';
+elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre')))
+        ParList.AssumedSequence = 'Imaging_GRE';    
 end
     
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
@@ -449,12 +451,28 @@ if( numel(strfind(file_path, '.IMA') > 0) )
 	end
 end
 
+if(numel(strfind(file_path, '.dat')) > 0 && ~isempty(regexpi(ParList.AssumedSequence,'Imaging_')))
+    if(ParList.ThreeD_flag && ParList.nPartEnc > 1)  
+        ParList.FoV_Partition = 2*ParList.FoV_Partition;
+        ParList.nPartEnc = 2*ParList.nPartEnc;
+    else
+        ParList.FoV_Read = 2*ParList.FoV_Read;
+        ParList.nFreqEnc = 2*ParList.nFreqEnc;
+    end
+end
+
+
+if(ParList.ThreeD_flag && ParList.nPartEnc == 1)
+    ParList.ThreeD_flag = false;
+end
 
 % In case of Single-Slice and Multi-slice, the Partitions and the FinalMatrixSizeSlice are always set to 8, which is quite wrong.
 if(~ParList.ThreeD_flag)
     ParList.nPartEnc = 1;
     ParList.nSLC_FinalMatrix = ParList.nSLC;
 end
+
+
 
 
 
