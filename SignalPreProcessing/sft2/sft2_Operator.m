@@ -13,11 +13,17 @@ function sft2_Oper = sft2_Operator(InTraj,OutTraj,Ift_flag,InputSize)
 % sft2Operator = sft2(A,Ifft_flag)
 %
 % Input: 
-% -         Ift_flag                    ...     Flag of 0 or 1 determining if an inverse Fourier transform or normal should be performed.
-% -         InputSize                           ...     Input data.
+% -         InTraj                      ...             The input trajectory of the data (e.g. the k-space points that would be measured with a Cartesian sequence)
+%                                                       If this is Cartesian, and OutTraj is the Non-Cart trajectory, the function calculates the operator
+%                                                       sft2_Oper that converts Non-Cart data to Cartesian data, and sft2_Oper' the reverse. This is how I use it
+%                                                       currently. Should be of size nTrajPts x 2 (the 2 entries are x and y).
+% -         OutTraj                     ...             The output trajectory of the data (e.g. the measured non-Cartesian k-space points).
+%                                                       Should be of size nTrajPts x 2 (the 2 entries are x and y).
+% -         Ift_flag                    ...             Flag of 0 or 1 determining if an inverse Fourier transform or normal should be performed.
+% -         InputSize                   ...             Input data.
 %
 % Output:
-% -         sft2Operator                      ...     Fourier transformation matrix which can be applied to the data by Out = sft2Operator*In
+% -         sft2Operator                      ...       Fourier transformation matrix which can be applied to the data by Out = sft2Operator*In
 %
 %
 % Feel free to change/reuse/copy the function. 

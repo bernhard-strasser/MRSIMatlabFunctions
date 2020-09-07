@@ -78,7 +78,7 @@ end
 
 Out.Par.ADC_dt = Out.Par.IceProgramPara.Values(8);
 Out.Par.ADC_OverSamp = 10000/Out.Par.ADC_dt;
-Out.Par.TrajPts = NumberOfLoopPoints*Out.Par.ADC_OverSamp;
+Out.Par.TrajPts = repmat(NumberOfLoopPoints*Out.Par.ADC_OverSamp,[1 Out.Par.nAngInts]);
 Out.Par.RewPts = NumberOfBrakeRunPoints*Out.Par.ADC_OverSamp;
 Out.Par.TrajTotPts = Out.Par.TrajPts + Out.Par.RewPts;
 if(Settings.IncludeRewinder_flag)
@@ -89,7 +89,7 @@ end
 
 %% Find exact vecSize number similar as in sequence
 
-nperiods = 320000 / (10/Out.Par.ADC_OverSamp*Out.Par.TrajTotPts);
+nperiods = 320000 / (10/Out.Par.ADC_OverSamp*Out.Par.TrajTotPts(1));
 if(nperiods > 60)
     concat_periods = floor(nperiods / 60 +1);
     nperiods = floor(nperiods / concat_periods);

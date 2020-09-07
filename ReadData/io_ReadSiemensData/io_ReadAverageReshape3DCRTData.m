@@ -71,9 +71,12 @@ function [MRStruct,MRStruct_refscan] = op_ReadAverageReshape3DCRTData(MRStruct, 
     ticcyRead = tic;
     Tmp = mapVBVD(MRStruct.DataFile);
     MRStruct.MapVBVDObj = Tmp.image;
-
+    MRStruct.MapVBVDhdr = Tmp.hdr;
+    
     MRStruct_refscan = MRStruct;
     MRStruct_refscan.MapVBVDObj = Tmp.refscan;
+    MRStruct_refscan.MapVBVDhdr = Tmp.hdr;
+   
     fprintf('\n\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyRead))
 
 
@@ -141,7 +144,7 @@ function MRStruct = ReadAndReshapeCRTData(MRStruct)
     % Check if enough memory is available to read everything in at once
     [~,CurMemFree] = memused_linux(1);
     MemNecessary = sum(cellfun(@numel,TmpData2))*MRStruct.Par.nAverages*2*4/2^20;
-    if(1.3*MemNecessary < CurMemFree)
+    if(false && 1.3*MemNecessary < CurMemFree)
 
         TmpData1 = single(MRStruct.MapVBVDObj.unsorted());
         MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
@@ -153,15 +156,31 @@ function MRStruct = ReadAndReshapeCRTData(MRStruct)
         % TODO: Create NoiseData From Averages
         % Current Size {nCircles}[nCha x nTempIntsPerAngInt x nPart x nSlc x nADCPts x nADCs]
         for ii = 1:size(TmpData1,3)
-            CurData = reshape(transpose(TmpData1(1:MRStruct.MapVBVDObj.Col(ii),:,ii)),size( TmpData2{MRStruct.MapVBVDObj.Lin(ii)}(:,1,1,1,:,1)));
+                        
+            CurData = TmpData1(:,:,ii); 
+            CurData = CurData(1:end-size(TmpData1,2)*(size(TmpData1,1)-MRStruct.MapVBVDObj.Col(ii)));       % The useful data is directly after one
+            CurData = permute(reshape(CurData,[MRStruct.MapVBVDObj.Col(ii) size(TmpData1,2)]),[2 3 4 5 1]); % another, but at the end there is garbage
+%             CurData = reshape(transpose(TmpData1(1:MRStruct.MapVBVDObj.Col(ii),:,ii)),size( TmpData2{MRStruct.MapVBVDObj.Lin(ii)}(:,1,1,1,:,1)));
+            
             TmpData2{MRStruct.MapVBVDObj.Lin(ii)}(:,MRStruct.MapVBVDObj.Idb(ii),MRStruct.MapVBVDObj.Seg(ii),MRStruct.MapVBVDObj.Sli(ii),:,MRStruct.MapVBVDObj.Ida(ii)) = TmpData2{MRStruct.MapVBVDObj.Lin(ii)}(:,MRStruct.MapVBVDObj.Idb(ii),MRStruct.MapVBVDObj.Seg(ii),MRStruct.MapVBVDObj.Sli(ii),:,MRStruct.MapVBVDObj.Ida(ii)) + CurData; 
+            
         end
         TmpData2 = cellfun(@(x) x/max(MRStruct.MapVBVDObj.Set),TmpData2,'UniformOutput',false);     % For averaging
         clear TmpData1; 
         
     else
         for CurCrcl = 1:MRStruct.Par.nAngInts
-            TmpData2{CurCrcl} = sum(MRStruct.MapVBVDObj(1:MRStruct.Par.nPtsPerADC(CurCrcl),:,CurCrcl,:,:,:,:,:,:,:,:,1:MRStruct.Par.nADCsPerAngInt(CurCrcl), 1:MRStruct.Par.nTempIntsPerAngInt(CurCrcl),MRStruct.MapVBVDObj.NIdc,MRStruct.Par.nTempIntsPerAngInt(CurCrcl)+1),10);   % MRStruct.MapVBVDObj.NIdc ok? Was 181
+            if(MRStruct.MapVBVDObj.NIdd > 1)
+                TmpData2{CurCrcl} = sum(MRStruct.MapVBVDObj(:,:,CurCrcl,:,:,:,:,:,:,:,:,1:MRStruct.Par.nADCsPerAngInt(CurCrcl), 1:MRStruct.Par.nTempIntsPerAngInt(CurCrcl),MRStruct.MapVBVDObj.NIdc,MRStruct.Par.nTempIntsPerAngInt(CurCrcl)+1),10);   % MRStruct.MapVBVDObj.NIdc ok? Was 181                
+            else
+                TmpData2{CurCrcl} = sum(MRStruct.MapVBVDObj(:,:,CurCrcl,:,:,:,:,:,:,:,:,1:MRStruct.Par.nADCsPerAngInt(CurCrcl), 1:MRStruct.Par.nTempIntsPerAngInt(CurCrcl),MRStruct.MapVBVDObj.NIdc,1),10);   % MRStruct.MapVBVDObj.NIdc ok? Was 181                
+            end
+            Sizzy = size(TmpData2{CurCrcl}); Sizzy = cat(2,Sizzy,ones([1 3-numel(Sizzy)]));           
+            if(MRStruct.Par.nPtsPerADC(CurCrcl) ~= Sizzy(1))
+                TmpData2{CurCrcl} = reshape(TmpData2{CurCrcl},[Sizzy(1)*Sizzy(2) Sizzy(3:end)]);
+                TmpData2{CurCrcl} = TmpData2{CurCrcl}(1:end-Sizzy(2)*(Sizzy(1)-MRStruct.Par.nPtsPerADC(CurCrcl)),:,:,:,:,:,:,:,:,:,:,:,:,:,:);
+                TmpData2{CurCrcl} = reshape(TmpData2{CurCrcl},[MRStruct.Par.nPtsPerADC(CurCrcl) Sizzy(2:end)]);
+            end
             TmpData2{CurCrcl} = permute(TmpData2{CurCrcl},[2 13 4 5 1 12    3 6 7 8 9 10 11 14 15 16]);
         end
     end
@@ -171,26 +190,26 @@ function MRStruct = ReadAndReshapeCRTData(MRStruct)
 
     % Reshape Data to Output Size {MRStruct.Par.nAngInts}[nTrajPoints x nPart x nSlc x vecSize x nCha]
     MRStruct.Data = []; MRStruct = rmfield(MRStruct,'Data');
-    for Curkz = 1:MRStruct.Par.nPartEnc
-        MRStruct.Data{Curkz} = single(zeros([MRStruct.Par.TrajPts MRStruct.Par.nAngInts 1 MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]));
+%     for Curkz = 1:MRStruct.Par.nPartEnc
+%         MRStruct.Data{Curkz} = single(zeros([MRStruct.Par.TrajPts MRStruct.Par.nAngInts 1 MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]));
+%     end
+    for CurCrcl = 1:MRStruct.Par.nAngInts
+        MRStruct.Data{CurCrcl} = zeros([MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco],'single');
     end
-    % for CurCrcl = 1:MRStruct.Par.nAngInts
-    %     MRStruct.Data{CurCrcl} = zeros([MRStruct.Par.TrajPts MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]);
-    % end
     for CurCrcl = 1:MRStruct.Par.nAngInts
         TmpData3 = reshape(TmpData2{CurCrcl},[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl)*MRStruct.Par.nADCsPerAngInt(CurCrcl) ]); 
         TmpData3 = TmpData3(:,:,:,:,1:MRStruct.Par.UsefulADCPtsPerAngInt(CurCrcl));
-        TmpData3 = reshape(TmpData3,[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl)]); 
+        TmpData3 = reshape(TmpData3,[MRStruct.Par.total_channel_no_reco MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts(CurCrcl) MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl)]); 
         TmpData3 = permute(TmpData3,[5 3 4 2 6 1]); % New size : [nTrajPoints x nPart x nSlc x vecSize x nTempIntsPerAngInt x nCha]
-        TmpData3 = reshape(TmpData3,[MRStruct.Par.TrajPts 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]);
-    %     MRStruct.Data{CurCrcl} = TmpData3;
-        for Curkz = 1:MRStruct.Par.nPartEnc
-            MRStruct.Data{Curkz}(:,CurCrcl,:,:,:,:) = TmpData3(:,:,Curkz,:,:,:);
-        end
+        TmpData3 = reshape(TmpData3,[MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]);
+        MRStruct.Data{CurCrcl} = TmpData3;
+%         for Curkz = 1:MRStruct.Par.nPartEnc
+%             MRStruct.Data{Curkz}(:,CurCrcl,:,:,:,:) = TmpData3(:,:,Curkz,:,:,:);
+%         end
     end
 
 
-    MRStruct.Par.DataSize = size(MRStruct.Data{1});     % Generalize later for more than 1 partition!
+    MRStruct.Par.DataSize = cellfun(@size,MRStruct.Data,'uni',false);     % Generalize later for more than 1 partition!
     MRStruct = rmfield(MRStruct,'MapVBVDObj');
 
 

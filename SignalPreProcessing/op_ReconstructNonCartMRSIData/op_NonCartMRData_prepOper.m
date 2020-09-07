@@ -85,15 +85,27 @@ Output = supp_FixPars(Output);  % To hard-code/hack parameters for special cases
 
 %% FoV-Shift Operator
 
+% LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
+% Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];
+% Normal2=[0 0 1];
+% v=vrrotvec(Normal1,Normal2);
+% Rot=vrrotvec2mat(v);
+% PRS=Rot*LPH';
+% Operators.FoVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
+% Operators.FoVShift = Operators.FoVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
+% clear LPH Normal1 Normal2 v Rot PRS 
+
+
 LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
 Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];
 Normal2=[0 0 1];
 v=vrrotvec(Normal1,Normal2);
 Rot=vrrotvec2mat(v);
 PRS=Rot*LPH';
-Operators.FoVShift = squeeze(exp(1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
-Operators.FoVShift = Operators.FoVShift .* squeeze(exp(1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
-clear LPH Normal1 Normal2 v Rot PRS 
+FOVShift = cellfun( @(x) transpose(exp(1i*x(1,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)), Output.InTraj.GM , 'uni', false);
+FOVShift2 = cellfun( @(x) transpose(exp(1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
+Operators.FoVShift = cellfun(@times,FOVShift,FOVShift2,'uni',0);
+
 
 
 
@@ -121,6 +133,7 @@ end
 % Try to undo this effect by Fourier transforming each k-space point to spectral domain, multiplying the inverse of this phase for each k-space point (depending on
 % frequencies and k-space points (=time points), and Fourier transforming back to time domain.)
 
+Operators.TiltTrajMat = cell([1 Output.RecoPar.nAngInts]);
 if(Settings.Phaseroll_flag)
 
     nTI = Output.RecoPar.nTempIntsPerAngInt;
@@ -128,28 +141,45 @@ if(Settings.Phaseroll_flag)
     ns = Output.RecoPar.TrajPts;
     nc = Output.RecoPar.nAngInts;
     nrew = Output.RecoPar.RewPts;
-    ncha = Operators.InDataSize(6);
+    ncha = size(Output.Data,6);
 
-    timeoffset = 0:(ns-1);
-    timeoffset = repmat(transpose(timeoffset),[1 nc vs]);
-    Freq = ((0:vs-1)/vs-0.5)/(nrew + ns).*nTI(:);
-    Freq = myrepmat(Freq,size(timeoffset));    
-
-    % This comes from:
-    % timeoffset = (0:(ns-1))*Output.Par.ADC_Dt/10^6;
-    % sBW = nTI/((nrew + ns)*Output.Par.ADC_Dt/10^6);
-    % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
-    % Output.Par.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
-    % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
-    % the same anyway
     
-    Operators.TiltTrajMat = exp(-2*1i*pi*timeoffset .* Freq);    
-    Operators.TiltTrajMat = reshape(Operators.TiltTrajMat,Operators.InDataSize(1:5)); % [TrajPts nAI nPart nSlc vecSize]
-       
+    for ii = 1:nc
+        timeoffset = 0:(ns(ii)-1);
+        timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
+        Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+        Freq = myrepmat(Freq,size(timeoffset));    
+
+        % This comes from:
+        % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
+        % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
+        % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
+        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
+        % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
+        % the same anyway
+
+        phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
+        Sizzy = size(Output.Data{ii});      % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
+        phasecorr = reshape(phasecorr,[Sizzy(1:5) 1]); clear Sizzy
+    %     phasecorr = myrepmat(phasecorr,size(Output.Data));
+    %     phasecorr = conj(phasecorr);
+    %     bla = Output.Data(:,:,:,:,1,:,:);
+        Output.Data{ii} = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.Data{ii},[],5),5),5),[],5);
+        if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
+            Output.NoiseData{ii} = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.NoiseData{ii},[],5),5),5),[],5);
+        end
+    %     Output.Data = conj(phasecorr).*Output.Data;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
+
+    %     Output.Data(:,:,:,:,1,:,:) = bla;
+
+        Operators.TiltTrajMat{ii} = reshape(phasecorr(:,:,1,1,:,1),[Output.RecoPar.TrajPts(ii) 1 Output.RecoPar.vecSize]);  
+    end
+    
 else
     
-	Operators.TiltTrajMat = 1;
-
+    for ii = 1:Output.RecoPar.nAngInts
+        Operators.TiltTrajMat{ii} = ones([Output.RecoPar.TrajPts(ii) Output.RecoPar.vecSize]);
+    end
 end
 
 
@@ -161,7 +191,7 @@ end
 
 % Collapse data to a matrix (from [nAngInt x nTrajPoints x nTempInt*vecSize x nCha x nPart*nSlc] to [nAngInt*nTrajPoints x Rest])
 
-Operators.sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Operators.OutDataSize(1)),transpose(Output.InTraj.GM(:,:)),1);
+Operators.sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Operators.OutDataSize(1)),transpose(cat(2,Output.InTraj.GM{:})),1);
 
 % Restrict to circular FoV
 if(Settings.CircularSFTFoV_flag)
@@ -174,11 +204,15 @@ end
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
 if(Settings.Correct4SpatialB0_flag)
-    t   = (0:Output.RecoPar.TrajPts-1).*reshape(Output.RecoPar.ADCdtPerAngInt_ns,[1 1 Output.RecoPar.nAngInts])/10^9;
-    t = t(:);
-    CurB0 = imresize(AdditionalIn.B0.B0Map,Operators.OutDataSize(1:2));    
-    if(isfield(AdditionalIn.B0,'Mask'))
-        Mask = imresize(MaskShrinkOrGrow(AdditionalIn.B0.Mask,2,0,1),Operators.OutDataSize(1:2),'nearest');
+    t = zeros([size(sft2_Oper,1) 1]);
+    CurPt = 1;
+    for ii = 1:Output.RecoPar.nAngInts
+        t(CurPt:CurPt+Output.RecoPar.TrajPts(ii)-1)   = (0:Output.RecoPar.TrajPts(ii)-1)*Output.RecoPar.ADCdtPerAngInt_ns(ii)/10^9;
+        CurPt = CurPt + Output.RecoPar.TrajPts(ii);
+    end
+    CurB0 = imresize(B0.B0Map,Output.RecoPar.DataSize(1:2));    
+    if(isfield(B0,'Mask'))
+        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),Output.RecoPar.DataSize(1:2),'nearest');
         CurB0 = CurB0 .* Mask;
     end
     
@@ -242,15 +276,18 @@ end
 
 %% Calculate SensitivityMap
 
-Settss.ResizeMethod = 'Imresize';
-Settss.ScalingMethod = 'UniformSensitivity';
-Dummy2.Data = ones([Operators.OutDataSize Output.Par.total_channel_no_measured]); 
-Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = size(Dummy2.Data);  %Dummy2.Par = Output.Par; 
-[DeleteMe, AddOut] = op_CoilCombineData(Dummy2,AdditionalIn.SensMap,Settss);
-Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:) .* AddOut.Scaling;
-clear DeleteMe AddOut Settss;
+if(isfield(AdditionalIn,'SensMap'))
+    Settss.ResizeMethod = 'Imresize';
+    Settss.ScalingMethod = 'UniformSensitivity';
+    Dummy2.Data = ones([Operators.OutDataSize Output.Par.total_channel_no_measured]); 
+    Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = size(Dummy2.Data);  %Dummy2.Par = Output.Par; 
+    [DeleteMe, AddOut] = op_CoilCombineData(Dummy2,AdditionalIn.SensMap,Settss);
+    Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:) .* AddOut.Scaling;
+    clear DeleteMe AddOut Settss;
 
-Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
-
+    Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
+else
+    Operators.SensMap = 1;
+end
 
 

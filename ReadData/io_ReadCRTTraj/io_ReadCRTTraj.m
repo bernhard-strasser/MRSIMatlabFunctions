@@ -57,6 +57,11 @@ end
 if(~isfield(Settings,'maxR'))
     Settings.maxR = 0.5;
 end
+if(~isfield(Settings,'ShowTrajs'))
+    Settings.ShowTrajs = false;
+end
+
+
 
 DataStruct.Par.GradDelay_y_us = 0;
 DataStruct.Par.GradDelay_x_us = 0;
@@ -107,31 +112,50 @@ for ii = 1:numel(dGradientValues)
     CurTraj = dGradientValues{ii}(NumberOfLaunTrackPointsCell{ii}:NumberOfLaunTrackPointsCell{ii}+NumberOfLoopPointsCell{ii}-1);    
 
     % The trajectory is circular, so append the first 3 points to the end, and the last ones to the beginning for better interpolation
-    CurTraj = cat(2,CurTraj(end-2:end),CurTraj,CurTraj(1:3));
+    % Append for now always the whole trajectory in beginning and end. When measuring few ADC points for the inner circles, I actually have
+    % ADC-dt > GRAD_RASTER_TIME. Now the 6 extra gradient points are not always dividable by ADC-dt, but if I append the whole trajectory, it is.
+    AppendPtsInBeginAndEnd = numel(CurTraj);
+    CurTraj = cat(2,CurTraj(end-AppendPtsInBeginAndEnd+1:end),CurTraj,CurTraj(1:AppendPtsInBeginAndEnd));
     
     % Interpolate to ADC-grid
-    DataStruct.Par.ADC_OverSamp = 1E4/DataStruct.Par.ADC_dt_ns(ii);
+    DataStruct.Par.ADC_OverSamp = 1E4/DataStruct.Par.ADCdtPerAngInt_ns(ii);
     CurTraj = interp1(1:1:numel(CurTraj),CurTraj,1:(1/DataStruct.Par.ADC_OverSamp):numel(CurTraj),'spline');
 
     % Now remove the extra points again at beginning and end
-    TakePtsFrom = DataStruct.Par.ADC_OverSamp*3+1; % Lets say we interpolate to 3 x finer grid. We added 3 points, totalling 3*3=9 additional points. Should start from point 10.
+    TakePtsFrom = DataStruct.Par.ADC_OverSamp*AppendPtsInBeginAndEnd+1; % Lets say we interpolate to 3 x finer grid. We added 3 points, totalling 3*3=9 additional points. Should start from point 10.
     TakePtsTo = TakePtsFrom + NumberOfLoopPointsCell{ii}*DataStruct.Par.ADC_OverSamp-1;   % Start from TakePtsFrom. Then we take all interpolated points from there, but minus 1
     CurTraj = CurTraj(TakePtsFrom:TakePtsTo);                               % (this last point is actually the first point of the next circumference of the circle)
 
     blaa = -cumtrapz(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
     blaa = GMLaunchtrack + blaa;                                                   % Add Gradient Moment of LaunchTrack
-    DataStruct.InTraj.GM(:,:,ii) = [imag(blaa); real(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
-    DataStruct.InTraj.GV(:,:,ii) = [imag(CurTraj); real(CurTraj)];      
+    DataStruct.InTraj.GM{ii}(:,:) = [imag(blaa); real(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
+    DataStruct.InTraj.GV{ii}(:,:) = [imag(CurTraj); real(CurTraj)];      
 %     DataStruct.InTraj.GM(:,:,ii) = [real(blaa); imag(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
 %     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
 end
 
 %% Normalize DataStruct.InTraj
 
-DataStruct.InTraj.GM = DataStruct.InTraj.GM/(Settings.maxR*2);
+DataStruct.InTraj.GM = cellfun(@(x) x/(Settings.maxR*2), DataStruct.InTraj.GM,'uni',false);
+
+
+
+%% Debug: Show Trajectories
+if(Settings.ShowTrajs && isfield(DataStruct,'OutTraj'))
+    figure;
+    scatter(squeeze(DataStruct.OutTraj.GM(1,1,:)),squeeze(DataStruct.OutTraj.GM(2,1,:)),'b'), hold on   
+    for AngIntNo = 1:DataStruct.Par.nAngInts
+        scatter(squeeze(DataStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(DataStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        plot(squeeze(DataStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(DataStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+    end
+    hold off
+end
 
 
 %% Postparations
 
+if(~isfield(DataStruct.Par,'TrajPts'))
+    DataStruct.Par.TrajPts = cellfun(@(x) size(x,2) ,DataStruct.InTraj.GM);
+end
 DataStruct = supp_UpdateRecoSteps(DataStruct,Settings);
 

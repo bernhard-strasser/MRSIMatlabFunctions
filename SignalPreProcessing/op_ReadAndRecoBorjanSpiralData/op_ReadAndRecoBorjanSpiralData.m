@@ -146,8 +146,8 @@ if(Settings.Debug.ShowTrajs)
     figure;
     scatter(squeeze(SpiralOut_xt.OutTraj.GM(1,1,:)),squeeze(SpiralOut_xt.OutTraj.GM(2,1,:)),'b'), hold on   
     for AngIntNo = 1:SpiralOut_xt.Par.nAngInts
-        scatter(squeeze(SpiralOut_xt.InTraj.GM(1,:,AngIntNo)), squeeze(SpiralOut_xt.InTraj.GM(2,:,AngIntNo)),'r')
-        plot(squeeze(SpiralOut_xt.InTraj.GM(1,:,AngIntNo)), squeeze(SpiralOut_xt.InTraj.GM(2,:,AngIntNo)),'r')
+        scatter(squeeze(SpiralOut_xt.InTraj.GM{AngIntNo}(1,:)), squeeze(SpiralOut_xt.InTraj.GM{AngIntNo}(2,:)),'r')
+        plot(squeeze(SpiralOut_xt.InTraj.GM{AngIntNo}(1,:)), squeeze(SpiralOut_xt.InTraj.GM{AngIntNo}(2,:)),'r')
     end
     hold off
 end

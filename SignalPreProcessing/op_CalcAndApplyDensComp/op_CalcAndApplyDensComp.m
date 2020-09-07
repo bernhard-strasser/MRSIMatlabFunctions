@@ -69,28 +69,46 @@ end
 
 if(strcmpi(Settings.Method,'SpiralHoge1997AbruptChanges'))
     v1 = MRStruct.InTraj.GM;
-    DCFPreG = zeros([size(v1,2) size(v1,3)]);
-    for SpirPts = 2:size(v1,2)
-        DCFPreG(SpirPts,:) = sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) .* ...
-        abs( sqrt( v1(1,SpirPts,:).^2 + v1(2,SpirPts,:).^2 ) - sqrt( v1(1,SpirPts-1,:).^2 + v1(2,SpirPts-1,:).^2 ) );
+    DCFPreG = zeros([sum(MRStruct.RecoPar.TrajPts) 1]);
+    CurPt = 0;
+    for CurAngInt = 1:MRStruct.RecoPar.nAngInts
+        CurPt = CurPt + 1;  % To skip the first point of the SpirPts and leave it zero
+        for SpirPts = 2:MRStruct.RecoPar.TrajPts(CurAngInt)
+            CurPt = CurPt + 1;
+            DCFPreG(CurPt) = sqrt( v1{CurAngInt}(1,SpirPts).^2 + v1{CurAngInt}(2,SpirPts).^2 ) .* ...
+            abs( sqrt( v1{CurAngInt}(1,SpirPts).^2 + v1{CurAngInt}(2,SpirPts).^2 ) - sqrt( v1{CurAngInt}(1,SpirPts-1).^2 + v1{CurAngInt}(2,SpirPts-1).^2 ) );
+        end
     end
     DCFPreG(isnan(DCFPreG)) = 0;
 elseif(strcmpi(Settings.Method,'ConcentricRingTrajectory_Theoretical'))
     nc = MRStruct.RecoPar.nAngInts;
-    R = sqrt(squeeze(MRStruct.InTraj.GM(1,1,:).^2 + MRStruct.InTraj.GM(2,1,:).^2));
+    R = cell2mat(cellfun(@(x) x(:,1),MRStruct.InTraj.GM,'uni',0));
+    R = sqrt(R(1,:).^2 + R(2,:).^2);
     
-    DCFPreG = zeros([1 nc]);
-    for i=2:nc-1
-        DCFPreG(i)=((R(i)/max(R)+R(i+1)/max(R))^2/4-(R(i-1)/max(R)+R(i)/max(R))^2/4)^(1)*pi;
+    DCFPreG2 = zeros([1 nc]);
+    for ii=2:nc-1
+        DCFPreG2(ii)=((R(ii)/max(R)+R(ii+1)/max(R))^2/4-(R(ii-1)/max(R)+R(ii)/max(R))^2/4)^(1)*pi;
     end
-    DCFPreG(1)=(0.25*pi*(R(1)/max(R)+R(2)/max(R))^2);    
-    DCFPreG(nc)=pi*((1.5*R(nc)/max(R)-0.5*R(nc-1)/max(R))^2-(0.5*R(nc)/max(R)+0.5*R(nc-1)/max(R))^2);
-    DCFPreG = repmat(DCFPreG,[MRStruct.RecoPar.TrajPts 1]);
+    DCFPreG2(1)=(0.25*pi*(R(1)/max(R)+R(2)/max(R))^2);    
+    DCFPreG2(nc)=pi*((1.5*R(nc)/max(R)-0.5*R(nc-1)/max(R))^2-(0.5*R(nc)/max(R)+0.5*R(nc-1)/max(R))^2);
+    DCFPreG = zeros([sum(MRStruct.RecoPar.TrajPts) 1]);
+    CurPt = 1;
+    for ii=1:nc
+        DCFPreG(CurPt:CurPt+MRStruct.RecoPar.TrajPts(ii)-1) = repmat(DCFPreG2(ii),[MRStruct.RecoPar.TrajPts(ii) 1]);
+            
+        % Since we measure fewer points for the inner circle, need to compensate for that. Although our SNR/point increases in that case, but the scanner ADC seems
+        % to adjust the scaling of the measured data depending on the ADC-dt. It seems that if you measure with longer ADC-dt, the signal does not change.
+        % So effectively, with fewer points per circle, we have fewer points with the same scale as we have for more points, and thus the inner circles are
+        % down-weighted.
+        DCFPreG(CurPt:CurPt+MRStruct.RecoPar.TrajPts(ii)-1) = DCFPreG(CurPt:CurPt+MRStruct.RecoPar.TrajPts(ii)-1) * (max(MRStruct.RecoPar.TrajPts)./MRStruct.RecoPar.TrajPts(ii));
+
+        CurPt = CurPt + MRStruct.RecoPar.TrajPts(ii);
+    end
     clear nc R;
 else
    st = dbstack;
    fprintf('\nWarning in %s: Did not recognize method for calculating density compensation function ''%s''.\nUse DCF = 1 instead.\n',st(1).name,Settings.Method)
-   DCFPreG = ones(size_MultiDims(MRStruct.InTraj.GM,[2 3]));
+   DCFPreG = ones([sum(MRStruct.RecoPar.TrajPts) 1]);
 end
     
 %% Scale DCF

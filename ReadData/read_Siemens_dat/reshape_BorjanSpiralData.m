@@ -76,7 +76,7 @@ clear LastPts
 
 % Reshape to [nTempInt x nAngInt x nTrajPoints x vecSize x nCha x nAvg x nPart x nSlc]
 % Cut the rewinder away, and save the final size
-kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) kSpace.Par.TrajTotPts kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
+kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) kSpace.Par.TrajTotPts(1) kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
 kSpace.Data = kSpace.Data(:,:,1:kSpace.Par.TrajPts,:,:,:,:,:);
 if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
     kSpace.NoiseData = reshape(kSpace.NoiseData,[Size_D2(1:2) kSpace.Par.TrajTotPts kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
@@ -102,7 +102,23 @@ if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
     kSpace.NoiseData = reshape(kSpace.NoiseData,[Size(1:4) prod(Size(5:6)) Size(7:end)]);
 end
 
-kSpace.Par.DataSize = size(kSpace.Data);
+
+% Convert to cell per AI
+BakData = kSpace.Data;
+kSpace.Data = cell([1 kSpace.Par.nAngInts]);
+if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
+    BakNoiseData = kSpace.NoiseData;
+    kSpace.NoiseData = cell([1 kSpace.Par.nAngInts]);    
+end
+for CurAI = 1:kSpace.Par.nAngInts
+    kSpace.Data{CurAI} = BakData(:,CurAI,:,:,:,:);
+    if(exist('BakNoiseData','var'))
+        kSpace.NoiseData{CurAI} = BakNoiseData(:,CurAI,:,:,:,:);
+    end
+end
+
+
+kSpace.Par.DataSize = cellfun(@size,kSpace.Data,'uni',false);     % Generalize later for more than 1 partition!
 
 
 %% Postparations

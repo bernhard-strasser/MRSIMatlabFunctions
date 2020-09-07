@@ -57,12 +57,20 @@ end
 if(~isfield(Settings,'maxR'))
     Settings.maxR = 0.5;
 end
+if(~isfield(Settings,'ShowTrajs'))
+    Settings.ShowTrajs = false;
+end
+
 
 
 %% 
 
 run(TrajFile);
 AppendZeros = max([ceil(DataStruct.Par.GradDelay_x_us/10) ceil(DataStruct.Par.GradDelay_y_us/10)])+2;   % +1 for better interpolation
+
+if(~isfield(DataStruct.Par,'RewPts'))
+    DataStruct.Par.RewPts = NumberOfBrakeRunPoints*DataStruct.Par.ADC_OverSamp;
+end
 
 % The points in our trajectory are GradRasterTime apart from each other.
 % Simulate ADC_dt = GradientRaterTime/2
@@ -124,7 +132,35 @@ end
 DataStruct.InTraj.GM = DataStruct.InTraj.GM/(Settings.maxR*2);
 
 
+
+%% Convert to new Cell structure
+
+Bak = DataStruct.InTraj.GM; Bak2 = DataStruct.InTraj.GV;
+DataStruct.InTraj.GM = []; DataStruct.InTraj.GV = [];
+for ii = 1:DataStruct.Par.nAngInts
+    DataStruct.InTraj.GM{ii} = Bak(:,:,ii);
+    DataStruct.InTraj.GV{ii} = Bak2(:,:,ii);
+    
+end
+
+%% Debug: Show Trajectories
+if(Settings.ShowTrajs && isfield(DataStruct,'OutTraj'))
+    figure;
+    scatter(squeeze(DataStruct.OutTraj.GM(1,1,:)),squeeze(DataStruct.OutTraj.GM(2,1,:)),'b'), hold on   
+    for AngIntNo = 1:DataStruct.Par.nAngInts
+        scatter(squeeze(DataStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(DataStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        plot(squeeze(DataStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(DataStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+    end
+    hold off
+end
+
+
+
 %% Postparations
+
+if(~isfield(DataStruct.Par,'TrajPts'))
+    DataStruct.Par.TrajPts = cellfun(@(x) size(x,2) ,DataStruct.InTraj.GM);
+end
 
 DataStruct = supp_UpdateRecoSteps(DataStruct,Settings);
 
