@@ -1,4 +1,4 @@
-function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag)
+function [OutArray,HammingFilter] = HammingFilter(OutArray,ApplyAlongDims,FilterWidth,RadialOrOuterProduct,InputIskSpace_flag,InvertHammingFilter_flag)
 %
 % HammingFilter Apply an Hamming filter to (k-space) data
 %
@@ -69,6 +69,10 @@ end
 if(~exist('InputIskSpace_flag','var'))
 	InputIskSpace_flag = true;
 end
+if(~exist('InvertHammingFilter_flag','var'))
+	InvertHammingFilter_flag = false;
+end
+
 
 Size_OutArray = size(OutArray);
 
@@ -176,6 +180,14 @@ else
 
 end
 
+
+
+%% Invert Hamming Filter
+
+if(InvertHammingFilter_flag)
+    HammingFilter = 1./HammingFilter;
+    HammingFilter(isinf(HammingFilter) | isnan(HammingFilter)) = 0;
+end
 
 
 %% 3. Apply Hamming Filter

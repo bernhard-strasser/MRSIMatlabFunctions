@@ -126,10 +126,16 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
     end
     % Rearrange Data
     for ii = 1:numel(MRStructRaw.Data.(CurDataSet))
+            
         CurCrcl = MRStructRaw.mdhInfo.(CurDataSet).Lin(ii);
+        
+        % Remark: The 3rd circle might have partitions (2,3,...,14) saved in .Seg(ii). However, we don't want to zero-fill the other data here,
+        % so our TmpData2 only has 13 partitions. Therefore using .Seg(ii) will result in an error, and we need to use the numbers to 
+        % (1,2,...,13), which is saved in CurSegToSave
+        CurSegToSave = MRStructRaw.mdhInfo.(CurDataSet).Seg(ii) - (MRStruct.Par.nPartEnc-size(TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)},2))/2;
         CurData = reshape(MRStructRaw.Data.(CurDataSet){ii},[1 1 1 MRStruct.Par.nPtsPerADC( CurCrcl) 1 MRStruct.Par.total_channel_no_reco]);
-        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),MRStructRaw.mdhInfo.(CurDataSet).Seg(ii),MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) = ...
-        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),MRStructRaw.mdhInfo.(CurDataSet).Seg(ii),MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) + CurData; 
+        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) = ...
+        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) + CurData; 
     end
     TmpData2 = cellfun(@(x) x/MRStructRaw.mdhInfo.(CurDataSet).NSet,TmpData2,'UniformOutput',false);     % For averaging
     clear TmpData1; 
@@ -138,7 +144,7 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Reshape raw Data 2                                                                     %
     % Current Size: {nCircles}[nTempIntsPerAngInt x nPart x nSlc x nADCPts x nADCs x nCha]   %
-    % Target Size:  {MRStruct.Par.nAngInts}[nTrajPoints x 1 x nPart x nSlc x vecSize x nCha] %
+    % Target Size:  {nCircles}[nTrajPoints x 1 x nPart x nSlc x vecSize x nCha] %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     MRStruct.Data = []; MRStruct = rmfield(MRStruct,'Data');
     for CurCrcl = 1:MRStruct.Par.nAngInts
@@ -215,13 +221,13 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
     
     
     MRStruct.Par.nTempIntsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
-    MRStruct.Par.nPartEncsPerAngInt = zeros([MRStructRaw.mdhInfo.(CurDataset).NSeg MRStruct.Par.nAngInts]); 
+    MRStruct.Par.nPartEncsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
     MRStruct.Par.nADCsPerAngInt = zeros([1 MRStruct.Par.nAngInts]);
     MRStruct.Par.nPtsPerADC = zeros([1 MRStruct.Par.nAngInts]);
     MRStruct.Par.TrajPts = zeros([1 MRStruct.Par.nAngInts]);
     for CurCrcl = 1:MRStruct.Par.nAngInts
         MRStruct.Par.nTempIntsPerAngInt(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Idb(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));        % Only works for 2D
-        MRStruct.Par.nPartEncsPerAngInt(CurCrcl) = unique(MRStructRaw.mdhInfo.(CurDataset).Seg(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl)) + floor(MRStructRaw.mdhInfo.(CurDataset).NSeg/2);    % e.g. from (-3,-2,-1,0,1,2,3) --> (0,1,2,3,4,5,6,7). However, mapVBVD adds +1                                                                                            
+        MRStruct.Par.nPartEncsPerAngInt(CurCrcl) = numel(unique(MRStructRaw.mdhInfo.(CurDataset).Seg(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl)));    % e.g. from (-3,-2,-1,0,1,2,3) --> (0,1,2,3,4,5,6,7). However, mapVBVD adds +1                                                                                            
                                                                                                 % so it should be (1,2,3,4,5,6,7,8).
         MRStruct.Par.nADCsPerAngInt(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Ida(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));     
         MRStruct.Par.nPtsPerADC(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Col(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
@@ -234,7 +240,7 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
     end
 
     % Define which angular interleaves are measured for each kz (matrix of nPartEncmax x nCircles)
-    % MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
+%     MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
     dummy1 = max(MRStruct.Par.nPartEncsPerAngInt);
     dummy2 = ceil(dummy1/2);
     for kz = 1:max(MRStruct.Par.nPartEncsPerAngInt)
@@ -257,7 +263,7 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 
 
 
-    % For getting TrajPts, it depends on whether we read in ONLINE or refscan data
+    % For getting vecSize, it depends on whether we read in ONLINE or refscan data
     if(strcmpi(CurDataset,'ONLINE'))
          MRStruct.Par.vecSize = MRStruct.Hdr.Dicom.alICEProgramPara(7);  
     else

@@ -200,7 +200,7 @@ if(Settings.AlignRefPeak_flag)
     % Find closest local maximum to Settings.PeakSearchPPM
     
     % Find all peaks with prominence higher than 1
-    [PeakHght,PeakPos] = findpeaks(abs(squeeze(RefSpec2)),'MinPeakProminence',1);
+    [PeakHght,PeakPos] = findpeaks(abs(squeeze(RefSpec2))/max(abs(RefSpec2(SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts))),'MinPeakProminence',0.3);
 %     figure; plot(abs(squeeze(RefSpec2))); hold on, scatter(PeakPos,PeakHght,'r'), hold off        % (Debug)
     
     % Restrict peaks to those inside of the Search-range

@@ -312,6 +312,12 @@ ascconv = strtrim([ascconv(1:2:end) ascconv(2:2:end)]);
 
 
 
+%% 5. Close File
+
+fclose(fid);
+
+
+
 %% 4. Search certain entries & Save these
 
 % The following code performs these tasks:
@@ -341,6 +347,15 @@ end
 
 
 
+%% Call VE11 version if necessary
+
+if(ParList.TR == 0 && all(ParList.TEs == 0) && all(ParList.Dwelltimes == 0) && strcmpi(ParList.Nucleus,'0'))
+    [ParList,ascconv] = read_ascconv_VE11_eh(file_path);
+    return;
+end
+
+
+
 %% 5. Change & Correct certain values
 
 
@@ -348,7 +363,7 @@ end
 
 % Interpret WipMemBlocks
 try
-	ParList = InterpretWipMemBlock(ParList); %#ok
+	ParList = InterpretWipMemBlock(ParList);
 catch Error
 	fprintf('\nCould not InterpretWipMemBlock, due to following error:\n%s',Error.message);
 end
@@ -531,9 +546,7 @@ end
 
 
 
-%% 5. Postparations
 
-fclose(fid);
 
 end
 

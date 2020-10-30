@@ -98,7 +98,9 @@ end
 
 % Collapse data to a matrix (from [nAngInt x nTrajPoints x nTempInt*vecSize x nCha x nPart*nSlc] to [nAngInt*nTrajPoints x Rest])
 SizeData_i = size(Output.Data); SizeData_i = cat(2,SizeData_i,ones([1 5-numel(SizeData_i)]));
-sft2_Op = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*SizeData_i(1)),transpose(Output.InTraj.GM(:,:)),1);
+sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*SizeData_i(1)),transpose(cat(2,Output.InTraj.GM{:})),1);
+
+
 
 % Restrict to circular FoV
 if(Settings.CircularSFTFoV_flag)
@@ -109,17 +111,16 @@ if(Settings.CircularSFTFoV_flag)
 end
 
 Output.Data = reshape(Output.Data,[prod(SizeData_i(1:2)) prod(SizeData_i(3:end))]);   
-Output.Data = sft2_Op * Output.Data;  %/ size(Output.OutTraj.GM(:,:),2)
-Output.Data = reshape(Output.Data,[Output.Par.DataSize(1:2) SizeData_i(3:end)]);
+Output.Data = sft2_Oper * Output.Data;  %/ size(Output.OutTraj.GM(:,:),2)
 
 if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
     Output.NoiseData = reshape(Output.NoiseData,[prod(SizeData_i(1:2)) prod(SizeData_i(3:end))]);   
-    Output.NoiseData = sft2_Op * Output.NoiseData;  %/ size(Output.OutTraj.GM(:,:),2)
+    Output.NoiseData = sft2_Oper * Output.NoiseData;  %/ size(Output.OutTraj.GM(:,:),2)
     Output.NoiseData = reshape(Output.NoiseData,[Output.Par.DataSize(1:2) SizeData_i(3:end)]);
 end
 
 if(nargout > 1)
-    AdditionalOut.sft2_Op = sft2_Op;
+    AdditionalOut.sft2_Oper = sft2_Oper;
 end
 
 
@@ -132,50 +133,64 @@ if(Settings.DensComp_flag)
 end
 
 
+%% Make Cell
+CurPt = 1;
+for CurAI = 1:Output.RecoPar.nAngInts
+    Dummy{CurAI} = reshape(Output.Data(CurPt:CurPt+Output.Par.DataSize{CurAI}(1)-1,:),[Output.Par.DataSize{CurAI}(1:2) SizeData_i(3:end)]);
+    CurPt = CurPt+Output.Par.DataSize{CurAI}(1);
+end
+Output.Data = Dummy; clear Dummy;
+
 %% Try to correct for "tilted trajectory" by doing phaseroll
 
 % Save the data for reconstructing the pseudo-pcg case
+TiltTrajMat = cell([1 Output.RecoPar.nAngInts]);
 if(Settings.Phaseroll_flag)
 
-    nTI = Output.Par.nTempInt;
-    vs = Output.Par.vecSize;
-    ns = Output.Par.TrajPts;
-    nc = Output.Par.nAngInts;
-    nrew = Output.Par.RewPts;
+    nTI = Output.RecoPar.nTempIntsPerAngInt;
+    vs = Output.RecoPar.vecSize;
+    ns = Output.RecoPar.TrajPts;
+    nc = Output.RecoPar.nAngInts;
+    nrew = Output.RecoPar.RewPts;
     ncha = size(Output.Data,6);
 
-    timeoffset = 0:(ns-1);
-    timeoffset = repmat(transpose(timeoffset),[1 vs]);
-    Freq = ((0:vs-1)/vs-0.5)/(nrew + ns)*nTI;
-    Freq = repmat(Freq,[ns 1]);    
+    
+    for ii = 1:nc
+        timeoffset = 0:(ns(ii)-1);
+        timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
+        Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+        Freq = myrepmat(Freq,size(timeoffset));    
 
-    % This comes from:
-    % timeoffset = (0:(ns-1))*Output.Par.ADC_Dt/10^6;
-    % sBW = nTI/((nrew + ns)*Output.Par.ADC_Dt/10^6);
-    % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
-    % Output.Par.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
-    % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
-    % the same anyway
-    
-    phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    
-    phasecorr = myrepmat(phasecorr,size(Output.Data));
-    
-    bla = Output.Data(:,:,:,:,1,:,:);
-    Output.Data = fft(fftshift((phasecorr).*fftshift(ifft(Output.Data,[],5),5),5),[],5);
-    Output.Data(:,:,:,:,1,:,:) = bla;
-    
-    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-        bla = Output.NoiseData(:,:,:,:,1,:,:);        
-        Output.NoiseData = fft(fftshift((phasecorr).*fftshift(ifft(Output.NoiseData,[],5),5),5),[],5);
-        Output.NoiseData(:,:,:,:,1,:,:) = bla;
-    end    
+        % This comes from:
+        % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
+        % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
+        % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
+        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
+        % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
+        % the same anyway
 
-    TiltTrajMat = phasecorr;   
+        phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
+        Sizzy = size(Output.Data{ii});      % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
+        phasecorr = reshape(phasecorr,[Sizzy(1:5) 1]); clear Sizzy
+    %     phasecorr = myrepmat(phasecorr,size(Output.Data));
+    %     phasecorr = conj(phasecorr);
+    %     bla = Output.Data(:,:,:,:,1,:,:);
+        Output.Data{ii} = fft(fftshift((phasecorr).*fftshift(ifft(Output.Data{ii},[],5),5),5),[],5);
+        if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
+            Output.NoiseData{ii} = fft(fftshift((phasecorr).*fftshift(ifft(Output.NoiseData{ii},[],5),5),5),[],5);
+        end
+    %     Output.Data = conj(phasecorr).*Output.Data;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
+
+    %     Output.Data(:,:,:,:,1,:,:) = bla;
+
+        TiltTrajMat{ii} = reshape(phasecorr(:,:,1,1,:,1),[Output.RecoPar.TrajPts(ii) 1 Output.RecoPar.vecSize]);  
+    end
     
 else
     
-	TiltTrajMat = ones([Output.Par.TrajPts*Output.Par.nAngInts Output.Par.vecSize]);
-
+    for ii = 1:Output.RecoPar.nAngInts
+        TiltTrajMat{ii} = ones([Output.RecoPar.TrajPts(ii) Output.RecoPar.vecSize]);
+    end
 end
 
 if(nargout > 1)
@@ -208,11 +223,10 @@ end
 %% Conj at End
 
 if(Settings.ConjInkSpace_flag)
-    Output.Data = conj(Output.Data);
-    
-    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-        Output.NoiseData = conj(Output.NoiseData);
-    end    
+    Output.Data = cellfun(@conj,Output.Data,'uni',0);
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData{1}) > 1)
+        Output.NoiseData = cellfun(@conj,Output.NoiseData,'uni',0);
+    end
 end
 
 
@@ -222,15 +236,25 @@ Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x O
 Normal2=[0 0 1];
 v=vrrotvec(Normal1,Normal2);
 Rot=vrrotvec2mat(v);
+
+% In Plane Rotation?
+% Normal2=[1 0 0];
+% Normal1 = [cos(InPlaneRot) sin(InPlaneRot) 0];
+% v=vrrotvec(Normal1,Normal2);
+% Rot2=vrrotvec2mat(v);
+% Rot=Rot2*Rot;
+
 PRS=Rot*LPH';
-FOVShift = squeeze(exp(-1i*Output.InTraj.GM(1,:,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)); 
-FOVShift = FOVShift .* squeeze(exp(-1i*Output.InTraj.GM(2,:,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase));
-Output.Data = Output.Data.*FOVShift;
+FOVShift = cellfun( @(x) transpose(exp(-1i*x(1,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)), Output.InTraj.GM , 'uni', false);
+
+FOVShift2 = cellfun( @(x) transpose(exp(-1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
+
+Output.Data = cellfun( @(x,y,z) x.*(y.*z),Output.Data, FOVShift,FOVShift2,'uni',false);
 
 
 %% Postparations
 
-Output.RecoPar.DataSize = size(Output.Data);
+Output.RecoPar.DataSize = cellfun(@size,Output.Data,'uni',0);
 
 Output = supp_UpdateRecoSteps(Output,Settings);
 

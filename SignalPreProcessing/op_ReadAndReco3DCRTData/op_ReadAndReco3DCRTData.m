@@ -1,24 +1,23 @@
 function [MRStruct,AdditionalOut] = op_ReadAndReco3DCRTData(DataFile,TrajectoryFile,Settings)
 %
-% op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
+% op_ReadAndReco3DCRTData Read and reconstruct data from ViennaCRT MRSI Sequence
 %
 % This function was written by Bernhard Strasser, June 2019.
 %
 %
-% The function can read in Spiral MRSI data in the Siemens raw file format ".DAT" and performs
+% The function can read in ViennaCRT MRSI data in the Siemens raw file format ".DAT" and performs
 % the reconstruction of the data (Non-Uniform Slow FourierTransform etc.)
 %
 %
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         DataFile          ...  The Siemens twix-data file of the spiral sequence   
-% -         TrajectoryFile    ...  The trajectory file containing information about the k-space spiral trajectory.
+% -         DataFile          ...  The Siemens twix-data file of the CRT sequence   
+% -         TrajectoryFile    ...  The trajectory file containing information about the k-space NonCart trajectory.
 % -         Settings                ...  Struct with fields
 %                                           Debug: The Debug-settings. Subfields:
-%                                                           ShowTrajs:  If you want to plot the spiral and Cartesian trajectories to get a feeling how you measured...
-%                                           io_ReadSpiralPars:  Settings for the function "io_ReadSpiralPars", see io_ReadSpiralPars.m
-%                                           ReadInTraj:         Settings for reading the trajectory, see io_ReadSpiralTraj.m.
+%                                                           ShowTrajs:  If you want to plot the NonCart and Cartesian trajectories to get a feeling how you measured...
+%                                           ReadInTraj:         Settings for reading the trajectory, see io_ReadCRTTraj.m.
 %                                           CalcOutTraj:        Settings for calculating the Cartesian trajectory, see sim_CalcCartTraj.m.
 %                                           NonCartReco:        Settings for the non-Cartesian MRSI Reco, see op_ReconstructNonCartMRData.m.
 %
@@ -31,7 +30,7 @@ function [MRStruct,AdditionalOut] = op_ReadAndReco3DCRTData(DataFile,TrajectoryF
 %                                           NoiseData:  If available, noise with the same scale and size as the Data is produced. Useful for SNR calculations.
 %                                           OutTraj:    The Cartesian trajectory which would correspond to the Fourier transform of the Cartesian output image
 %                                                       (if we did k-space gridding, those would be the k-space points we would grid to).
-%                                           InTraj:     The (spiral) trajectory with which the data were measured.
+%                                           InTraj:     The NonCart trajectory with which the data were measured.
 %                                           
 % -         AdditionalOut           ...  Struct with additional output, e.g. Fourier Transform Operator, Density Compensation Function, etc.
 %
@@ -55,7 +54,7 @@ if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
     Settings.Debug.ShowTrajs = false;
 end
 
-if(~isfield_recursive(Settings,'io_ReadSpiralPars.IncludeRewinder_flag'))
+if(~isfield_recursive(Settings,'io_Read3DCRTPars.IncludeRewinder_flag'))
    Settings.io_Read3DCRTPars.IncludeRewinder_flag = false;    
 end
 
@@ -132,14 +131,15 @@ end
 
 %% Reshape, Average & Reshape Data
 
-MRStruct = op_ReadAverageReshape3DCRTData(MRStruct);
+[MRStruct, RefScan] = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);
+% MRStruct = RefScan;
 
 
 %% Read Trajectory
 
 [MRStruct] = sim_CalcCartTraj(MRStruct,Settings.CalcOutTraj);
 
-Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize spiral trajectory to maximum of Cartesian trajectory
+Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize NonCart trajectory to maximum of Cartesian trajectory
 [MRStruct] = io_ReadCRTTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
 
 
@@ -151,28 +151,24 @@ clearvars -except Settings MRStruct
 
 
 
-%% DEBUG: PLOT Spiral Trajectories
+%% DEBUG: PLOT NonCart Trajectories
 
 if(Settings.Debug.ShowTrajs)
     figure;
     scatter(squeeze(MRStruct.OutTraj.GM(1,1,:)),squeeze(MRStruct.OutTraj.GM(2,1,:)),'b'), hold on   
     for AngIntNo = 1:MRStruct.Par.nAngInts
-        scatter(squeeze(MRStruct.InTraj.GM(1,:,AngIntNo)), squeeze(MRStruct.InTraj.GM(2,:,AngIntNo)),'r')
-        plot(squeeze(MRStruct.InTraj.GM(1,:,AngIntNo)), squeeze(MRStruct.InTraj.GM(2,:,AngIntNo)),'r')
+        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        plot(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
     end
     hold off
 end
 
 
 
-%% Reconstruct Spiral Data
+%% Reconstruct NonCart Data
 
-% Remark: Currently, the CRT data is a cell, for each partition one cell. 
-% This is to save the data efficiently, because different partitions can have different number of circles
-if(iscell(MRStruct.Data))
-    MRStruct.Data = MRStruct.Data{1};   % It is alrdy reshaped properly in op_ReadAverageReshape3DCRTData
-end
-
+% Remark: Currently, the CRT data is a cell, for each circle one cell. This is to save the data efficiently, because different circles
+% can have different trajectory points
 [MRStruct,AdditionalOut.RecoOperators] = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
 
 

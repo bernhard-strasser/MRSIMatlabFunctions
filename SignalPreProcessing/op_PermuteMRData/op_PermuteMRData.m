@@ -58,12 +58,10 @@ end
 
 %% Permute Data
 
-MRStruct.Data = permute(MRStruct.Data,Settings.PermuteVec);
-if(isfield(MRStruct,'NoiseData'))
-    MRStruct.NoiseData = permute(MRStruct.NoiseData,Settings.PermuteVec);    
-end
-if(isfield(MRStruct,'Mask'))
-    MRStruct.Mask = permute(MRStruct.Mask,Settings.PermuteVec);    
+for fieldyy = {'Data','NoiseData','Mask','BrainMask','LipMask'}
+    if(isfield(MRStruct,fieldyy{1}))
+        MRStruct.(fieldyy{1}) = permute(MRStruct.(fieldyy{1}),Settings.PermuteVec);
+    end    
 end
 MRStruct.RecoPar.DataSize = size(MRStruct.Data);
 

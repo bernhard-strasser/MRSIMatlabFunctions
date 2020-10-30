@@ -47,6 +47,15 @@ if(~isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var'))
     end
 end
 
+
+if(isfield(Settings,'x_end'))
+    Settings.x_size = Settings.x_end - Settings.x_start + 1;
+end
+if(isfield(Settings,'y_end'))
+    Settings.y_size = Settings.y_end - Settings.y_start + 1;
+end
+
+
 OpenFigs = get(groot, 'Children');
 if(~isempty(OpenFigs)) 
     OpenFigs = [OpenFigs(:).Number];
@@ -64,7 +73,7 @@ end
 if(isfield(Settings,'UseThisInStructMask'))
     Mask = InStruct.(Settings.UseThisInStructMask);
 end
-if(exist('Mask','var') && ~isempty(Mask))
+if(exist('Mask','var') && ~isempty(Mask) && Settings.x_start == 1 && Settings.y_start == 1 && Settings.x_size == size(InStruct.Data,1) && Settings.y_size == size(InStruct.Data,2))
     InStruct.Data = InStruct.Data .* Mask;
     [Settings.x_start,Settings.y_start] = find(Mask);
     Settings.x_end = max(Settings.x_start); Settings.y_end = max(Settings.y_start);
@@ -75,9 +84,6 @@ end
 
 %%
 Data_fft = fftshift(fft(InStruct.Data,[],4),4);
-Data_ = abs(Data_fft(Settings.x_start:Settings.x_start+Settings.x_size-1, Settings.y_start:Settings.y_start+Settings.y_size-1,Settings.plot_z,Settings.f_first:Settings.f_end));
-y_max = max(Data_(:));
-
 
 pixels = size(Data_fft,2) * size(Data_fft,1);
 nx = sqrt(pixels);
@@ -101,27 +107,21 @@ yorig = Settings.y_start;
 x = xorig:xorig+nnx-1;
 y = yorig:yorig+nny-1;
 
+if(isfield(InStruct,'RecoPar'))
+    ChemyOrPtsVec2 = compute_chemshift_vector(InStruct.RecoPar);
+else
+    ChemyOrPtsVec2 = compute_chemshift_vector(InStruct.Par);        
+end
 if(Settings.PlotPPM_flag)
-    if(isfield(InStruct,'RecoPar'))
-        ChemyOrPtsVec = compute_chemshift_vector(InStruct.RecoPar);
-    else
-        ChemyOrPtsVec = compute_chemshift_vector(InStruct.Par);        
-    end
+    ChemyOrPtsVec = ChemyOrPtsVec2;
 else
     ChemyOrPtsVec = 1:size(Data_fft,3);
 end
-PlotVec = [ChemyOrPtsVec(Settings.f_first),ChemyOrPtsVec(Settings.f_end)];
 
-figure(Settings.figno_1);
-for i=1:nnx
-    for j=1:nny
-%        subplot('Position', [originx(i), originy(j), widthx, widthy])
-        subplot('Position', [originy(nny-j+1), originx(nnx-i+1), widthy, widthx])
-        
-        plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), abs((squeeze(Data_fft(x(i),y(j),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
-        axis([min(PlotVec),max(PlotVec), 0, y_max/1]); axis off;
-
-    end
+% convert from PPM to freq pts
+if(isfield(Settings,'PlotPPMRange'))
+    Settings.f_first = FindClosestIndex(ChemyOrPtsVec,max(Settings.PlotPPMRange)); Settings.f_first = Settings.f_first{1};
+    Settings.f_end = FindClosestIndex(ChemyOrPtsVec,min(Settings.PlotPPMRange)); Settings.f_end = Settings.f_end{1};
 end
 
 
@@ -133,5 +133,51 @@ ref_image = ref_image / max(abs(ref_image(:)));
 
 figure(Settings.figno_2); imagesc(abs(ref_image)); colormap jet; colorbar; axis square; hold on;
 rectangle('Position',[y(1),x(1),y(end)-y(1),x(end)-x(1)],'EdgeColor','y', 'LineStyle','--');
-hold off;
+hold off; pause(0.1)
+
+
+
+
+Data_ = abs(Data_fft(Settings.x_start:Settings.x_start+Settings.x_size-1, Settings.y_start:Settings.y_start+Settings.y_size-1,Settings.plot_z,Settings.f_first:Settings.f_end));
+y_max = max(Data_(:));
+
+PlotVec = [ChemyOrPtsVec(Settings.f_first),ChemyOrPtsVec(Settings.f_end)];
+
+figure(Settings.figno_1);
+
+% if(nnx*nny < 100)
+    for Curx=1:nnx
+        for Cury=1:nny
+    %        subplot('Position', [originx(Curx), originy(Cury), widthx, widthy])
+            subplot('Position', [originy(nny-Cury+1), originx(nnx-Curx+1), widthy, widthx])
+
+            plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), abs((squeeze(Data_fft(x(Curx),y(Cury),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
+            axis([min(PlotVec),max(PlotVec), 0, y_max/1]); axis off;
+
+        end
+    end
+% else
+%     parfor ii = 1:nnx*nny
+%         Cury = floor((ii-1)/nnx)+1
+%         Curx = ii - (Cury-1)*nnx
+%         subplot('Position', [originy(nny-Cury+1), originx(nnx-Curx+1), widthy, widthx])
+%         plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), abs((squeeze(Data_fft(x(Curx),y(Cury),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
+%         axis([min(PlotVec),max(PlotVec), 0, y_max/1]); axis off;
+%         drawnow
+%     end
+    
+% end
+
+
+% NoOfNaNs = round(0.20*size(Data_,4));
+% Data_2 = permute(Data_,[1 4 2 3]);
+% Data_NaN = NaN([size(Data_,1) NoOfNaNs size(Data_,2)]);
+% Data_2 = reshape(cat(2,Data_2,Data_NaN),[size(Data_,1) (NoOfNaNs+size(Data_,4))*size(Data_,2)]);
+% ChemyOrPtsVec_Repmat = repmat(cat(2,ChemyOrPtsVec(Settings.f_first:Settings.f_end),NaN([1 NoOfNaNs])),[1 size(Data_,2)]);
+% 
+% for ii = 1:size(Data_2,1)
+%     subplot(36,1,ii);
+%     plot(ChemyOrPtsVec_Repmat,abs(Data_2(ii,:)))
+% end
+
 

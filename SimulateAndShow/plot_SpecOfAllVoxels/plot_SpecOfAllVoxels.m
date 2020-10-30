@@ -44,15 +44,30 @@ if(~exist('Mask','var'))
     Mask = ones(size_MultiDims(MRStruct.Data,1:3));
 end
 
+
+
 %% 
 
 MRStruct.Data = MRStruct.Data(:,:,:,:,1);
 MRStruct.Data = MRStruct.Data .* Mask;
 MRStruct.Data = abs(fftshift(fft(MRStruct.Data,[],4),4));
 MRStruct.Data = permute(MRStruct.Data,[4 1 2 3]);
+
+
+
 chemy = compute_chemshift_vector(MRStruct.RecoPar);
-figure; plot(chemy,MRStruct.Data(:,:))
+
+% convert from PPM to freq pts
+if(isfield(Settings,'PlotPPMRange'))
+    Settings.f_first = FindClosestIndex(chemy,max(Settings.PlotPPMRange)); Settings.f_first = Settings.f_first{1};
+    Settings.f_end = FindClosestIndex(chemy,min(Settings.PlotPPMRange)); Settings.f_end = Settings.f_end{1};
+    MRStruct.Data = MRStruct.Data(Settings.f_first:Settings.f_end,:,:,:,:);
+    chemy = chemy(Settings.f_first:Settings.f_end);
+end
+
+
 figure; plot(chemy,sum(MRStruct.Data(:,:),2))
+figure; plot(chemy,MRStruct.Data(:,:))
 
 
 

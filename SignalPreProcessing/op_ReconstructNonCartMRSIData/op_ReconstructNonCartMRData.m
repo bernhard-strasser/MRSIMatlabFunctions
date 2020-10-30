@@ -72,7 +72,7 @@ end
 if(~isfield(Settings,'FlipDim_flag'))
     Settings.FlipDim_flag = false;
 end
-if(exist('AdditionalIn','var') && isfield('AdditionalIn','B0'))
+if(exist('AdditionalIn','var') && isfield(AdditionalIn,'B0'))
     B0 = AdditionalIn.B0;
 end
 if(~isfield(Output,'RecoPar'))
@@ -154,7 +154,7 @@ if(Settings.Phaseroll_flag)
 
         phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
         Sizzy = size(Output.Data{ii});      % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
-        phasecorr = reshape(phasecorr,[Sizzy(1:5) 1]); clear Sizzy
+        phasecorr = reshape(phasecorr,[Sizzy(1:2) 1 Sizzy(4:5) 1]); clear Sizzy
     %     phasecorr = myrepmat(phasecorr,size(Output.Data));
     %     phasecorr = conj(phasecorr);
     %     bla = Output.Data(:,:,:,:,1,:,:);

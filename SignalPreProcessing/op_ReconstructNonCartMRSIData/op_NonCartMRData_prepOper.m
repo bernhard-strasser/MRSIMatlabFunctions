@@ -73,9 +73,9 @@ end
 Operators.InDataSize = Output.RecoPar.DataSize;
 
 Operators.OutDataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc*Output.RecoPar.nSLC Output.RecoPar.vecSize];
-if(isfield(Output.Par,'TimeUndersamplFactor'))
-    Operators.OutDataSize(end) = Operators.OutDataSize(end)*Output.Par.TimeUndersamplFactor;
-end
+% if(isfield(Output.Par,'TimeUndersamplFactor'))
+%     Operators.OutDataSize(end) = Operators.OutDataSize(end)*Output.Par.TimeUndersamplFactor;
+% end
 Output.RecoPar.DataSize = Operators.OutDataSize;
 % Output.Par.total_channel_no_measured: Can we somehow find out if we will do a coil combination in our reco or not?
 
@@ -115,14 +115,22 @@ if(~isfield(AdditionalIn,'SamplingOperator'))
     Operators.SamplingOperator = 1;
 else
     Operators.SamplingOperator = AdditionalIn.SamplingOperator;
-    SizeSamp = size(Operators.SamplingOperator);
-    UnequalSizesInd = find(Operators.InDataSize(1:end-1) ~= SizeSamp,1);
-    if(~isempty(UnequalSizesInd))
+    SizeSamp = cellfun(@size,Operators.SamplingOperator,'uni',false);
+    
+    test = cat(1,Operators.InDataSize{:}); 
+    
+    [UnequalSizesInd_AngIntDim,UnequalSizesInd_VecDim] = find(test(:,1:5) ~= cat(1,SizeSamp{:}));
+    if(~isempty(UnequalSizesInd_AngIntDim))
         st = dbstack;
         FunName = st(1).name;
-        fprintf('\nWarning in %s: Size of given SamplingOperator (size: %s)\ndoes not match InDataSize (%s). Cut SamplingOperator.',FunName,sprintf('%d ',SizeSamp),sprintf('%d ',Operators.InDataSize))
+        fprintf('\nWarning in %s: Size of given SamplingOperator (size: %s)\ndoes not match InDataSize (%s). Cut SamplingOperator.',...
+        FunName,sprintf(['[' repmat('%d ',[1 numel(SizeSamp{UnequalSizesInd_AngIntDim(1)})]) '], '],(cat(3,SizeSamp{UnequalSizesInd_AngIntDim}))),...
+        sprintf(['[' repmat('%d ',[1 numel(Operators.InDataSize{UnequalSizesInd_AngIntDim(1)})]) '], '],(cat(3,Operators.InDataSize{UnequalSizesInd_AngIntDim}))))
+
     end
-    Operators.SamplingOperator = Zerofilling_Spectral(Operators.SamplingOperator,Operators.InDataSize(1:end-1),0);
+    for CurAI = UnequalSizesInd_AngIntDim'
+        Operators.SamplingOperator{CurAI} = Zerofilling_Spectral(Operators.SamplingOperator{CurAI},Operators.InDataSize{CurAI}(1:end-1),0);
+    end
 end
 
 
@@ -172,7 +180,7 @@ if(Settings.Phaseroll_flag)
 
     %     Output.Data(:,:,:,:,1,:,:) = bla;
 
-        Operators.TiltTrajMat{ii} = reshape(phasecorr(:,:,1,1,:,1),[Output.RecoPar.TrajPts(ii) 1 Output.RecoPar.vecSize]);  
+        Operators.TiltTrajMat{ii} = phasecorr(:,:,1,1,:,1);  
     end
     
 else
@@ -204,15 +212,15 @@ end
 
 %% Calculate B0-Correction of Spiral Data in Spatial Domain
 if(Settings.Correct4SpatialB0_flag)
-    t = zeros([size(sft2_Oper,1) 1]);
+    t = zeros([size(Operators.sft2_Oper,1) 1]);
     CurPt = 1;
     for ii = 1:Output.RecoPar.nAngInts
         t(CurPt:CurPt+Output.RecoPar.TrajPts(ii)-1)   = (0:Output.RecoPar.TrajPts(ii)-1)*Output.RecoPar.ADCdtPerAngInt_ns(ii)/10^9;
         CurPt = CurPt + Output.RecoPar.TrajPts(ii);
     end
-    CurB0 = imresize(B0.B0Map,Output.RecoPar.DataSize(1:2));    
-    if(isfield(B0,'Mask'))
-        Mask = imresize(MaskShrinkOrGrow(B0.Mask,2,0,1),Output.RecoPar.DataSize(1:2),'nearest');
+    CurB0 = imresize(AdditionalIn.B0.B0Map,Output.RecoPar.DataSize(1:2));    
+    if(isfield(AdditionalIn.B0,'Mask'))
+        Mask = imresize(MaskShrinkOrGrow(AdditionalIn.B0.Mask,2,0,1),Output.RecoPar.DataSize(1:2),'nearest');
         CurB0 = CurB0 .* Mask;
     end
     
@@ -247,7 +255,7 @@ if(Settings.Correct4SpectralB0_flag)
     %     CurB0 = round(CurB0/HzPerPt)*HzPerPt;
     % end
 
-    time   = (0:Operators.InDataSize(5)-1)*Output.RecoPar.Dwelltimes(1)/10^9; time = reshape(time,[1 1 1 numel(time)]);
+    time   = (0:Operators.OutDataSize(4)-1)*Output.RecoPar.Dwelltimes(1)/10^9; time = reshape(time,[1 1 1 numel(time)]);
     B0CorrMat_Spec = exp(2*pi*1i*CurB0 .* time);
 
 
@@ -288,6 +296,19 @@ if(isfield(AdditionalIn,'SensMap'))
     Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
 else
     Operators.SensMap = 1;
+end
+
+
+
+
+%%
+if(isfield(Settings,'Uncell_flag') && Settings.Uncell_flag)
+    dummy = sum(cat(1,Operators.InDataSize{:}));
+    Operators.InDataSize = [dummy(1) Operators.InDataSize{1}(2:end)];
+    Operators.FoVShift = cat(1,Operators.FoVShift{:});
+    Operators.SamplingOperator = cat(1,Operators.SamplingOperator{:});
+    Operators.TiltTrajMat = cat(1,Operators.TiltTrajMat{:});
+    
 end
 
 
