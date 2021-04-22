@@ -36,19 +36,29 @@ function [DataStruct] = io_ReadSpiralTraj(DataStruct,TrajFile,Settings)
 
 %% 0. Preparations
 
+if(~isfield(DataStruct,'Par'))
+    DataStruct.Par = struct();
+end
+if(~exist('Settings','var'))
+    Settings = struct();
+end
+
 if(~isfield(DataStruct.Par,'GradDelay_x_us'))
     if(isfield(Settings,'GradDelay_x_us'))
         DataStruct.Par.GradDelay_x_us = Settings.GradDelay_x_us;
     else
         DataStruct.Par.GradDelay_x_us = 0;
-end
+    end
 end
 if(~isfield(DataStruct.Par,'GradDelay_y_us'))
     if(isfield(Settings,'GradDelay_x_us'))
         DataStruct.Par.GradDelay_y_us = Settings.GradDelay_y_us;
-else
+    else
         DataStruct.Par.GradDelay_y_us = 0;
-end    
+    end    
+end
+if(~isfield(DataStruct.Par,'ADC_OverSamp'))
+    DataStruct.Par.ADC_OverSamp = 1;
 end
 
 if(~isfield(Settings,'IncludeRewinder_flag'))

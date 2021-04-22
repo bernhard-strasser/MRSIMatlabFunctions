@@ -119,7 +119,7 @@ elseif(Settings.AutoScale_flag)
     OnesData = ones(MRStruct.RecoPar.DataSize(1:2));
     OutOnesData = abs(NUFTOperator'*(DCFPreG(:) .* (NUFTOperator*OnesData(:)))*size(MRStruct.OutTraj.GM(:,:),2));
     OutOnesData(OutOnesData == 0) = NaN;
-    Scale = nanmean(OutOnesData);
+    Scale = nanmean_own(OutOnesData);
 else
     %         FudgeFactor = 1.2743;     % For old trajectory
 %         FudgeFactor = 0.00051078;         % For new trajectory

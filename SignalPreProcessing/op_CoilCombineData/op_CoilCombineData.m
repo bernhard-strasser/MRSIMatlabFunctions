@@ -63,6 +63,9 @@ if(~isfield(MRStruct,'RecoPar'))
     MRStruct.RecoPar = MRStruct.Par;
 end
 if(MRStruct.RecoPar.total_channel_no_reco == 1)
+   AdditionalOut.CoilWeightMap = 1;
+   AdditionalOut.Mask = 1;
+   AdditionalOut.Scaling = 1;
    return; 
 end
 

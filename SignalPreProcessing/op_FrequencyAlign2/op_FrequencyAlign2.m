@@ -98,17 +98,28 @@ end
 if(~isfield(Settings,'FindShiftAlgorithm'))
     Settings.FindShiftAlgorithm = 'DotProduct';
 end
+if(~isfield(Settings,'UseThisInStructMask'))
+    Settings.UseThisInStructMask = 'BrainMask';
+end
+if(~exist('AdditionalIn','var'))
+    AdditionalIn = struct();
+end
 
 
 if(~exist('AdditionalIn','var') || ~isfield(AdditionalIn,'RefSpecIn'))
 	RefSpec = [];
 else
-    RefSpec = AdditionalIn.RefSpecIn;
+    RefSpec = reshape(AdditionalIn.RefSpecIn,[ones([1 Settings.ApplyAlongDim-1]) numel(AdditionalIn.RefSpecIn)]);
+    RefVox = [-1 -1 -1];
 end
 
 % Handle mask
 MaskWasProvided = true;
-if(isfield(MRStruct,'BrainMask'))
+if(isfield(AdditionalIn,'Mask'))
+    mask = AdditionalIn.Mask;
+elseif(isfield(Settings,'UseThisInStructMask') && isfield(MRStruct,(Settings.UseThisInStructMask)))
+    mask = MRStruct.(Settings.UseThisInStructMask);
+elseif(isfield(MRStruct,'BrainMask'))
 	mask = MRStruct.BrainMask;
 elseif(isfield(MRStruct,'Mask'))
 	mask = MRStruct.Mask;    
@@ -142,7 +153,9 @@ if(~OnlyApplyShiftMap_flag)
             clear CurData
         else
         
-            if(MaskWasProvided)
+            if(isfield(Settings,'RefVox') && numel(Settings.RefVox) > 1)
+                RefVox = Settings.RefVox;
+            elseif(MaskWasProvided)
                 % Define Reference Voxel as Center of Mass Voxel
                 RefVox = regionprops(mask, 'centroid');
                 RefVox = round(RefVox.Centroid);
@@ -261,7 +274,7 @@ for x = 1:size(MRStruct.Data,1)
 %             end
 			
 			TmpSpec = squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
-            TmpSpec = TmpSpec - fftshift(fft(exp(-transpose(0:numel(TmpSpec)-1)/1) .* ifft(ifftshift(TmpSpec))));
+%             TmpSpec = TmpSpec - fftshift(fft(exp(-transpose(0:numel(TmpSpec)-1)/1) .* ifft(ifftshift(TmpSpec))));
 %             TmpSpec = abs(TmpSpec);
             TmpSpec = conj(TmpSpec) / norm(TmpSpec);
             DotProd = abs(ReferenceSpecMat * TmpSpec);

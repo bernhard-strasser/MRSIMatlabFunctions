@@ -56,7 +56,7 @@ if(~isfield(Settings,'ExpFilterStrength_Hz'))
     Settings.ExpFilterStrength_Hz = 3;
 end
 if(~isfield(Settings,'ApplyAlongDim'))
-    Settings.ApplyAlongDim = numel(size(MRStruct));
+    Settings.ApplyAlongDim = numel(size(MRStruct.Data));
 end
 
 

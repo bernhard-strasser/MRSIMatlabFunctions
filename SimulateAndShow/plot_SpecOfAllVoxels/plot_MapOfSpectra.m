@@ -39,6 +39,18 @@ end
 if(~isfield(Settings,'PlotPPM_flag') || isempty(Settings.PlotPPM_flag))
     Settings.PlotPPM_flag = true;
 end
+if(  isfield(Settings,'PlotVoxels') && ~isempty(Settings.PlotVoxels)  )
+    Mask = false(size_MultiDims(InStruct.Data,1:3));
+    Mask(sub2ind(size(Mask), Settings.PlotVoxels(:,1),Settings.PlotVoxels(:,2),Settings.PlotVoxels(:,3))) = true;
+end
+if(isfield(Settings,'PlotVoxelsFromTo') && ~isempty(Settings.PlotVoxelsFromTo))
+    Mask = false(size_MultiDims(InStruct.Data,1:3));
+    Mask(Settings.PlotVoxelsFromTo(1,1):Settings.PlotVoxelsFromTo(2,1),Settings.PlotVoxelsFromTo(1,2):Settings.PlotVoxelsFromTo(2,2),Settings.PlotVoxelsFromTo(1,3):Settings.PlotVoxelsFromTo(2,3)) = true;
+end
+if(~isfield(Settings,'TakeRealAbsImagComplex'))
+    Settings.TakeRealAbsImagComplex = @abs;
+end
+
 if(~isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var'))
     if(isfield(InStruct,'BrainMask'))
         Settings.UseThisInStructMask = 'BrainMask';
@@ -138,8 +150,9 @@ hold off; pause(0.1)
 
 
 
-Data_ = abs(Data_fft(Settings.x_start:Settings.x_start+Settings.x_size-1, Settings.y_start:Settings.y_start+Settings.y_size-1,Settings.plot_z,Settings.f_first:Settings.f_end));
+Data_ = feval(Settings.TakeRealAbsImagComplex,(Data_fft(Settings.x_start:Settings.x_start+Settings.x_size-1, Settings.y_start:Settings.y_start+Settings.y_size-1,Settings.plot_z,Settings.f_first:Settings.f_end)));
 y_max = max(Data_(:));
+y_min = min(Data_(:));
 
 PlotVec = [ChemyOrPtsVec(Settings.f_first),ChemyOrPtsVec(Settings.f_end)];
 
@@ -151,8 +164,8 @@ figure(Settings.figno_1);
     %        subplot('Position', [originx(Curx), originy(Cury), widthx, widthy])
             subplot('Position', [originy(nny-Cury+1), originx(nnx-Curx+1), widthy, widthx])
 
-            plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), abs((squeeze(Data_fft(x(Curx),y(Cury),Settings.plot_z, Settings.f_first:Settings.f_end)))),'k', 'LineWidth', Settings.plot_linewidth); 
-            axis([min(PlotVec),max(PlotVec), 0, y_max/1]); axis off;
+            plot(ChemyOrPtsVec(Settings.f_first:Settings.f_end), feval(Settings.TakeRealAbsImagComplex,((squeeze(Data_fft(x(Curx),y(Cury),Settings.plot_z, Settings.f_first:Settings.f_end))))),'k', 'LineWidth', Settings.plot_linewidth); 
+            axis([min(PlotVec),max(PlotVec), y_min, y_max/1]); axis off;
 
         end
     end

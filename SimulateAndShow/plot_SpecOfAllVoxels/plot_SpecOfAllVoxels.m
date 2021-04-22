@@ -37,6 +37,10 @@ end
 if(~isfield(Settings,'UseThisInStructMask'))
     Settings.UseThisInStructMask = 'BrainMask';
 end
+
+if(~isstruct(MRStruct))
+    bak = MRStruct; clear MRStruct; MRStruct.Data = bak; clear bak; 
+end
 if(isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var') && isfield(MRStruct,(Settings.UseThisInStructMask)))
     Mask = MRStruct.(Settings.UseThisInStructMask);
 end
@@ -44,23 +48,36 @@ if(~exist('Mask','var'))
     Mask = ones(size_MultiDims(MRStruct.Data,1:3));
 end
 
+if(~isfield(Settings,'TakeRealAbsImagComplex'))
+    Settings.TakeRealAbsImagComplex = @abs;
+end
 
 
 %% 
 
 MRStruct.Data = MRStruct.Data(:,:,:,:,1);
 MRStruct.Data = MRStruct.Data .* Mask;
-MRStruct.Data = abs(fftshift(fft(MRStruct.Data,[],4),4));
+MRStruct.Data = feval(Settings.TakeRealAbsImagComplex,(fftshift(fft(MRStruct.Data,[],4),4)));
 MRStruct.Data = permute(MRStruct.Data,[4 1 2 3]);
 
 
-
-chemy = compute_chemshift_vector(MRStruct.RecoPar);
-
+if(isfield(MRStruct,'RecoPar'))
+    chemy = compute_chemshift_vector(MRStruct.RecoPar);
+elseif(isfield(MRStruct,'Par'))
+    chemy = compute_chemshift_vector(MRStruct.Par);
+else
+    chemy = 1:size(MRStruct.Data,1); 
+end
+    
+    
 % convert from PPM to freq pts
 if(isfield(Settings,'PlotPPMRange'))
     Settings.f_first = FindClosestIndex(chemy,max(Settings.PlotPPMRange)); Settings.f_first = Settings.f_first{1};
     Settings.f_end = FindClosestIndex(chemy,min(Settings.PlotPPMRange)); Settings.f_end = Settings.f_end{1};
+    tmp1 = min([Settings.f_first Settings.f_end]); 
+    Settings.f_end = max([Settings.f_first Settings.f_end]);
+    Settings.f_first = tmp1; clear tmp1;
+
     MRStruct.Data = MRStruct.Data(Settings.f_first:Settings.f_end,:,:,:,:);
     chemy = chemy(Settings.f_first:Settings.f_end);
 end
