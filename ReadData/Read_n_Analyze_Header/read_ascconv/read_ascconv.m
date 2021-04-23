@@ -458,9 +458,9 @@ if(numel(strfind(file_path, '.dat')) > 0 ...
     end
 end
 if( numel(strfind(file_path, '.IMA') > 0) ) 
-	if( strcmp(ParList.AssumedSequence,'BorjanSpiral'))	% PREVIOUSLY HAD: ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 4 &&. BUT SOMETIMES CSI IS ALSO WEIGHTED!!! % WITH THAT I ASSUME THAT 
-	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes;																													% DATASET IS NOT SPIRAL!
-	else																																								% THIS IS A HACK!
+	if( strcmp(ParList.AssumedSequence,'BorjanSpiral') || strcmp(ParList.AssumedSequence,'CSIOrSVS'))	% Actually, dont we always need to double dwelltime for IMA? 
+	 	ParList.Dwelltimes = 2 * ParList.Dwelltimes;																													
+	else																											
 		fprintf('\n\nWARNING: I DID  N O T  DOUBLE THE DWELLTIMES AS USUAL.')
 		fprintf('\nIF YOUR DATASET IS A CONVENTIONAL, FULLY SAMPLED (no elliptical or acquisition weighting) DATASET,\nTHE RESULTS WILL BE WRONG!')
 	end

@@ -1,4 +1,4 @@
-function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim_flag)
+function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim_flag,FlipDim)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -64,6 +64,9 @@ if(~exist('quiet_flag','var'))
 end
 if(~exist('FlipDim_flag','var'))
     FlipDim_flag = true;
+end
+if(~exist('FlipDim','var'))
+    FlipDim = 2;
 end
 
 if(size(InData,2) == 1 && size(InData,3) == 1 && size(InData,4) == 1)
@@ -171,7 +174,7 @@ end
 	
 
 if(sum(ApplyAlongDims == 2) == 1 && ~Ifft_flag && FlipDim_flag)	% Only if the second dimension is to be applied
-	InData = flipdim(InData,2);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
+	InData = flipdim(InData,FlipDim);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
 end
 if(~quiet_flag)
     fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))
