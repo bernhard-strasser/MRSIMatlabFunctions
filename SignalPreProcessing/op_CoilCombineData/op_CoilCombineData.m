@@ -62,6 +62,20 @@ end
 if(~isfield(MRStruct,'RecoPar'))
     MRStruct.RecoPar = MRStruct.Par;
 end
+
+% SoS
+if(~exist('CoilWeightMap','var'))
+    CoilWeightMap = MRStruct;
+    CoilWeightMap.Data = conj(CoilWeightMap.Data(:,:,:,1,:));
+    CoilWeightMap.Mask = ones(size_MultiDims(CoilWeightMap.Data,[1 2 3])); 
+    UniformSignal_flag = false;
+    Settings.ScalingMethod = 'UniformNoise';
+end
+
+if(~isfield(CoilWeightMap,'Mask'))
+    CoilWeightMap.Mask = ones(size_MultiDims(CoilWeightMap.Data,[1 2 3])); 
+end
+
 if(MRStruct.RecoPar.total_channel_no_reco == 1)
    AdditionalOut.CoilWeightMap = 1;
    AdditionalOut.Mask = 1;
