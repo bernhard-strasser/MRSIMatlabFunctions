@@ -107,10 +107,22 @@ Rot=vrrotvec2mat(v);
 % Rot2=vrrotvec2mat(v);
 % Rot=Rot2*Rot;
 
-PRS=Rot*LPH';
-FOVShift = cellfun( @(x) transpose(exp(1i*x(1,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)), Output.InTraj.GM , 'uni', false);
 
-FOVShift2 = cellfun( @(x) transpose(exp(1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
+AllFields = fieldnamesr(Output.RecoSteps);
+ConjFields = AllFields(~cellfun(@isempty,regexp(AllFields,'ConjInkSpace_flag|ConjIniSpace_flag|ConjFlag')));
+ConjNumber = 0; for ii=1:numel(ConjFields); ConjNumber = ConjNumber + eval(['Output.RecoSteps.' ConjFields{ii}]);end
+ConjFlag = mod(ConjNumber,2);
+if(ConjFlag)
+   ConjSign = -1;
+else
+  ConjSign = 1; 
+end
+
+
+PRS=Rot*LPH';
+FOVShift = cellfun( @(x) transpose(exp(ConjSign*1i*x(1,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)), Output.InTraj.GM , 'uni', false);
+
+FOVShift2 = cellfun( @(x) transpose(exp(ConjSign*1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
 
 Output.Data = cellfun( @(x,y,z) x.*(y.*z),Output.Data, FOVShift,FOVShift2,'uni',false);
 
