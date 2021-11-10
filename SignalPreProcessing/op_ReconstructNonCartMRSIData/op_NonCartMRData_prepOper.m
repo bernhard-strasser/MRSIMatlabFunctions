@@ -278,7 +278,11 @@ if(Settings.DensComp_flag)
     Operators.DCFPreG = Dummy2.DCFPreG;
     clear Dummy;
 else
-    Operators.DCFPreG = 1;
+%     Operators.DCFPreG = 1;
+    ImOut = Operators.sft2_Oper' * (Operators.sft2_Oper * ones([size(Operators.sft2_Oper,2) 1]) * size(Output.OutTraj.GM(:,:),2));
+    ImOut(ImOut == 0) = NaN; 
+    Operators.DCFPreG = 1/nanmean(abs(ImOut));
+    
 end
 
 

@@ -1,11 +1,11 @@
-function [MRStruct] = op_PermuteMRData(MRStruct, Settings)
+function [MRStruct] = op_ReshapeMRData(MRStruct, Settings)
 %
 % op_PermuteMRData Permute MR Data
 %
 % This function was written by Bernhard Strasser, Oct 2019.
 %
 %
-% The function just runs the "permute" function on MR data as specified by Settings.PermuteVec.
+% The function just runs the "permute" function on MR data as specified by Settings.ReshapeVec.
 % It also takes care of things like updating the .Par.DataSize, and permuting the NoiseData, if available.
 %
 %
@@ -16,7 +16,7 @@ function [MRStruct] = op_PermuteMRData(MRStruct, Settings)
 %                                           it has to have field
 %                                           * .Data
 % -         Settings               ...      Structure with settings how data should be processed. Should have field:
-%                                           * .PermuteVec: Data will be permuted to according to this vector.
+%                                           * .ReshapeVec: Data will be permuted to according to this vector.
 %
 % Output:
 % -         MRStruct               ...      The structure containing the MR data. Can have different fields.
@@ -36,11 +36,11 @@ if(~exist('Settings','var'))
 else
     if(~isstruct(Settings))
         Bak = Settings; clear Settings;
-        Settings.PermuteVec = Bak; clear Bak;
+        Settings.ReshapeVec = Bak; clear Bak;
     end
 end
-if(~isfield(Settings,'PermuteVec'))
-    Settings.PermuteVec = 1:numel(size(MRStruct.Data));
+if(~isfield(Settings,'ReshapeVec'))
+    Settings.ReshapeVec = 1:numel(size(MRStruct.Data));
 end
 if(~isfield(MRStruct,'Par'))
     MRStruct.Par = struct;
@@ -56,23 +56,10 @@ if(~isfield(MRStruct,'RecoPar'))
 end
 
 
-%% Permute Data
+%% Reshape Data
 
-for fieldyy = {'Data','NoiseData','Mask','BrainMask','LipMask'}
-    if(isfield(MRStruct,fieldyy{1}))
-        MRStruct.(fieldyy{1}) = permute(MRStruct.(fieldyy{1}),Settings.PermuteVec);
-    end    
-end
+MRStruct.Data = reshape(MRStruct.Data,Settings.ReshapeVec);
 MRStruct.RecoPar.DataSize = size(MRStruct.Data);
-
-
-%% Reorder dimnames
-if(isfield(MRStruct.RecoPar,'dimnames'))
-    MRStruct.RecoPar.dimnames = MRStruct.RecoPar.dimnames(Settings.PermuteVec);
-    MRStruct.RecoPar.dimnames_small = MRStruct.RecoPar.dimnames(1:numel(MRStruct.RecoPar.DataSize));
-end
-
-
 
 
 %% Postparations

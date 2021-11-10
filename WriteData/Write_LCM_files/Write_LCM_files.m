@@ -471,6 +471,7 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     % General Info, Water Frequency, Dwelltime, ...
                     fprintf(control_fid, ' $LCMODL\n');
                     fprintf(control_fid, ' OWNER=''MR Exzellenzzentrum, Radiodiagnostik, MUW''\n');
+                    fprintf(control_fid, ' key = 210387309\n');
                     fprintf(control_fid, ' Title=''%s''\n', Filename);
                     fprintf(control_fid, ' HZPPPM=%d, DELTAT=%d, NUNFIL=%i\n',MetaInfo.LarmorFreq/1000000, MetaInfo.dwelltime/1000000000, vecSize);
                     % If for each slice a different basis-file was provided, use all these. Otherwise use only the one and only basis_file{1}

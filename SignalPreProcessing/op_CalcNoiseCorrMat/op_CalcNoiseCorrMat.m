@@ -1,4 +1,4 @@
-function [MRStruct,RefScan, NoiseScan] = op_ReadAndRecoPhaseEncodedMRSIData(DataFile,Settings,AdditionalInput)
+function [MRStruct,AdditionalOut] = op_CalcNoiseCorrMat(MRStruct,Settings)
 %
 % op_ReadAndReco3DCRTData Read and reconstruct data from ViennaCRT MRSI Sequence
 %
@@ -49,95 +49,51 @@ function [MRStruct,RefScan, NoiseScan] = op_ReadAndRecoPhaseEncodedMRSIData(Data
 if(~exist('Settings','var'))
     Settings = struct;
 end
-if(~exist('AdditionalInput','var'))
-    AdditionalInput = struct;
+
+if(~isfield_recursive(Settings,'CutAwayFirstNPoints'))
+   Settings.CutAwayFirstNPoints = 19;    
 end
 
-if(~isfield_recursive(Settings,'CartFFT.ConjFlag'))
-   Settings.CartFFT.ConjFlag = true;    
-end
-if(~isfield_recursive(Settings,'CartFFT.Ifft_flag'))
-   Settings.CartFFT.Ifft_flag = false;    
-end
-if(~isfield_recursive(Settings,'CartFFT.FlipDim_flag'))
-    Settings.CartFFT.FlipDim_flag = true;
-end
-if(~isfield_recursive(Settings,'CartFFT.FlipDim'))
-    Settings.CartFFT.FlipDim = 1;
-end
-if(~isfield_recursive(Settings,'CartFFT.ApplyAlongDims'))
-    Settings.CartFFT.ApplyAlongDims = [1 2];
-end
-if(~isfield_recursive(Settings,'zCartFFT.ConjFlag'))
-   Settings.zCartFFT.ConjFlag = false;    
-end
-if(~isfield_recursive(Settings,'zCartFFT.Ifft_flag'))
-   Settings.zCartFFT.Ifft_flag = false;    
-end
-if(~isfield_recursive(Settings,'zCartFFT.FlipDim_flag'))
-    Settings.zCartFFT.FlipDim_flag = false;
-end
-if(~isfield_recursive(Settings,'zCartFFT.ApplyAlongDims'))
-    Settings.zCartFFT.ApplyAlongDims = [3];
-end
-
-if(~exist('Settings','var'))
-    Settings = struct;
+if(Settings.CutAwayFirstNPoints < 1)
+    Settings.CutAwayFirstNPoints = 1;
 end
 
 
-% Create MRStruct
-if(isstruct(DataFile) && isfield(DataFile,'DataFile'))
-    MRStruct = DataFile;
+
+
+
+%% Permute, Reshape & Cut Data
+
+% Assume data comes from unlocalized FID sequence
+if(numel(size(MRStruct.Data)) > 2)
+    MRStruct = op_PermuteMRData(MRStruct,[6 5 7 1 2 3 4]);
+    MRStruct = op_ReshapeMRData(MRStruct,[MRStruct.RecoPar.DataSize(1) prod(MRStruct.RecoPar.DataSize(2:end))]);
 else
-    MRStruct.DataFile = DataFile;
+    MRStruct = op_PermuteMRData(MRStruct,[2 1]);
 end
 
 
-
-
-
-
-%% Read, Average & Reshape Data
-
-[MRStruct, RefScan, NoiseScan] = io_ReadAndReshapeSiemensData(MRStruct.DataFile);
-
-% MRStruct = RefScan;
-
-
-
-%% Noise-decorrelate data
-
-if(isfield(NoiseScan,'Data') && ~isfield(AdditionalInput,'NoiseCorrMatStruct'))
-    % Create AdditionalInput.Noise
+% Cut away first N points, they sometimes contain signal
+if(Settings.CutAwayFirstNPoints > size(MRStruct.Data,2))
+    Settings.CutAwayFirstNPoints = size(MRStruct.Data,2);
 end
-    
-if(isfield(AdditionalInput,'NoiseCorrMatStruct'))
-   
-    MRStruct = op_PerformNoiseDecorrelation(MRStruct,AdditionalInput.NoiseCorrMatStruct);
-    if(isfield(RefScan,'Data'))
-        RefScan = op_PerformNoiseDecorrelation(RefScan,AdditionalInput.NoiseCorrMatStruct);
-    end
-    
+MRStruct.Data = MRStruct.Data(:,Settings.CutAwayFirstNPoints:end);
+
+
+
+%% Calc NoiseCorrMat
+
+if(nargout > 1)
+    AdditionalOut.NoiseData = MRStruct;
 end
 
-
-%% Reconstruct Cart Data
-
-if(~MRStruct.Par.dicom_flag)
-    
-    % Do z-fft before conj that is sometimes done in in-plane FFT
-    if(MRStruct.Par.nPartEnc > 1)
-        MRStruct = op_FFTOfMRIData_v2(MRStruct,Settings.zCartFFT);        
-    end
-    
-    MRStruct = op_FFTOfMRIData_v2(MRStruct,Settings.CartFFT);
-end
+MRStruct.Data = 1/(size(MRStruct.Data,2)) * (MRStruct.Data * MRStruct.Data');
+MRStruct.RecoPar.DataSize = size(MRStruct.Data);
 
 
-%% Slice Reco
+%% Postparations
+MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
 
-MRStruct = op_SliceReco(MRStruct);
 
 
 

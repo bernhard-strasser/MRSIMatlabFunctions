@@ -16,7 +16,8 @@ function [MRStructOut,Settings] = op_SumSpectralRange(MRStruct, Settings)
 %                                           it has to have field
 %                                           * .Data
 % -         Settings               ...      Structure with settings how data should be processed. Should have field:
-%                                           * .PermuteVec: Data will be permuted to according to this vector.
+%                                           * .SumSpectralRange_ppm: Range for summing.
+%                                           * .TakeRealAbsImagComplex: Function to call before summing, .e.g @abs, @real, @imag etc.
 %
 % Output:
 % -         MRStruct               ...      The structure containing the MR data. Can have different fields.

@@ -1,4 +1,4 @@
-function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRSIData(file)
+function [MRStruct,AdditionalOut] = op_ReconstructBorjanSpiralData(MRStruct,Settings)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -12,7 +12,7 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         file          ...  The Siemens twix-data file of the spiral sequence   
+% -         SpiralDataFile          ...  The Siemens twix-data file of the spiral sequence   
 % -         SpiralTrajectoryFile    ...  The trajectory file containing information about the k-space spiral trajectory.
 % -         Settings                ...  Struct with fields
 %                                           Debug: The Debug-settings. Subfields:
@@ -50,43 +50,95 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 if(~exist('Settings','var'))
     Settings = struct;
 end
-RefScan = [];           % For now not supported.
-AdditionalOut = [];
+
+if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
+    Settings.Debug.ShowTrajs = false;
+end
+
+if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_x_us'))
+   Settings.ReadInTraj.GradDelay_x_us = 8;    
+end
+if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_y_us'))
+   Settings.ReadInTraj.GradDelay_y_us = 8;    
+end
+% if(~isfield_recursive(Settings,'ReadInTraj.IncludeRewinder_flag'))
+%    Settings.ReadInTraj.IncludeRewinder_flag = false;    
+% end
+
+if(~isfield_recursive(Settings,'CalcOutTraj.fov_overgrid'))
+   Settings.CalcOutTraj.fov_overgrid = 1;    
+end
+if(~isfield_recursive(Settings,'CalcOutTraj.OverwriteDataSize_woOvergrid'))
+   Settings.CalcOutTraj.OverwriteDataSize_woOvergrid = [];    
+end
+
+if(~isfield_recursive(Settings,'NonCartReco.CircularSFTFoV_flag'))
+   Settings.NonCartReco.CircularSFTFoV_flag = true;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.Phaseroll_flag'))
+   Settings.NonCartReco.Phaseroll_flag = true;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.DensComp_flag'))
+   Settings.NonCartReco.DensComp_flag = true;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.DensComp.AutoScale_flag'))
+   Settings.NonCartReco.DensComp.AutoScale_flag = true;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.DensComp.Method'))
+   Settings.NonCartReco.DensComp.Method = 'SpiralHoge1997AbruptChanges';    
+end
+if(~isfield_recursive(Settings,'NonCartReco.ConjInkSpace_flag'))
+   Settings.NonCartReco.ConjInkSpace_flag = false;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.ConjIniSpace_flag'))
+   Settings.NonCartReco.ConjIniSpace_flag = true;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.Correct4SpatialB0_flag'))
+   Settings.NonCartReco.Correct4SpatialB0_flag = false;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.FlipDim_flag'))
+    Settings.NonCartReco.FlipDim_flag = false;
+end
 
 
-MRStruct.DataFile = file;
+%% Read Spiral Trajectory & Cartesian Trajectory
 
+[MRStruct] = sim_CalcCartTraj(MRStruct,Settings.CalcOutTraj);
 
-%% Read Data
-
-Bak = mapVBVD(file);
-MRStruct.Data = Bak.image();
-MRStruct.Par = read_ascconv(file);
-MRStruct.Par.dicom_flag = false;
-
-MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
-
-MRStruct.Data = single(MRStruct.Data);
-
-
-
-%% Define Dimorder & Permute Data
-
-% Define Dimorder
-
-MRStruct.Par.dimnames = Bak.image.dataDims;
-
-
-% Permute
-MRStruct = op_PermuteMRData(MRStruct,[11 3 4 5 1 2 6 7 8 9 10]);
+Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize spiral trajectory to maximum of Cartesian trajectory
+[MRStruct] = io_ReadSpiralTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
 
 
 
 
-%% Postparations
+%% Spring cleaning
 
-MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
+clearvars -except Settings MRStruct
 
+
+
+%% DEBUG: PLOT Spiral Trajectories
+
+if(Settings.Debug.ShowTrajs)
+    figure;
+    scatter(squeeze(MRStruct.OutTraj.GM(1,1,:)),squeeze(MRStruct.OutTraj.GM(2,1,:)),'b'), hold on   
+    for AngIntNo = 1:MRStruct.Par.nAngInts
+        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        plot(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+    end
+    hold off
+end
+
+
+
+%% Reconstruct Spiral Data
+
+[MRStruct,AdditionalOut.RecoOperators] = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
+
+
+%% Slice Reco
+
+MRStruct = op_SliceReco(MRStruct);
 
 
 

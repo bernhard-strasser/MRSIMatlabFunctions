@@ -1,4 +1,4 @@
-function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim_flag,FlipDim)
+function InData = FFTOfMRIData(InData,ConjFlag,ApplyAlongDims,Ifft_flag,quiet_flag,FlipDim)
 %
 % read_csi_dat Read in csi-data from Siemens raw file format
 %
@@ -62,14 +62,15 @@ end
 if(~exist('quiet_flag','var'))
     quiet_flag = false;
 end
-if(~exist('FlipDim_flag','var'))
     FlipDim_flag = true;
-end
 if(~exist('FlipDim','var'))
     FlipDim = 2;
 end
+if(FlipDim == 0 || isnan(FlipDim))
+    FlipDim_flag = false;
+end
 
-if(size(InData,2) == 1 && size(InData,3) == 1 && size(InData,4) == 1)
+if(all(size_MultiDims(InData,ApplyAlongDims) == 1))
 	InData = conj(InData);
 	fprintf('\nDid only conj, no fft.')
 	return;
@@ -93,10 +94,10 @@ size_InData = size(InData);
 MemNecessary = numel(InData)*8*2*2/2^20;							% every entry of InData is double --> 8 bytes. *2 because complex. *2 as safety measure (so InData fits 2 times in memory,
 																	% once it is already there and 2 more times it should fit in). /2^20 to get from bytes to MB.
 if(MemNecessary > MemFree)
-	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(1:end));	% Because the 1st index is the coil. We can never loop over the coils.
+	LoopOverIndex = MemFree ./ (MemNecessary./size_InData(1:end));
 	LoopOverIndex(LoopOverIndex < 1) = NaN;
 	LoopOverIndex(ApplyAlongDims) = NaN;
-	LoopOverIndex = find(nanmin(LoopOverIndex));
+	LoopOverIndex = find(nanmin(LoopOverIndex) == LoopOverIndex);
 	LoopOverIndex = LoopOverIndex(1);								% Only take the 1st if several are the minimum.
 	AccessString = [repmat(':,',[1 LoopOverIndex-1]) 'LoopIndex,' repmat(':,',[1 numel(size_InData)-LoopOverIndex])];
 	AccessString(end) = [];
@@ -112,8 +113,8 @@ tic_overall = tic;
 
 
 
-if(sum(ApplyAlongDims == 2) == 1 && Ifft_flag && FlipDim_flag)	% Only if the second dimension is to be applied
-	InData = flipdim(InData,2);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
+if(FlipDim_flag && sum(ApplyAlongDims == FlipDim) == 1 && Ifft_flag)	% Only if the FlipDim dimension is to be applied
+	InData = flip(InData,FlipDim);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
 end
 
 
@@ -173,8 +174,8 @@ end
 		
 	
 
-if(sum(ApplyAlongDims == 2) == 1 && ~Ifft_flag && FlipDim_flag)	% Only if the second dimension is to be applied
-	InData = flipdim(InData,FlipDim);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
+if(FlipDim_flag && sum(ApplyAlongDims == FlipDim) == 1 && ~Ifft_flag)	% Only if the FlipDim dimension is to be applied
+	InData = flip(InData,FlipDim);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
 end
 if(~quiet_flag)
     fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))

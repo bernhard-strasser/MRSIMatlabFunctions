@@ -1,4 +1,4 @@
-function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRSIData(file)
+function [MRStruct,AdditionalOut] = op_ReconstructImagingGREData(MRStruct,Settings)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -12,7 +12,7 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         file          ...  The Siemens twix-data file of the spiral sequence   
+% -         SpiralDataFile          ...  The Siemens twix-data file of the spiral sequence   
 % -         SpiralTrajectoryFile    ...  The trajectory file containing information about the k-space spiral trajectory.
 % -         Settings                ...  Struct with fields
 %                                           Debug: The Debug-settings. Subfields:
@@ -50,42 +50,39 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 if(~exist('Settings','var'))
     Settings = struct;
 end
-RefScan = [];           % For now not supported.
-AdditionalOut = [];
 
 
-MRStruct.DataFile = file;
+% MRStruct.Data = EllipticalFilter(MRStruct.Data,[1 2],[2 1 1 32],1);
+% MRStruct = op_XFillOrCutData(MRStruct,struct('Zerofill_To',[128 64 1 1 1 32 2],'PerformFFT_flag',0));
+% MRStruct.RecoPar.nFreqEnc = 64;
+% MRStruct.RecoPar.OversamplingFactor = 2;
 
 
-%% Read Data
+%% Fourier Transform Data
 
-Bak = mapVBVD(file);
-MRStruct.Data = Bak.image();
-MRStruct.Par = read_ascconv(file);
-MRStruct.Par.dicom_flag = false;
-
-MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
-
-MRStruct.Data = single(MRStruct.Data);
+MRStruct = op_FFTOfMRIData_v2(MRStruct,struct('ApplyAlongDims',[1 2 3],'ConjFlag',0,'FlipDim',1));
 
 
+%% Slice Reco
 
-%% Define Dimorder & Permute Data
-
-% Define Dimorder
-
-MRStruct.Par.dimnames = Bak.image.dataDims;
-
-
-% Permute
-MRStruct = op_PermuteMRData(MRStruct,[11 3 4 5 1 2 6 7 8 9 10]);
+MRStruct = op_SliceReco(MRStruct);
 
 
 
+%% Assymmetric Echo Zerofilling
 
-%% Postparations
+if(MRStruct.RecoPar.DataSize(1) < MRStruct.RecoPar.nFreqEnc*MRStruct.RecoPar.OversamplingFactor )
+    NewDataSize = MRStruct.RecoPar.DataSize; NewDataSize(1) = MRStruct.Par.nFreqEnc*MRStruct.RecoPar.OversamplingFactor;
+    MRStruct = op_XFillOrCutData(MRStruct,struct('X',0,'Zerofill_To',NewDataSize,'AppendZerosTo',{{'Beginning'}}));
+end
 
-MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
+
+%% Remove Oversampling
+
+if(MRStruct.RecoPar.OversamplingFactor > 1)
+    Sz = MRStruct.RecoPar.DataSize; Sz(1) = Sz(1)/MRStruct.RecoPar.OversamplingFactor;
+    MRStruct = op_XFillOrCutData(MRStruct,struct('Zerofill_To',Sz));
+end
 
 
 

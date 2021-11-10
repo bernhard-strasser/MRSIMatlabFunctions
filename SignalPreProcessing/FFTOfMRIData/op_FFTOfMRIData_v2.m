@@ -78,9 +78,6 @@ end
 if(~isfield(Settings,'quiet_flag'))
     Settings.quiet_flag = false;
 end
-if(~isfield(Settings,'FlipDim_flag'))
-    Settings.FlipDim_flag = true;
-end
 if(~isfield(Settings,'FlipDim'))
     Settings.FlipDim = 1;
 end
@@ -103,9 +100,9 @@ end
 
 %% Call FFT Function
 
-MRStruct.Data = FFTOfMRIData(MRStruct.Data,Settings.ConjFlag,Settings.ApplyAlongDims,Settings.Ifft_flag,Settings.quiet_flag,Settings.FlipDim_flag,Settings.FlipDim);
+MRStruct.Data = FFTOfMRIData(MRStruct.Data,Settings.ConjFlag,Settings.ApplyAlongDims,Settings.Ifft_flag,Settings.quiet_flag,Settings.FlipDim);
 if(isfield(MRStruct,'NoiseData'))
-    MRStruct.NoiseData = FFTOfMRIData(MRStruct.NoiseData,Settings.ConjFlag,Settings.ApplyAlongDims,Settings.Ifft_flag,Settings.quiet_flag,Settings.FlipDim_flag,Settings.FlipDim);    
+    MRStruct.NoiseData = FFTOfMRIData(MRStruct.NoiseData,Settings.ConjFlag,Settings.ApplyAlongDims,Settings.Ifft_flag,Settings.quiet_flag,Settings.FlipDim);    
 end
 
 

@@ -121,6 +121,7 @@ csi_complex(isnan(csi_complex)) = 0;
 
 % Reshape to 6D-Matrix
 csi = zeros(total_channel_no,ROW,COL,SLC,1,vecSize);
+csi = complex(csi,csi);
 
 k=-1;
 for z=1:SLC

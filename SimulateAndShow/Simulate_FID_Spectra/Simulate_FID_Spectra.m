@@ -1,4 +1,4 @@
-function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,DeltaFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,CentreFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
 %
 % Simulate_FID_Spectra Simulates FIDs.
 %
@@ -48,7 +48,7 @@ end
 
 %% Define frequency and time
 
-omega = LarmorFreq * (1 + (Chemshift - DeltaFrequency)/10^6) * 2*pi;
+omega = LarmorFreq * (Chemshift - CentreFrequency)/10^6 * 2*pi;
 
 % Define time
 t_end = AcqDelay + dwelltime*(vecSize - 1);
@@ -74,7 +74,7 @@ Noise = std_FID*complex(randn([1 vecSize]), randn([1 vecSize])); % Is real and i
 
 %% Create FIDs
 
-FID = [t; S_0 * exp(-(omega - LarmorFreq*2*pi) * 1i*t).*exp(-t/T2)*exp(1i*deg2rad(phase0)) + Noise];
+FID = [t; S_0 * exp(-omega * 1i*t).*exp(-t/T2)*exp(1i*deg2rad(phase0)) + Noise];
 
 
 
@@ -92,7 +92,7 @@ end
 
 %% Compute PPM-Scale
 
-Chemshift = compute_chemshift_vector_1_2(LarmorFreq,dwelltime,numel(FID(2,:))) - (4.65 - DeltaFrequency);     % Dont ask me why we need to subtract 4.65... Somehow in my code water should be always centered...
+Chemshift = compute_chemshift_vector(LarmorFreq,dwelltime,numel(FID(2,:)),CentreFrequency);   
 
 
 %% FFT

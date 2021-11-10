@@ -1,4 +1,4 @@
-function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRSIData(file)
+function [MRStruct,AdditionalOut] = op_ReconstructCartMRSI(MRStruct,Settings)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -12,7 +12,7 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         file          ...  The Siemens twix-data file of the spiral sequence   
+% -         SpiralDataFile          ...  The Siemens twix-data file of the spiral sequence   
 % -         SpiralTrajectoryFile    ...  The trajectory file containing information about the k-space spiral trajectory.
 % -         Settings                ...  Struct with fields
 %                                           Debug: The Debug-settings. Subfields:
@@ -50,43 +50,16 @@ function [MRStruct,RefScan,AdditionalOut] = io_ReadAverageReshapePhaseEncodedMRS
 if(~exist('Settings','var'))
     Settings = struct;
 end
-RefScan = [];           % For now not supported.
-AdditionalOut = [];
 
 
-MRStruct.DataFile = file;
+%% Fourier Transform Data
+
+MRStruct = op_FFTOfMRIData_v2(MRStruct,struct('ApplyAlongDims',[1 2 3],'ConjFlag',1,'FlipDim',1));
 
 
-%% Read Data
+%% Slice Reco
 
-Bak = mapVBVD(file);
-MRStruct.Data = Bak.image();
-MRStruct.Par = read_ascconv(file);
-MRStruct.Par.dicom_flag = false;
-
-MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
-
-MRStruct.Data = single(MRStruct.Data);
-
-
-
-%% Define Dimorder & Permute Data
-
-% Define Dimorder
-
-MRStruct.Par.dimnames = Bak.image.dataDims;
-
-
-% Permute
-MRStruct = op_PermuteMRData(MRStruct,[11 3 4 5 1 2 6 7 8 9 10]);
-
-
-
-
-%% Postparations
-
-MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
-
+MRStruct = op_SliceReco(MRStruct);
 
 
 

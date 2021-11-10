@@ -51,7 +51,7 @@ if(~isfield(MRStruct,'RecoPar'))
     end
     MRStruct.RecoPar = MRStruct.Par;
 end
-MRStruct.RecoPar.DataSize = [size_MultiDims(MRStruct.OutTraj.GM,[3 4]) MRStruct.RecoPar.nPartEnc MRStruct.RecoPar.nSLC ...
+TmpDataSize = [size_MultiDims(MRStruct.OutTraj.GM,[3 4]) MRStruct.RecoPar.nPartEnc MRStruct.RecoPar.nSLC ...
                            MRStruct.RecoPar.vecSize MRStruct.RecoPar.total_channel_no_measured];
 
 
@@ -94,9 +94,9 @@ end
 Sign = ConjSign * Sign;
 
 PRS=Rot*LPH';
-FOVShift = cellfun( @(x) transpose(exp(Sign*1i*x(1,:)/0.5*MRStruct.RecoPar.DataSize(2)*pi*-PRS(2)/MRStruct.RecoPar.FoV_Read)), MRStruct.InTraj.GM , 'uni', false);
+FOVShift = cellfun( @(x) transpose(exp(Sign*1i*x(1,:)/0.5*TmpDataSize(2)*pi*-PRS(2)/MRStruct.RecoPar.FoV_Read)), MRStruct.InTraj.GM , 'uni', false);
 
-FOVShift2 = cellfun( @(x) transpose(exp(Sign*1i*x(2,:)/0.5*MRStruct.RecoPar.DataSize(1)*pi*PRS(1)/MRStruct.RecoPar.FoV_Phase)),MRStruct.InTraj.GM,'uni',false);
+FOVShift2 = cellfun( @(x) transpose(exp(Sign*1i*x(2,:)/0.5*TmpDataSize(1)*pi*PRS(1)/MRStruct.RecoPar.FoV_Phase)),MRStruct.InTraj.GM,'uni',false);
 
 MRStruct.Data = cellfun( @(x,y,z) x.*(y.*z),MRStruct.Data, FOVShift,FOVShift2,'uni',false);
 
