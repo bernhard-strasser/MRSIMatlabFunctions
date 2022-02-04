@@ -76,11 +76,12 @@ if(~isfield(CoilWeightMap,'Mask'))
     CoilWeightMap.Mask = ones(size_MultiDims(CoilWeightMap.Data,[1 2 3])); 
 end
 
-if(MRStruct.RecoPar.total_channel_no_reco == 1)
-   AdditionalOut.CoilWeightMap = 1;
-   AdditionalOut.Mask = 1;
-   AdditionalOut.Scaling = 1;
-   return; 
+
+if(numel(CoilWeightMap.Data) == 1)
+    AdditionalOut.CoilWeightMap = CoilWeightMap.Data;
+    AdditionalOut.Mask = 1;
+    AdditionalOut.Scaling = 1;
+    return;
 end
 
 
@@ -128,7 +129,7 @@ end
 
 %% Postparations
 
-MRStruct.RecoPar.DataSize = MRStruct.RecoPar.DataSize(1:end-1);
+MRStruct.RecoPar.DataSize(5) = 1;
 MRStruct.RecoPar.total_channel_no_reco = 1;
 
 MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);

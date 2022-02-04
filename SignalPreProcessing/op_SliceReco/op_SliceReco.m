@@ -61,7 +61,7 @@ end
 
 %% Update RecoPar
 
-MRStruct.RecoPar.DataSize = size(MRStruct.Data);
+MRStruct.RecoPar.DataSize = cat(2,size(MRStruct.Data),ones([1 6-ndims(MRStruct.Data)]));
 MRStruct.RecoPar.nSLC = 1;
 
 

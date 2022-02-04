@@ -63,8 +63,8 @@ DeltaGM = 10^9/(FoV*DataStruct.Par.GyroMagnRatioOverTwoPi);           % in mT/m 
 % Calculate a Grid for PhaseEncoding Steps
 [bla_x, bla_y] = find(ones(DataSize(1)));
 
-DataStruct.OutTraj.GM(1,1,:) = bla_x - floor(DataSize(1)/2) - 1; 
-DataStruct.OutTraj.GM(2,1,:) = bla_y - floor(DataSize(1)/2) - 1; 
+DataStruct.OutTraj.GM(1,1,:) = bla_x - floor(DataSize(1)/2) - 0.5; 
+DataStruct.OutTraj.GM(2,1,:) = bla_y - floor(DataSize(1)/2) - 0.5; 
 
 DataStruct.OutTraj.GM = reshape(DataStruct.OutTraj.GM * DeltaGM,[2 1 DataSize(1:2)]);
 

@@ -87,8 +87,12 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     ticcyReadAverageReshape = tic;
     fprintf('\n\tReading, Averaging & Reshaping data\t...\n')
     [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,'ONLINE');
-    [MRStruct_refscan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct_refscan,'PATREFSCAN');
-    MRStruct_Noise = ReshapeNoisePrescan(MRStructRaw);
+    if(nargout > 1)
+    	[MRStruct_refscan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct_refscan,'PATREFSCAN');
+    end
+    if(nargout > 2)
+    	MRStruct_Noise = ReshapeNoisePrescan(MRStructRaw);
+    end
     clear MRStructRaw;
     fprintf('\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadAverageReshape))
 
@@ -105,8 +109,9 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     %% The End
 
     MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
-    MRStruct_refscan = supp_UpdateRecoSteps(MRStruct_refscan,Settings);
-    
+    if(nargout > 1)    
+    	MRStruct_refscan = supp_UpdateRecoSteps(MRStruct_refscan,Settings);
+    end
     
     fprintf('\nTotal Read, Average, Reshape\t\t\t...\ttook\t%10.6f seconds',toc(TicTotal))
 end
@@ -220,7 +225,8 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
     end
 
     MRStruct.Par.nAngInts = MRStructRaw.mdhInfo.PATREFSCAN.NLin;
-    
+    MRStruct.Par.ReadoutOSFactor = MRStructRaw.Hdr.Dicom.flReadoutOSFactor;
+    MRStruct.Par.Dwelltimes = MRStruct.Par.Dwelltimes*MRStruct.Par.ReadoutOSFactor/2;
     
     MRStruct.Par.nTempIntsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
     MRStruct.Par.nPartEncsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
@@ -233,12 +239,12 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
                                                                                                 % so it should be (1,2,3,4,5,6,7,8).
         MRStruct.Par.nADCsPerAngInt(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Ida(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));     
         MRStruct.Par.nPtsPerADC(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Col(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
-        MRStruct.Par.TrajPts(CurCrcl) = 2*max(MRStructRaw.mdhInfo.(CurDataset).iceParam(6,MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));     % 2 because of ADC-oversampling!
+        MRStruct.Par.TrajPts(CurCrcl) = MRStruct.Par.ReadoutOSFactor*max(MRStructRaw.mdhInfo.(CurDataset).iceParam(6,MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
 
     end
         
     if(any(MRStruct.Par.TrajPts == 0))  % For Lukas's sequence, he writes the TrajPts into Idc 
-        MRStruct.Par.TrajPts = repmat(2*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
+        MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
     end
 
     % Define which angular interleaves are measured for each kz (matrix of nPartEncmax x nCircles)
@@ -276,11 +282,23 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 
     end
     if(MRStruct.Par.vecSize <= 0)
-        % What's that for?
-    %     if(MRStruct.Par.VTI_Flag)
-    %         MRStruct.Par.vecSize = floor(MRStruct.Par.vecSize  / factorial(max(MRStruct.Par.nTempIntsPerAngInt))) * factorial(max(MRStruct.Par.nTempIntsPerAngInt)); 
-    %     end
+
         MRStruct.Par.vecSize = round(MRStruct.Par.nPtsPerADC(1)*MRStruct.Par.nADCsPerAngInt(1)/MRStruct.Par.TrajPts(1)*MRStruct.Par.nTempIntsPerAngInt(1)-0.5);
+
+        % vecSize must be dividable by least common multiple of all TIs
+        lcmm = 1;
+        MaxTIs = max(MRStruct.Par.nTempIntsPerAngInt);
+        if(all(MRStruct.Hdr.Dicom.alICEProgramPara == 0))   % Detect if we are dealing with Lukis original sequence. He always uses as max TI = 3
+           MaxTIs = 3;                                        % no matter what real TIs are
+        end
+        for jk = 2:MaxTIs                
+            lcmm = lcm(lcmm,jk);
+        end
+        if(MRStruct.Par.VTI_Flag)
+            MRStruct.Par.vecSize = floor(MRStruct.Par.vecSize  / lcmm) * lcmm; 
+        end
+        
+        
     end
     MRStruct.Par.UsefulADCPtsPerAngInt=MRStruct.Par.vecSize./MRStruct.Par.nTempIntsPerAngInt.*MRStruct.Par.TrajPts;
     MRStruct.Par.ADCdtPerAngInt_ns = MRStruct.Par.Dwelltimes(1).*MRStruct.Par.nTempIntsPerAngInt./MRStruct.Par.TrajPts;       

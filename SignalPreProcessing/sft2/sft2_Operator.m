@@ -83,12 +83,7 @@ NOut = size(OutTraj,1);
 
 %% 1. FT
 
-
-sft2_Oper = zeros([size(OutTraj,1) size(InTraj,1)]);
-for j=1:NOut
-    sft2_Oper(j,:) = exp(Expy*( OutTraj(j,1)*InTraj(:,1) + OutTraj(j,2)*InTraj(:,2) ));
-end
-
+sft2_Oper = exp(Expy*( OutTraj*transpose(InTraj)));
 
 
 %% Normalize
@@ -97,6 +92,7 @@ end
 % sft2Operator = sft2Operator / (size(InTraj,1)); 
 
 if(Ift_flag)
-   sft2_Oper = sft2_Oper / (size(InTraj,1)); 
+%    sft2_Oper = sft2_Oper / size(InTraj,1);            % bstr: changed
+   sft2_Oper = sft2_Oper / sqrt(size(InTraj,1));        % bstr: changed
 end
 

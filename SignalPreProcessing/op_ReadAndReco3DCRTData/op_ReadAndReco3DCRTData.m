@@ -1,4 +1,4 @@
-function [MRStruct,AdditionalOut] = op_ReadAndReco3DCRTData(DataFile,TrajectoryFile,Settings)
+function [MRStruct,RefScan,AdditionalOut] = op_ReadAndReco3DCRTData(DataFile,TrajectoryFile,Settings)
 %
 % op_ReadAndReco3DCRTData Read and reconstruct data from ViennaCRT MRSI Sequence
 %
@@ -131,7 +131,11 @@ end
 
 %% Reshape, Average & Reshape Data
 
-[MRStruct, RefScan] = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);
+if(nargout > 1)
+    [MRStruct, RefScan] = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);
+else
+    MRStruct = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);    
+end
 % MRStruct = RefScan;
 
 
@@ -157,8 +161,11 @@ if(Settings.Debug.ShowTrajs)
     figure;
     scatter(squeeze(MRStruct.OutTraj.GM(1,1,:)),squeeze(MRStruct.OutTraj.GM(2,1,:)),'b'), hold on   
     for AngIntNo = 1:MRStruct.Par.nAngInts
-        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,3:end)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,3:end)),30,'r')
         plot(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
+        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,1)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,1)),30,'m')
+        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,2)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,2)),	30,'g')
+
     end
     hold off
 end

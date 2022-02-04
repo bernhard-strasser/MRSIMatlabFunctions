@@ -69,7 +69,7 @@ for ii = 1:numel(FilesToZip)
     
     CurFileToZip = which(FilesToZip{ii});
     if(numel(CurFileToZip) == 0)
-        fprintf('\nProblem: Function or Script\n%s\ndoes not exist.\n',FilesToZip)
+        fprintf('\nProblem: Function or Script\n%s\ndoes not exist.\n',FilesToZip{ii})
         continue;
     end
 

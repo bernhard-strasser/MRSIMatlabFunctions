@@ -118,8 +118,9 @@ else
     SizeSamp = cellfun(@size,Operators.SamplingOperator,'uni',false);
     
     test = cat(1,Operators.InDataSize{:}); 
+    test2 = cat(1,SizeSamp{:}); test2 = cat(2,test2,ones([size(test2,1) 5-size(test2,2)]));
     
-    [UnequalSizesInd_AngIntDim,UnequalSizesInd_VecDim] = find(test(:,1:5) ~= cat(1,SizeSamp{:}));
+    [UnequalSizesInd_AngIntDim,UnequalSizesInd_VecDim] = find(test(:,1:5) ~= test2);
     if(~isempty(UnequalSizesInd_AngIntDim))
         st = dbstack;
         FunName = st(1).name;
@@ -153,21 +154,39 @@ if(Settings.Phaseroll_flag)
 
     
     for ii = 1:nc
+%         timeoffset = 0:(ns(ii)-1);
+%         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
+%         Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+%         Freq = myrepmat(Freq,size(timeoffset));    
+% 
+%         % This comes from:
+%         % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
+%         % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
+%         % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
+%         % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
+%         % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
+%         % the same anyway
+
+
+
+%         % Symmetrized frequencies. Here I assume that my spectrum is symmetric around 0. 
+%         % E.g. SBW = 20, vs = 20. Can make spectrum go from -10:1:9, or from -9:1:10, or from -9.5:1:9.5. Here I chose the last option. 
+%         % Before that change, I assumed the first option.
         timeoffset = 0:(ns(ii)-1);
         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
-        Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+        Freq = ((0:vs-1)/vs+0.5*(1/vs-1))/(nrew + ns(ii)).*nTI(ii);
         Freq = myrepmat(Freq,size(timeoffset));    
 
         % This comes from:
         % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
         % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
-        % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
-        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
-        % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
-        % the same anyway
+        % Freq = -sBW/2 + SBW/(2vs) : sBW/vs : (sBW/2 - sBW/(2vs)) = SBW/vs* (-vs/2+0.5 : vs/2-0.5) = SBW/vs* [(0:vs-1) -vs/2+0.5] = 
+        % = SBW* [(0:vs-1)/vs - 0.5+0.5*vs] = SBW* [(0:vs-1)/vs + 0.5*(vs - 1)] = 
+        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted.
+        
 
         phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
-        Sizzy = size(Output.Data{ii});      % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
+        Sizzy = size(Output.Data{ii}); Sizzy = cat(2,Sizzy,ones([1 5-numel(Sizzy)]));     % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
         phasecorr = reshape(phasecorr,[Sizzy(1:5) 1]); clear Sizzy
     %     phasecorr = myrepmat(phasecorr,size(Output.Data));
     %     phasecorr = conj(phasecorr);
@@ -232,8 +251,8 @@ end
 
 %% Mask
 
-if(isfield_recursive(AdditionalIn,'B0.BrainMask'))
-    Mask = imresize(AdditionalIn.B0.BrainMask,Operators.OutDataSize(1:2),'nearest');
+if(isfield_recursive(AdditionalIn,'B0.Mask'))
+    Mask = imresize(AdditionalIn.B0.Mask,Operators.OutDataSize(1:2),'nearest');
     Operators.Mask = Mask;
 else
     Mask = ones(Operators.OutDataSize(1:2)); 
@@ -292,9 +311,11 @@ if(isfield(AdditionalIn,'SensMap'))
     Settss.ResizeMethod = 'Imresize';
     Settss.ScalingMethod = 'UniformSensitivity';
     Dummy2.Data = ones([Operators.OutDataSize Output.Par.total_channel_no_measured]); 
-    Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = size(Dummy2.Data);  %Dummy2.Par = Output.Par; 
+    Dummy2.RecoPar = Output.RecoPar; Dummy2.RecoPar.DataSize = cat(2,size(Dummy2.Data),ones([1 6-ndims(Dummy2.Data)]));  %Dummy2.Par = Output.Par; 
     [DeleteMe, AddOut] = op_CoilCombineData(Dummy2,AdditionalIn.SensMap,Settss);
-    Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:) .* AddOut.Scaling;
+    Operators.SensMap = AddOut.CoilWeightMap(:,:,:,1,:);
+%     Operators.SensMap = Operators.SensMap .* AddOut.Scaling/nanmean(Tmp(:)); clear Tmp     
+    
     clear DeleteMe AddOut Settss;
 
     Operators.SensMap(isinf(Operators.SensMap) | isnan(Operators.SensMap)) = 0;
@@ -303,6 +324,9 @@ else
 end
 
 
+%% Adjoint sft2 Operator
+
+Operators.sft2_Oper_Adjoint = Operators.sft2_Oper';
 
 
 %%

@@ -151,21 +151,42 @@ if(Settings.Phaseroll_flag)
 
     
     for ii = 1:nc
+%         timeoffset = 0:(ns(ii)-1);
+%         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
+%         Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+%         Freq = myrepmat(Freq,size(timeoffset));    
+% 
+%         % This comes from:
+%         % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
+%         % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
+%         % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
+%         % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
+%         % the rest is basically the same, (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to sBW*((0:vs-1)/vs-0.5) and the other constants are
+%         % the same anyway
+        
+        
+        
+        % Symmetrized frequencies. Here I assume that my spectrum is symmetric around 0. 
+        % E.g. SBW = 20, vs = 20. Can make spectrum go from -10:1:9, or from -9:1:10, or from -9.5:1:9.5. Here I chose the last option. 
+        % Before that change, I assumed the first option.
         timeoffset = 0:(ns(ii)-1);
         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
-        Freq = ((0:vs-1)/vs-0.5)/(nrew + ns(ii)).*nTI(ii);
+        Freq = ((0:vs-1)/vs+0.5*(1/vs-1))/(nrew + ns(ii)).*nTI(ii);
         Freq = myrepmat(Freq,size(timeoffset));    
 
         % This comes from:
         % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
         % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
-        % Freq = -sBW/2 : sBW/vs : (sBW/2 - sBW/vs);
-        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted
-        % the rest is basically the same (-sBW/2:sBW/vs:(sBW/2-sBW/vs) is equivalent to ((0:vs-1)/vs-0.5), and the other constants are
-        % the same anyway
+        % Freq = -sBW/2 + SBW/(2vs) : sBW/vs : (sBW/2 - sBW/(2vs)) = SBW/vs* (-vs/2+0.5 : vs/2-0.5) = SBW/vs* [(0:vs-1) -vs/2+0.5] = 
+        % = SBW* [(0:vs-1)/vs - 0.5+0.5*vs] = SBW* [(0:vs-1)/vs + 0.5*(vs - 1)] = 
+        % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted.
+        
+        
+        
+        
 
         phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
-        Sizzy = size(Output.Data{ii});      % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
+        Sizzy = size(Output.Data{ii});  Sizzy = cat(2,Sizzy,ones([1 5-numel(Sizzy)]));    % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
         phasecorr = reshape(phasecorr,[Sizzy(1:2) 1 Sizzy(4:5) 1]); clear Sizzy
     %     phasecorr = myrepmat(phasecorr,size(Output.Data));
     %     phasecorr = conj(phasecorr);
@@ -281,7 +302,7 @@ end
 
 %% Perform Reconstruction in Slice and z-dimension
 
-Size = size(Output.Data);
+Size = size(Output.Data); Size = cat(2,Size,ones([1 6-numel(Size)]));
 
 if(Size(3) > 1 && Settings.PerformZFFT_flag)
     Output.Data = FFTOfMRIData(Output.Data,0,3,0,1,0);
