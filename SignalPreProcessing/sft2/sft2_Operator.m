@@ -92,7 +92,7 @@ sft2_Oper = exp(Expy*( OutTraj*transpose(InTraj)));
 % sft2Operator = sft2Operator / (size(InTraj,1)); 
 
 if(Ift_flag)
-%    sft2_Oper = sft2_Oper / size(InTraj,1);            % bstr: changed
-   sft2_Oper = sft2_Oper / sqrt(size(InTraj,1));        % bstr: changed
+   sft2_Oper = sft2_Oper / size(InTraj,1);            % bstr: changed
+%    sft2_Oper = sft2_Oper / sqrt(size(InTraj,1));        % bstr: changed
 end
 
