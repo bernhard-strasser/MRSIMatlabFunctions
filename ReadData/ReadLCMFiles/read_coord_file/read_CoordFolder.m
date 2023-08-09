@@ -45,6 +45,15 @@ if(exist('MRSISizeOrMRSIPar','var'))
     end
 end
 
+FolderWasTarFile_flag = false;
+if(endsWith(file_path,'.gz'))
+    FolderWasTarFile_flag = true;
+    Filepartss = fileparts(file_path);
+    tmpdir = [Filepartss '/tmpppp_' num2str(randi(10^6))];
+    mkdir(tmpdir);
+    untar(file_path,tmpdir);
+    file_path = [tmpdir '/CoordFiles'];
+end
 
 
 
@@ -99,4 +108,11 @@ for Ind = 1:numel(CoordFiles_Full)
 end
 
 
+
+%% 
+
+if(FolderWasTarFile_flag)
+    rmdir(tmpdir,'s')
+    
+end
 

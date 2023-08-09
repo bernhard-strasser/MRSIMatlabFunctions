@@ -1,4 +1,4 @@
-function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,CentreFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan)
+function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,CentreFrequency,phase0,AcqDelay,T2,S_0,SNR,dwelltime,vecSize,LarmorFreq,SmoothFIDSpan,Echo_flag)
 %
 % Simulate_FID_Spectra Simulates FIDs.
 %
@@ -43,7 +43,12 @@ function [FID,Spectrum] = Simulate_FID_Spectra(Chemshift,CentreFrequency,phase0,
 if(~exist('SNR','var'))
     SNR = 0;
 end
-
+if(~exist('Echo_flag','var'))
+    Echo_flag = false;
+end
+if(exist('SmoothFIDSpan','var') && isempty(SmoothFIDSpan))
+    clear SmoothFIDSpan;
+end
 
 
 %% Define frequency and time
@@ -51,9 +56,13 @@ end
 omega = LarmorFreq * (Chemshift - CentreFrequency)/10^6 * 2*pi;
 
 % Define time
-t_end = AcqDelay + dwelltime*(vecSize - 1);
-t=AcqDelay:dwelltime:t_end;
-
+if(Echo_flag)
+    t = (-(floor(vecSize/2)-1):ceil(vecSize/2)) - 1;
+else
+    t=0:(vecSize - 1);
+end
+t = t*dwelltime;
+t = t+AcqDelay;
 
 
 
@@ -74,7 +83,12 @@ Noise = std_FID*complex(randn([1 vecSize]), randn([1 vecSize])); % Is real and i
 
 %% Create FIDs
 
-FID = [t; S_0 * exp(-omega * 1i*t).*exp(-t/T2)*exp(1i*deg2rad(phase0)) + Noise];
+if(Echo_flag)
+    Expy = cat(2,exp(t(1:floor(vecSize/2))/T2),exp(-t(floor(vecSize/2)+1:end)/T2));
+else
+    Expy = exp(-t/T2);   
+end
+FID = [t; S_0 * exp(-omega * 1i*t).*Expy*exp(1i*deg2rad(phase0)) + Noise];
 
 
 

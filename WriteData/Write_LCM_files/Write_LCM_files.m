@@ -85,7 +85,24 @@ if(isstruct(InArray))
 	if(isfield(InArray,'watref') && numel(InArray.watref) > 1)	% Ignore if there is some field which is not water ref
 		WaterReference = InArray.watref;
 	end
+    if(isfield(InArray,'csi'))
 	InArray = InArray.csi;
+    elseif(isfield(InArray,'Data'))
+        if(isfield(InArray,'RecoPar'))
+            Parr = InArray.RecoPar;
+        elseif(isfield(InArray,'Par'))
+            Parr = InArray.Par;            
+        end
+        
+        if(~isfield(MetaInfo,'dwelltime'))
+            MetaInfo.dwelltime = Parr.Dwelltimes(1);
+        end
+        if(~isfield(MetaInfo,'LarmorFreq'))
+            MetaInfo.LarmorFreq = Parr.LarmorFreq;
+        end
+        
+        InArray = InArray.Data;
+    end
 end
 
 % The function can only handle Input Array with 6 dimensions. Quit function if input is larger.
@@ -115,7 +132,7 @@ if(~exist('mask','var') || numel(mask) <= 1)
 end
 if(~exist('CPU_cores','var'))
     CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
-	CPU_cores(CPU_cores > 8) = 8;
+	CPU_cores(CPU_cores > 20) = 20;
 end
 if(exist('ControlInfo','var') && isnumeric(ControlInfo))
 	clear ControlInfo;				% Easier to handle this way

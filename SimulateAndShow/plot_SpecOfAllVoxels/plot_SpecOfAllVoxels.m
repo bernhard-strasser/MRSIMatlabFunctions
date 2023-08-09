@@ -51,14 +51,16 @@ end
 if(~isfield(Settings,'TakeRealAbsImagComplex'))
     Settings.TakeRealAbsImagComplex = @abs;
 end
+if(~isfield(Settings,'PlotIndividualSpectra_flag'))
+    Settings.PlotIndividualSpectra_flag = false;
+end
 
 
 %% 
 
-MRStruct.Data = MRStruct.Data(:,:,:,:,1);
 MRStruct.Data = MRStruct.Data .* Mask;
 MRStruct.Data = feval(Settings.TakeRealAbsImagComplex,(fftshift(fft(MRStruct.Data,[],4),4)));
-MRStruct.Data = permute(MRStruct.Data,[4 1 2 3]);
+MRStruct.Data = permute(MRStruct.Data,[4 1 2 3 5 6 7 8 9 10]);
 
 
 if(isfield(MRStruct,'RecoPar'))
@@ -83,8 +85,10 @@ if(isfield(Settings,'PlotPPMRange'))
 end
 
 
-figure; plot(chemy,sum(MRStruct.Data(:,:),2))
-figure; plot(chemy,MRStruct.Data(:,:))
+figure; plot(chemy,sum(MRStruct.Data(:,:),2)); title('Summed Spectrum')
 
+if(Settings.PlotIndividualSpectra_flag)
+    figure; plot(chemy,MRStruct.Data(:,:)); title('Individual Spectra')
+end
 
 
