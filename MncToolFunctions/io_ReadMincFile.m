@@ -1,13 +1,14 @@
-function image = ReadMncFile(MncFile)
-% read_MncFiles Read a simple binary 'raw' file, e.g. created by mnc2raw
+function image = io_ReadMincFile(MncFile)
+% read_MncFiles Read a minc file
 %
-% This function was written by Bernhard Strasser, July 2012.
-%
-%
-% The function 
+% This function was written by Bernhard Strasser, September 2020.
 %
 %
-% image = read_MncFiles(MncFile,ROW,COL,SLC,precision)
+% The function can read a minc-file. It uses minc-info to determine header info, then converts the
+% minc file to rawfile using mnc2raw, and then reads the raw-file.
+%
+%
+% image = io_ReadMincFile(MncFile)
 %
 % Input: 
 % -         MncFile                       ...     Path of file.
