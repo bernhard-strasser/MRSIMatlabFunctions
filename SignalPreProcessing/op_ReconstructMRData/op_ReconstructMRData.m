@@ -36,7 +36,7 @@ function [MRStruct] = op_ReconstructMRData(MRStruct,NoiseStruct,Settings)
 
 %% 0. Preparations
 
-if(~isstruct(MRStruct) || numel(fieldnames(MRStruct)) < 1)
+if(~isstruct(MRStruct) || numel(fieldnames(MRStruct)) < 1 || ~isfield(MRStruct,'Data'))
     return;
 end
 
@@ -53,8 +53,8 @@ end
 if(Settings.PreWhitenData_flag)
     % Determine if NoiseData is available
     if( isfield(NoiseStruct,'Data') && ~isempty(NoiseStruct.Data) )
-        NoiseStruct = op_PermuteMRData(NoiseStruct,[2,1]);
-        MRStruct = op_NoiseDecorrelateData(MRStruct,NoiseStruct);
+        NoiseMat = op_CalcNoiseCorrMat(NoiseStruct);
+        MRStruct = op_PerformNoiseDecorrelation(MRStruct,NoiseMat);
     end
 end
 
@@ -70,6 +70,11 @@ elseif(strcmpi(MRStruct.Par.AssumedSequence,'CSIOrSVS'))
     MRStruct = op_ReconstructCartMRSI(MRStruct,Settings);
 elseif(strcmpi(MRStruct.Par.AssumedSequence,'Imaging_GRE'))
     MRStruct = op_ReconstructImagingGREData(MRStruct,Settings);
+elseif(strcmpi(MRStruct.Par.AssumedSequence,'AntoinesEccentricOrRosette')) % SB2022
+
+    Settings.NonCartReco.DensComp.Method = 'AntoinesVoronoi';
+
+    MRStruct = op_Reconstruct3DEccentricData(MRStruct,Settings);
 end
 
 

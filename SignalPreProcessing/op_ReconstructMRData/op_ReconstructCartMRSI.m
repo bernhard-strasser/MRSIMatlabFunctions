@@ -50,16 +50,42 @@ function [MRStruct,AdditionalOut] = op_ReconstructCartMRSI(MRStruct,Settings)
 if(~exist('Settings','var'))
     Settings = struct;
 end
+if(~isfield_recursive(Settings,'Averaging.UndoWeightedAveraging_flag'))
+    Settings.Averaging.UndoWeightedAveraging_flag = true;
+end
+
+
+%% Sum Averages
+
+[MRStruct] = op_AverageMRIData(MRStruct,Settings.Averaging);
+
 
 
 %% Fourier Transform Data
 
-MRStruct = op_FFTOfMRIData_v2(MRStruct,struct('ApplyAlongDims',[1 2 3],'ConjFlag',1,'FlipDim',1));
+if(MRStruct.RecoPar.nPartEnc > 1)
+    Settings.zCartFFT.ConjFlag = false;    
+    Settings.zCartFFT.Ifft_flag = false;    
+    Settings.zCartFFT.FlipDim_flag = false;
+    Settings.zCartFFT.ApplyAlongDims = [3];
+    MRStruct = op_FFTOfMRIData_v2(MRStruct,Settings.zCartFFT);        
+end
+
+Settings.CartFFT.ConjFlag = true;    
+Settings.CartFFT.Ifft_flag = false;    
+Settings.CartFFT.FlipDim_flag = true;
+Settings.CartFFT.FlipDim = 1;
+Settings.CartFFT.ApplyAlongDims = [1 2];
+MRStruct = op_FFTOfMRIData_v2(MRStruct,Settings.CartFFT);
+clear Settings;
+
+% MRStruct = op_FFTOfMRIData_v2(MRStruct,struct('ApplyAlongDims',[1 2 3],'ConjFlag',1,'FlipDim',1));
 
 
 %% Slice Reco
 
 MRStruct = op_SliceReco(MRStruct);
+
 
 
 

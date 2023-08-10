@@ -43,7 +43,7 @@ if(~exist('Settings','var'))
     Settings = struct();
 end
 if(~exist('NonCartTrajFile','var'))
-    NonCartTrajFile = '';
+    NonCartTrajFile = [];
 end
 
 %% Read Data

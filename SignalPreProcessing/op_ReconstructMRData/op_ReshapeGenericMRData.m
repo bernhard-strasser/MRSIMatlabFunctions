@@ -66,6 +66,7 @@ function [MRStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,CurDataSet
     
     
     MRStruct.Par = MRStructRaw.Par;
+    MRStruct.Par.ScannerVersion = MRStructRaw.Hdr.Dicom.SoftwareVersions;
     MRStruct.RecoSteps = MRStructRaw.RecoSteps;
     
     

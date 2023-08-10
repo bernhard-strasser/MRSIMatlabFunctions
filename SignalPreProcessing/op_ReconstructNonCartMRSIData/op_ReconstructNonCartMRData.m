@@ -48,6 +48,10 @@ end
 if(~isfield(Settings,'DensComp_flag'))
     Settings.DensComp_flag = true;    
 end
+if(~isfield_recursive(Settings,'DensComp.Method'))
+   Settings.DensComp.Method = 'AntoinesVoronoi'; 
+%    Settings.DensComp.Method = 'SpiralHoge1997AbruptChanges'; 
+end
 if(~isfield_recursive(Settings,'DensComp.AutoScale_flag'))
     Settings.DensComp.AutoScale_flag = false;    
 end
@@ -69,8 +73,14 @@ end
 if(~isfield(Settings,'PerformZFFT_flag'))
     Settings.PerformZFFT_flag = true;
 end
+if(~isfield(Settings,'ExtraFoVShiftInPatCoordSys'))
+    Settings.ExtraFoVShiftInPatCoordSys = [0 0 0];
+end
 if(~isfield(Settings,'FlipDim_flag'))
     Settings.FlipDim_flag = false;
+end
+if(~isfield(Settings,'FlipDim'))
+    Settings.FlipDim = 1;
 end
 if(exist('AdditionalIn','var') && isfield(AdditionalIn,'B0'))
     B0 = AdditionalIn.B0;
@@ -82,9 +92,18 @@ if(~isfield(Output,'RecoPar'))
     Output.RecoPar = Output.Par;
 end
 Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPar.nPartEnc Output.RecoPar.nSLC ...
-                           Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured];
+                           Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured Output.RecoPar.nRep];
 
-
+if(~isfield_recursive(Output,'RecoPar.nPartEnc_Meas'))
+    Output.RecoPar.nPartEnc_Meas = Output.RecoPar.nPartEnc;
+end
+                       
+if(Output.Par.Hamming_flag && Settings.DensComp_flag)
+    fprintf('\nWarning in op_ReadAndReco3DCRTData: Data were Hamming measured, but DensComp was on. Turned DensComp off in Reco.\n')
+    Settings.DensComp_flag = false;
+end                       
+                       
+                       
                       
 % Output = supp_FixPars(Output);  % To hard-code/hack parameters for special cases, or to make Parameters consistent between different read-in-methods.
 
@@ -101,11 +120,11 @@ v=vrrotvec(Normal1,Normal2);
 Rot=vrrotvec2mat(v);
 
 % In Plane Rotation?
-% Normal2=[1 0 0];
-% Normal1 = [cos(InPlaneRot) sin(InPlaneRot) 0];
-% v=vrrotvec(Normal1,Normal2);
-% Rot2=vrrotvec2mat(v);
-% Rot=Rot2*Rot;
+Normal2=[1 0 0];
+Normal1 = [cos(Output.RecoPar.InPlaneRotation) sin(Output.RecoPar.InPlaneRotation) 0];
+v=vrrotvec(Normal1,Normal2);
+Rot2=vrrotvec2mat(v);
+Rot=Rot2*Rot;
 
 
 AllFields = fieldnamesr(Output.RecoSteps);
@@ -120,6 +139,7 @@ end
 
 
 PRS=Rot*LPH';
+PRS = PRS + reshape(Settings.ExtraFoVShiftInPatCoordSys,size(PRS));
 FOVShift = cellfun( @(x) transpose(exp(ConjSign*1i*x(1,:)/0.5*Output.RecoPar.DataSize(2)*pi*-PRS(2)/Output.RecoPar.FoV_Read)), Output.InTraj.GM , 'uni', false);
 
 FOVShift2 = cellfun( @(x) transpose(exp(ConjSign*1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
@@ -172,15 +192,37 @@ if(Settings.Phaseroll_flag)
         timeoffset = 0:(ns(ii)-1);
         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
         Freq = ((0:vs-1)/vs+0.5*(1/vs-1))/(nrew + ns(ii)).*nTI(ii);
-        Freq = myrepmat(Freq,size(timeoffset));    
+        Freq = myrepmat(Freq,size(timeoffset),[0 1 2]);    
 
         % This comes from:
         % timeoffset = (0:(ns-1))*Output.RecoPar.ADC_Dt/10^6;
-        % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);
+        % sBW = nTI/((nrew + ns)*Output.RecoPar.ADC_Dt/10^6);   Why the nTI? Bc if we have 2 TIs it takes us double to finish the circle, but we merge together the FIDs of two TIs and so have the same effective SBW
         % Freq = -sBW/2 + SBW/(2vs) : sBW/vs : (sBW/2 - sBW/(2vs)) = SBW/vs* (-vs/2+0.5 : vs/2-0.5) = SBW/vs* [(0:vs-1) -vs/2+0.5] = 
-        % = SBW* [(0:vs-1)/vs - 0.5+0.5*vs] = SBW* [(0:vs-1)/vs + 0.5*(vs - 1)] = 
+        % = SBW* [(0:vs-1)/vs - 0.5+0.5/vs] = SBW* [(0:vs-1)/vs + 0.5*(1/vs - 1)] = 
         % Output.RecoPar.ADC_Dt/10^6 cancels out when calculating timeoffset * Freq and so can be omitted.
         
+        
+%         % Lukis pharoll
+%         vs = vs*2;
+%         PhaseRollDummy = Output.Data{ii};
+%         PhaseRollDummy = cat(5,zeros(size(PhaseRollDummy(:,:,:,:,end:-1:1,:))),PhaseRollDummy);
+%         timeoffset=nTI(ii)*(((1:ns(ii))-1)/ns(ii)-0); % 3 because of 3 TI. if 2 TI than 2 :)
+%         phase(:,:,ii)=-2*1i*pi*timeoffset'*((0:vs-1)/vs-0.5);
+%         phasecorr = reshape(exp(phase(:,:,ii)),[ns(ii) 1 1 vs]);
+% 
+%         kfaxis=squeeze_single_dim(PhaseRollDummy(:,:,:,1,:,:),4);
+%         kfaxis=fftshift(ifft(fftshift(kfaxis,4),[],4),4);
+%         %kfaxis=circshift(kfaxis,[0 0 -freqshift]);
+%         kfaxis=kfaxis.*(conj(phasecorr));
+%         %kfaxis=circshift(kfaxis,[0 0 freqshift]);
+%         kfaxis=fftshift(fft(fftshift(kfaxis,4),[],4),4);
+%         
+%         kfaxis=kfaxis(:,:,:,vs/2+1:end,:); 
+%         Output.Data{ii}=reshape(kfaxis,size(Output.Data{ii}));
+%   
+%         TiltTrajMat{ii} = phasecorr;
+%         clear kfaxis PhaseRollDummy timeoffset phasecorr phase phasecorr        
+%         vs = vs/2;
         
         
         
@@ -214,29 +256,45 @@ if(nargout > 1)
 end
 
 
+%% Zerofill Circles
+
+% for CurCrcl = 1:Output.RecoPar.nAngInts
+% %     NoOfZFPartitions = size(Output.Data{1},3) - size(Output.Data{CurCrcl},3);
+%     Output.Data{CurCrcl} = ZerofillOrCutkSpace(Output.Data{CurCrcl},[size_MultiDims(Output.Data{CurCrcl},1:2) size(Output.Data{1},3) size_MultiDims(Output.Data{CurCrcl},4:5)],0);
+% end
+% Output.RecoPar.nPartEncsPerAngInt(:) = 15;
+% Output.RecoPar.AngIntsPerPartEnc = true(size(Output.RecoPar.AngIntsPerPartEnc));
+
+
+%% Change cell-dependency of nAngInt --> nPart (each Partition one cell-element)
+% from {nAngInt}(nTrajPoints x 1 x nPart x nSlc x nTempInt*vecSize x nCha) --> {nPart}(nAngInt*nTrajPoints x Rest)
+
+if(strcmpi(Output.Par.AssumedSequence,'ViennaCRT'))
+    Output = op_ChangeCellDependencyFor3DCRT(Output);
+elseif(strcmpi(Output.Par.AssumedSequence,'AntoinesEccentricOrRosette'))
+    Output = op_ChangeCellDependencyFor3DEccentric(Output);
+end
+
 
 %% Calculate sft2-Operator
 
 % sft Operator
 % Reshape trajectories to expected shape
 
-% Collapse data to a matrix (from [nTrajPoints x nAngInt x nTempInt*vecSize x nCha x nPart*nSlc] to [nAngInt*nTrajPoints x Rest])
-Output.Data = cat(1,Output.Data{:});
-SizeData_k = size(Output.Data); SizeData_k = cat(2,SizeData_k,ones([1 5-numel(SizeData_k)]));
-Output.Data = Output.Data(:,:);
-if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-    Output.NoiseData = cat(1,Output.NoiseData{:});
-    Output.NoiseData = Output.NoiseData(:,:);   
+
+sft2_Oper = cell([1 numel(Output.InTraj.GM)]);
+for ii = 1:numel(Output.InTraj.GM)
+    sft2_Oper{ii} = single(sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Output.RecoPar.DataSize(1)),transpose(Output.InTraj.GM{ii}(:,:)),1));
 end
 
-
-sft2_Oper = sft2_Operator(transpose(squeeze(Output.OutTraj.GM(:,:))*Output.RecoPar.DataSize(1)),transpose(cat(2,Output.InTraj.GM{:})),1);
 
 % Restrict to circular FoV
 if(Settings.CircularSFTFoV_flag)
     FoVMask = EllipticalFilter(ones(Output.RecoPar.DataSize(1:2)),[1 2],[1 1 1 Output.RecoPar.DataSize(1)/2-1],1); 
     FoVMask = FoVMask(:);
-    sft2_Oper(:,~logical(FoVMask(:))) = 0;
+    for ii = 1:numel(Output.InTraj.GM)
+        sft2_Oper{ii}(:,~logical(FoVMask(:))) = 0;
+    end
     clear FoVMask;
 end
 
@@ -280,12 +338,29 @@ end
 
 %% Apply sft2-Operator (Fourier-Transform from spiral k-space --> Cartesian image 
     
-Output.Data = sft2_Oper' * Output.Data * size(Output.OutTraj.GM(:,:),2);
-Output.Data = reshape(Output.Data,[Output.RecoPar.DataSize(1:2) SizeData_k(3:end)]);
-if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-    Output.NoiseData = sft2_Oper' * Output.NoiseData * size(Output.OutTraj.GM(:,:),2);
-    Output.NoiseData = reshape(Output.NoiseData,[Output.RecoPar.DataSize(1:2) SizeData_k(3:end)]);
+Temp = zeros(Output.RecoPar.DataSize,'single');
+Temp2 = zeros(Output.RecoPar.DataSize,'single');
+for CurPartEnc = 1:Output.RecoPar.nPartEnc_Meas
+    
+    if(numel(Output.Data) ~= numel(sft2_Oper))      % If for each partition we have identical trajectories, just maybe fewer
+        Part = 1;
+    else                                          % If each partition has unique trajectories
+        Part = CurPartEnc;
+    end
+    
+    Temp(:,:,CurPartEnc,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.Data{CurPartEnc},1),:)' * Output.Data{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
+    Output.Data{CurPartEnc} = [];
+    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) >= 1) %SB22
+            Temp2(:,:,CurPartEnc,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.NoiseData{CurPartEnc},1),:)' * Output.NoiseData{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
+            Output.NoiseData{CurPartEnc} = [];
+    end
 end
+Output.Data = Temp; 
+if(isfield(Output,'NoiseData') && numel(Output.NoiseData) >= 1) %SB22
+    Output.NoiseData = Temp2;
+end
+clear Temp Temp2
+
 
 % Remove fov_overgrid
 Output.RecoPar.DataSize(1:2) = Output.RecoPar.DataSize(1:2)/Output.RecoPar.fov_overgrid;
@@ -305,10 +380,41 @@ end
 Size = size(Output.Data); Size = cat(2,Size,ones([1 6-numel(Size)]));
 
 if(Size(3) > 1 && Settings.PerformZFFT_flag)
-    Output.Data = FFTOfMRIData(Output.Data,0,3,0,1,0);
-    if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-        Output.NoiseData = FFTOfMRIData(Output.NoiseData,0,3,0,1,0);
+    
+    
+    
+    % z-FT needs to be sFT bc its non-Cartesian
+    if(Output.Par.Hamming_flag)
+        
+        
+        kSpaceVector_Normalized = Output.Par.kzPositions/max(abs(Output.Par.kzPositions))/2;
+        sft1_Oper = sft1_Operator(kSpaceVector_Normalized,(-floor(Output.Par.nPartEnc/2):1:(ceil(Output.Par.nPartEnc/2)-1)),0); 
+        DCF = 1;
+
+        Output.Data = permute(Output.Data,[3 1 2 4 5 6 7]);
+        IntermediateSize = size(Output.Data); IntermediateSize(1) = size(sft1_Oper,1);
+        Output.Data = reshape(Output.Data,[size(Output.Data,1) numel(Output.Data)/size(Output.Data,1)]);
+        Output.Data = reshape(sft1_Oper * (Output.Data.*DCF),IntermediateSize); 
+        Output.Data = permute(Output.Data,[2 3 1 4 5 6 7]);
+        
+        if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
+            Output.NoiseData = permute(Output.NoiseData,[3 1 2 4 5 6 7]);
+            IntermediateSize = size(Output.NoiseData); IntermediateSize(1) = size(sft1_Oper,1);
+            Output.NoiseData = reshape(Output.NoiseData,[size(Output.NoiseData,1) numel(Output.NoiseData)/size(Output.NoiseData,1)]);
+            Output.NoiseData = reshape(sft1_Oper * (Output.NoiseData.*DCF),IntermediateSize); 
+            Output.NoiseData = permute(Output.NoiseData,[2 3 1 4 5 6 7]);       
+        end
+       
+        
+    else
+    
+        Output.Data = FFTOfMRIData(Output.Data,0,3,0,1,0);
+        if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
+            Output.NoiseData = FFTOfMRIData(Output.NoiseData,0,3,0,1,0);
+        end
     end
+    
+     
 end
 % Some special slice-reco necessary? E.g. Hadamard decoding. 
 % % if(Size(4) > 1)
@@ -335,10 +441,10 @@ end
 %% Flip left right
 
 if(Settings.FlipDim_flag)
-    Output.Data = flip(Output.Data,1);
+    Output.Data = flip(Output.Data,Settings.FlipDim);
 %     Output.Data = circshift(Output.Data,[1 -1 0 0 0 0 0]);
     if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-        Output.NoiseData = flip(Output.NoiseData,1);
+        Output.NoiseData = flip(Output.NoiseData,Settings.FlipDim);
 %         Output.NoiseData = circshift(Output.NoiseData,[1 -1 0 0 0 0 0]);        
     end
 end

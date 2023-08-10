@@ -52,7 +52,7 @@ if(~isfield_recursive(Settings,'CalcOutTraj.OverwriteDataSize_woOvergrid'))
     Settings.CalcOutTraj.OverwriteDataSize_woOvergrid = [];    
 end
 if(~isfield_recursive(Settings,'NonCartReco.CircularSFTFoV_flag'))
-    Settings.NonCartReco.CircularSFTFoV_flag = true;    
+    Settings.NonCartReco.CircularSFTFoV_flag = false;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp_flag'))
     Settings.NonCartReco.DensComp_flag = true;    
@@ -98,6 +98,9 @@ MRStruct.Par.TargetDataSize = [size_MultiDims(MRStruct.OutTraj.GM,[3 4]) MRStruc
 MRStruct = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
 
 
+%% Slice Reco
+
+MRStruct = op_SliceReco(MRStruct);
 
 
 %% Postparations

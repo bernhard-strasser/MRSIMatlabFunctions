@@ -76,7 +76,7 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
 
     fprintf('\tReading Parameters\t\t\t...')
     ticcyReadPars = tic;
-    MRStruct = io_Read3DCRTParsOwnRead(MRStructRaw,'ONLINE'); 
+    [MRStruct,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'ONLINE'); 
     MRStruct_refscan = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFSCAN');
     MRStruct.Par.dicom_flag = false;
     MRStruct_refscan.Par.dicom_flag = false;
@@ -87,7 +87,7 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     ticcyReadAverageReshape = tic;
     fprintf('\n\tReading, Averaging & Reshaping data\t...\n')
     [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,'ONLINE');
-    if(nargout > 1)
+    if(nargout > 1 && isfield(MRStructRaw.Data,'PATREFSCAN'))
     	[MRStruct_refscan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct_refscan,'PATREFSCAN');
     end
     if(nargout > 2)
@@ -129,20 +129,21 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
     % Initialize Data
     TmpData2 = cell([1 MRStruct.Par.nAngInts]); 
     for CurCrcl = 1:MRStruct.Par.nAngInts
-        TmpData2{CurCrcl} = single(zeros([MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl) MRStruct.Par.nADCsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco])); 
+        TmpData2{CurCrcl} = single(zeros([MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl) MRStruct.Par.nADCsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep])); 
     end
     % Rearrange Data
     for ii = 1:numel(MRStructRaw.Data.(CurDataSet))
             
         CurCrcl = MRStructRaw.mdhInfo.(CurDataSet).Lin(ii);
-        
+
+            
         % Remark: The 3rd circle might have partitions (2,3,...,14) saved in .Seg(ii). However, we don't want to zero-fill the other data here,
         % so our TmpData2 only has 13 partitions. Therefore using .Seg(ii) will result in an error, and we need to use the numbers to 
         % (1,2,...,13), which is saved in CurSegToSave
-        CurSegToSave = MRStructRaw.mdhInfo.(CurDataSet).Seg(ii) - (MRStruct.Par.nPartEnc-size(TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)},2))/2;
+        CurSegToSave = MRStructRaw.mdhInfo.(CurDataSet).Seg(ii) - (MRStruct.Par.nPartEnc_Meas-size(TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)},2))/2;
         CurData = reshape(MRStructRaw.Data.(CurDataSet){ii},[1 1 1 MRStruct.Par.nPtsPerADC( CurCrcl) 1 MRStruct.Par.total_channel_no_reco]);
-        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) = ...
-        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:) + CurData; 
+        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Rep(ii)) = ...
+        TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Rep(ii)) + CurData; 
     end
     TmpData2 = cellfun(@(x) x/MRStructRaw.mdhInfo.(CurDataSet).NSet,TmpData2,'UniformOutput',false);     % For averaging
     clear TmpData1; 
@@ -158,11 +159,11 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
         MRStruct.Data{CurCrcl} = zeros([MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco],'single');
     end
     for CurCrcl = 1:MRStruct.Par.nAngInts
-        TmpData3 = reshape(TmpData2{CurCrcl},[MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl)*MRStruct.Par.nADCsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco]); 
+        TmpData3 = reshape(TmpData2{CurCrcl},[MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.nPtsPerADC(CurCrcl)*MRStruct.Par.nADCsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep]); 
         TmpData3 = TmpData3(:,:,:,1:MRStruct.Par.UsefulADCPtsPerAngInt(CurCrcl),:);
-        TmpData3 = reshape(TmpData3,[MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts(CurCrcl) MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco] ); 
-        TmpData3 = permute(TmpData3,[4 2 3 1 5 6]); % Permute from [nCha x nTempIntsPerAngInt x nPart x nSlc x nTrajPoints x vecSize/nTempIntsPerAngInt] to [nTrajPoints x nPart x nSlc x vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt x nCha]
-        TmpData3 = reshape(TmpData3,[MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco]); % Merge vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt to vecSize
+        TmpData3 = reshape(TmpData3,[MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts(CurCrcl) MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep] ); 
+        TmpData3 = permute(TmpData3,[4 2 3 1 5 6 7]); % Permute from [nCha x nTempIntsPerAngInt x nPart x nSlc x nTrajPoints x vecSize/nTempIntsPerAngInt] to [nTrajPoints x nPart x nSlc x vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt x nCha]
+        TmpData3 = reshape(TmpData3,[MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep]); % Merge vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt to vecSize
         MRStruct.Data{CurCrcl} = TmpData3;
 %         for Curkz = 1:MRStruct.Par.nPartEnc
 %             MRStruct.Data{Curkz}(:,CurCrcl,:,:,:,:) = TmpData3(:,:,Curkz,:,:,:);
@@ -174,6 +175,9 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
     MRStructRaw.mdhInfo = rmfield(MRStructRaw.mdhInfo,CurDataSet);
     MRStructRaw.Data = rmfield(MRStructRaw.Data,CurDataSet);
     
+    MRStruct.Par.dimnames_small_cell = {'nAngInts'};
+    
+    MRStruct.Par.dimnames_small = {'TrajPts','dummy','Part','Slc','vecSize','cha','Rep'};
     
     
 end
@@ -202,6 +206,9 @@ function [MRStruct,MRStructRaw] = ReshapeNoisePrescan(MRStructRaw)
     MRStruct.Par.nPtsPerADC = MRStructRaw.mdhInfo.NOISEADJSCAN.Col;
     MRStruct.Par.nADCs = MRStructRaw.mdhInfo.NOISEADJSCAN.NLin;
     
+    if(isfield(MRStruct.Par,'Dwelltimes') && isnan(MRStruct.Par.Dwelltimes))            % Assume standard value if we dont know it. Actually we dont write it to header
+        MRStruct.Par.Dwelltimes = 10000;                                                % So we cannot know it currently
+    end
     
     MRStruct.Par.DataSize = size(MRStruct.Data);     % Generalize later for more than 1 partition!
     MRStructRaw.mdhInfo = rmfield(MRStructRaw.mdhInfo,CurDataSet);
@@ -214,8 +221,55 @@ end
 
 
 
-function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
+function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 
+
+    if(~isfield(MRStructRaw.mdhInfo,CurDataset))
+        MRStruct = struct();
+        return;
+    end
+
+
+    
+    
+    % CORRECT MRStructRaw
+    
+    % Our int32 values that we write into the iceParam gets converted to uint32 by the iceParam. Therefore, all negative values that are written into the header are interpreted wrongly:
+    % Negative numbers x<0 are represented as y = 2^16 - x in the bit pattern, and so e.g. -1 is represented as 2^16-1 = 65535, -2 as 65534 etc.
+    % In total we can represent 2^16 numbers with 16 bits. We split this representation to representing zero, and then 2^15 positive numbers and (2^15)-1 negative numbers
+    % (-2^15-1,...,0,...,2^15). So if any uint representation y of a number x is greater than 2^15, it was in fact negative, and its value was x = y - 2^16
+    Logi = MRStructRaw.mdhInfo.(CurDataset).iceParam(1,:) > 2^15;
+    MRStructRaw.mdhInfo.(CurDataset).iceParam(1,Logi) = MRStructRaw.mdhInfo.(CurDataset).iceParam(1,Logi) -65536;
+
+    Logi = MRStructRaw.mdhInfo.(CurDataset).iceParam(2,:) > 2^15;
+    MRStructRaw.mdhInfo.(CurDataset).iceParam(2,Logi) = MRStructRaw.mdhInfo.(CurDataset).iceParam(2,Logi) -65536;
+
+    Logi = MRStructRaw.mdhInfo.(CurDataset).iceParam(3,:) > 2^15;
+    MRStructRaw.mdhInfo.(CurDataset).iceParam(3,Logi) = MRStructRaw.mdhInfo.(CurDataset).iceParam(3,Logi) -65536;
+    
+    Logi = MRStructRaw.mdhInfo.(CurDataset).iceParam(4,:) > 2^15;
+    MRStructRaw.mdhInfo.(CurDataset).iceParam(4,Logi) = MRStructRaw.mdhInfo.(CurDataset).iceParam(4,Logi) -65536;
+    
+    Logi = MRStructRaw.mdhInfo.(CurDataset).iceParam(6,:) > 2^15;
+    MRStructRaw.mdhInfo.(CurDataset).iceParam(6,Logi) = MRStructRaw.mdhInfo.(CurDataset).iceParam(6,Logi) -65536;   
+
+    
+    %fn: change hamming addresses to 10,11,12
+    HammPartitions = (-1).^MRStructRaw.mdhInfo.(CurDataset).iceParam(10,:) .* (MRStructRaw.mdhInfo.(CurDataset).iceParam(11,:) + MRStructRaw.mdhInfo.(CurDataset).iceParam(12,:)/10000);
+           
+    if(numel(unique(HammPartitions)) > 1 && 2*MRStructRaw.Par.WipMemBlock_alFree(1) ~= MRStructRaw.Par.nFreqEnc)   % Currently, in Fabians sequence you can do only Hamming
+        MRStructRaw.Par.Hamming_flag = true;                                                                       % in all three dimensions. If the number of nFreqEnc 
+    else                                                                                                           % is not what the sequence wrote as being the number of
+        MRStructRaw.Par.Hamming_flag = false;                                                                      % circles, Hamming must have been enabled
+    end
+    
+    if(~strcmpi(CurDataset,'NoiseAdjScan') && MRStructRaw.Par.nPartEnc > 1 && (strcmpi(version,'vb') || all(MRStructRaw.mdhInfo.(CurDataset).Seg == 1) ))
+        MRStructRaw = CorrMdhForOldADC(MRStructRaw,CurDataset);
+    end
+    
+    
+    
+    
     % Copy all fields
     for CurField = transpose(fieldnames(MRStructRaw))
         if(strcmpi(CurField{1},'Data') || strcmpi(CurField{1},'mdhInfo'))
@@ -223,16 +277,30 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
         end
         MRStruct.(CurField{1}) = MRStructRaw.(CurField{1});
     end
+    
+    
+    MRStruct.Par.nAngInts = MRStructRaw.mdhInfo.(CurDataset).NLin;
+    
+    % Find first occurence of circle CurCrcl. Take the info for that circle. All the other circles have the same entries and are not needed
+    for CurCrcl = 1:MRStruct.Par.nAngInts   
+        FirstCircleMeas = find(MRStructRaw.mdhInfo.ONLINE.Lin == CurCrcl,1); 
+        MRStruct.Par.FirstCirclekSpacePoint(1,CurCrcl) = (MRStructRaw.mdhInfo.ONLINE.iceParam(1,FirstCircleMeas) + MRStructRaw.mdhInfo.ONLINE.iceParam(2,FirstCircleMeas)/10000);
+        MRStruct.Par.FirstCirclekSpacePoint(2,CurCrcl) = (MRStructRaw.mdhInfo.ONLINE.iceParam(3,FirstCircleMeas) + MRStructRaw.mdhInfo.ONLINE.iceParam(4,FirstCircleMeas)/10000);
+    end
+    
 
-    MRStruct.Par.nAngInts = MRStructRaw.mdhInfo.PATREFSCAN.NLin;
+    MRStruct.Par.nRep = max(MRStructRaw.mdhInfo.ONLINE.Rep); 
+
+    
     MRStruct.Par.ReadoutOSFactor = MRStructRaw.Hdr.Dicom.flReadoutOSFactor;
-    MRStruct.Par.Dwelltimes = MRStruct.Par.Dwelltimes*MRStruct.Par.ReadoutOSFactor/2;
+%     MRStruct.Par.Dwelltimes = MRStruct.Par.Dwelltimes/MRStruct.Par.ReadoutOSFactor;       % Alrdy corrected in read_ascconv_VE11_eh
     
     MRStruct.Par.nTempIntsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
     MRStruct.Par.nPartEncsPerAngInt = zeros([1 MRStruct.Par.nAngInts]); 
     MRStruct.Par.nADCsPerAngInt = zeros([1 MRStruct.Par.nAngInts]);
     MRStruct.Par.nPtsPerADC = zeros([1 MRStruct.Par.nAngInts]);
     MRStruct.Par.TrajPts = zeros([1 MRStruct.Par.nAngInts]);
+    
     for CurCrcl = 1:MRStruct.Par.nAngInts
         MRStruct.Par.nTempIntsPerAngInt(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Idb(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));        % Only works for 2D
         MRStruct.Par.nPartEncsPerAngInt(CurCrcl) = numel(unique(MRStructRaw.mdhInfo.(CurDataset).Seg(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl)));    % e.g. from (-3,-2,-1,0,1,2,3) --> (0,1,2,3,4,5,6,7). However, mapVBVD adds +1                                                                                            
@@ -241,9 +309,11 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
         MRStruct.Par.nPtsPerADC(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Col(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
         MRStruct.Par.TrajPts(CurCrcl) = MRStruct.Par.ReadoutOSFactor*max(MRStructRaw.mdhInfo.(CurDataset).iceParam(6,MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
 
-    end
         
-    if(any(MRStruct.Par.TrajPts == 0))  % For Lukas's sequence, he writes the TrajPts into Idc 
+    end
+    
+    % For Lukas's sequence, he writes the TrajPts into Idc. Last if condition: In Lukis newer sequence, the IceParam(6,:) stores the partition number 
+    if(any(MRStruct.Par.TrajPts == 0) || all(MRStruct.Par.TrajPts == MRStruct.Par.ReadoutOSFactor) || all(MRStruct.Par.TrajPts + 1 == MRStruct.Par.nPartEncsPerAngInt))
         MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
     end
 
@@ -251,8 +321,15 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 %     MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
     dummy1 = max(MRStruct.Par.nPartEncsPerAngInt);
     dummy2 = ceil(dummy1/2);
+    MRStruct.Par.kzPositions = zeros([1 dummy1]);
     for kz = 1:max(MRStruct.Par.nPartEncsPerAngInt)
         MRStruct.Par.AngIntsPerPartEnc(kz,:) = MRStruct.Par.nPartEncsPerAngInt >= dummy1-(     (kz - (kz>dummy2)*2*mod(kz,dummy2))        -1)*2;
+        
+        % Restrict somehow to only define this in certain cases?
+        %fn: change hamming addresses to 10,11,12
+        MRStruct.Par.kzPositions(kz) = (-1).^max(MRStructRaw.mdhInfo.(CurDataset).iceParam(10,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) .* max( MRStructRaw.mdhInfo.(CurDataset).iceParam(11,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) + max(MRStructRaw.mdhInfo.(CurDataset).iceParam(12,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)/10000);
+
+        
     end
 
     % Hack -- Delete me later
@@ -260,7 +337,7 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
         MRStruct.Par.TrajPts = [4 10 18 24 30 36 45 48 60 60 72 80 80 90 120 120 120 120 120 144 144 144 144 180 180 180 180 180 180 216 216 216] * 2;
     end
 
-
+    MRStruct.Par.nPartEnc_Meas = max(MRStruct.Par.nPartEncsPerAngInt);  % The measured ones can be different than the one written in the header
 
     MRStruct.Par.RewPts = 0;
     MRStruct.Par.TrajTotPts = MRStruct.Par.TrajPts + MRStruct.Par.RewPts;
@@ -311,3 +388,115 @@ function [MRStruct] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
         
         
 end
+
+
+
+%%
+function MRStruct = CorrMdhForOldADC(MRStruct,CurSet)
+
+    Settings = struct;
+    if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))
+        Tmpp = numel(MRStruct.mdhInfo.(CurSet).Col)/MRStruct.mdhInfo.(CurSet).NIda;
+        if(abs(Tmpp - round(Tmpp)) > 0)
+            MissingPts = round(abs(Tmpp - round(Tmpp)) * MRStruct.mdhInfo.(CurSet).NIda);
+            for CurField = {'Col','Lin','Ave','Sli','Par','Eco','Phs','Rep','Set','Seg','Idb','Idc','Idd','Ide','iceParam'}
+                MRStruct.mdhInfo.(CurSet).(CurField{1}) = cat(2,MRStruct.mdhInfo.(CurSet).(CurField{1}),MRStruct.mdhInfo.(CurSet).(CurField{1})(:,end-MissingPts+1:end));
+            end
+            AppendIda = MRStruct.mdhInfo.(CurSet).Ida(end)+1 : (MRStruct.mdhInfo.(CurSet).Ida(end)-MRStruct.mdhInfo.(CurSet).Ida(end-1)) : (MRStruct.mdhInfo.(CurSet).Ida(end)+MissingPts);
+            MRStruct.mdhInfo.(CurSet).Ida = cat(2,MRStruct.mdhInfo.(CurSet).Ida,AppendIda);
+        end
+    end
+
+
+    Crcls = (MRStruct.mdhInfo.(CurSet).iceParam(1,:) + MRStruct.mdhInfo.(CurSet).iceParam(2,:)/10000);
+    NCircl = numel(unique( Crcls ));
+    
+    if(MRStruct.Par.Hamming_flag)
+        %fn: change hamming addresses to 10,11,12
+        HammPartitions = (-1).^MRStruct.mdhInfo.(CurSet).iceParam(10,:) .* (MRStruct.mdhInfo.(CurSet).iceParam(11,:) + MRStruct.mdhInfo.(CurSet).iceParam(12,:)/10000);
+        NPart = numel(unique(HammPartitions)); 
+    else                                                                                                    
+        NPart = MRStruct.Par.nPartEnc;
+    end
+    NPartMax = floor(NPart/2);
+
+    
+    
+    % Calc CirclRadius and Partitions and kDist
+    CirclRadius_dummy = transpose((0:(NCircl-1)) +0.5);
+
+    Part = [];
+    CirclRadius = [];
+    for ii = -NPartMax:NPartMax
+        CirclesPerPart(ii+NPartMax+1) = max(2,ceil(sqrt(NCircl^2-ii^2*NCircl^2/NPartMax^2)));
+
+        Part = cat(1,Part,repmat(ii,[CirclesPerPart(ii+NPartMax+1) 1]));
+        CirclRadius = cat(1,CirclRadius,CirclRadius_dummy(1:CirclesPerPart(ii+NPartMax+1)));
+    end
+
+%     kxy = CirclRadius * Deltakxy; kz = Part * Deltakz;
+%     kDist = sqrt(kxy.^2 + kz.^2); 
+% 
+% 
+%     % Sort like Luki does
+% 
+%     pattern = 1:numel(Part);
+% 
+%     linind = 0;
+%     for ii = 1:numel(Part)
+%         for jj = ii:numel(Part)
+%             
+%             if(ii == 14 && jj == 170)
+%                 bla = 1;
+%             end
+% 
+%             if(kDist(jj) < kDist(ii))
+%                 linind = linind + 1;
+%                 ii_matlab(linind) = ii; jj_matlab(linind) = jj;
+%                 jTemp = pattern(ii); 
+%                 pattern(ii) = pattern(jj);
+%                 pattern(jj) = jTemp;
+%                 kTemp = kDist(ii);
+%                 kDist(ii) = kDist(jj);
+%                 kDist(jj) = kTemp;
+%             end
+%         end
+%     end
+% 
+% 
+%     % Create Vector containing indices, because every ADC, TempInt, Average (Set) and repetition (Rep) has the same value
+%     Indie = cumsum(MRStruct.mdhInfo.(CurSet).Ida == 1 & MRStruct.mdhInfo.(CurSet).Idb == 1 & MRStruct.mdhInfo.(CurSet).Set == 1 & MRStruct.mdhInfo.(CurSet).Rep == 1);
+% 
+%     % Replicate the pattern, because each ADC etc. has the same pattern value (as long as nothing else changes)
+%     pattern = pattern(Indie);
+
+
+    % The calculation with computing the radius does sometimes not work, because of digital errors (in the order of 1E-16), where the compiler in IDEA is saying kDist(jj) < kDist(ii), while matlab says
+    % kDist(jj) > kDist(ii), when they are actually identical up to numerical errors. So instead I calculate the order of circles and partitions differently, by knowing the loops per partition, and knowing that
+    % Luki always counts from the north pole down to the south pole with the linear indices (so northpole partition + loop 1 is linear index 1, then northpole partition + loop 2 is 2, then northpole-1 partition
+    % loop 1 is 3 etc.).
+    if(MRStruct.Par.Hamming_flag)
+        MRStruct.mdhInfo.(CurSet).Seg = cat(2,1,cumsum(diff(HammPartitions) > 0) + 1);
+        MRStruct.mdhInfo.(CurSet).Lin = ReplaceValuesInNumArray(Crcls,unique(Crcls),1:numel(unique(Crcls)));
+    else
+        CurInd = 1; 
+        for ii = 1:numel(CirclesPerPart)
+            LinNew(CurInd:CurInd+CirclesPerPart(ii)-1) = 1:CirclesPerPart(ii); 
+            SegNew(CurInd:CurInd+CirclesPerPart(ii)-1) = ii; 
+            CurInd = CurInd + CirclesPerPart(ii); 
+        end
+        LinNew = LinNew(MRStruct.mdhInfo.(CurSet).Lin);
+        MRStruct.mdhInfo.(CurSet).Seg = SegNew(MRStruct.mdhInfo.(CurSet).Lin);
+        MRStruct.mdhInfo.(CurSet).Lin = LinNew;
+    end
+    
+    % Overwrite Seg and Lin. Seg should contain the current partition, Lin, the current circle
+%     MRStruct.mdhInfo.(CurSet).Lin = ceil(CirclRadius(pattern));
+%     MRStruct.mdhInfo.(CurSet).Seg = floor(Part(pattern)) + NPartMax+1;
+    MRStruct.mdhInfo.(CurSet).NLin = max(MRStruct.mdhInfo.(CurSet).Lin);
+    MRStruct.mdhInfo.(CurSet).NSeg = max(MRStruct.mdhInfo.(CurSet).Seg);
+
+    MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
+
+end
+

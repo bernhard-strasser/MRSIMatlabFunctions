@@ -187,7 +187,7 @@ if(Settings.Phaseroll_flag)
 
         phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
         Sizzy = size(Output.Data{ii}); Sizzy = cat(2,Sizzy,ones([1 5-numel(Sizzy)]));     % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
-        phasecorr = reshape(phasecorr,[Sizzy(1:5) 1]); clear Sizzy
+        phasecorr = reshape(phasecorr,[Sizzy(1:2) 1 Sizzy(4:5) 1]); clear Sizzy
     %     phasecorr = myrepmat(phasecorr,size(Output.Data));
     %     phasecorr = conj(phasecorr);
     %     bla = Output.Data(:,:,:,:,1,:,:);
@@ -331,11 +331,45 @@ Operators.sft2_Oper_Adjoint = Operators.sft2_Oper';
 
 %%
 if(isfield(Settings,'Uncell_flag') && Settings.Uncell_flag)
-    dummy = sum(cat(1,Operators.InDataSize{:}));
-    Operators.InDataSize = [dummy(1) Operators.InDataSize{1}(2:end)];
+    
+    
+%     dummy = sum(cat(1,Operators.InDataSize{:}));
+%     Operators.InDataSize = [dummy(1) Operators.InDataSize{1}(2:end)];
     Operators.FoVShift = cat(1,Operators.FoVShift{:});
-    Operators.SamplingOperator = cat(1,Operators.SamplingOperator{:});
+%     Operators.SamplingOperator = cat(1,Operators.SamplingOperator{:});
     Operators.TiltTrajMat = cat(1,Operators.TiltTrajMat{:});
+
+
+    Temp2 = cell([1 Output.RecoPar.nPartEnc]);
+    Temp3 = cell([1 Output.RecoPar.nPartEnc]);
+    for CurPartEnc = 1:Output.RecoPar.nPartEnc
+        
+        dummy = cat(1,Operators.InDataSize{:});dummy = dummy(:,1); 
+        Temp2{CurPartEnc} = [sum(dummy(Output.RecoPar.AngIntsPerPartEnc(CurPartEnc,:))) Operators.InDataSize{1}(2) 1 Operators.InDataSize{1}(4:end)];
+        for CurCrcl = 1:Output.Par.nAngInts
+
+%             if(CurPartEnc <= size(Operators.SamplingOperator{CurCrcl},3))
+
+            % Why CurPartEnc-sum(~Output.RecoPar.AngIntsPerPartEnc(1:CurPartEnc-1,CurCrcl))  ??
+            % Assume we are in partition 38, and circle 11. Now Output.RecoPar.AngIntsPerPartEnc indicates, that this combination has been measured.
+            % 
+            if(Output.RecoPar.AngIntsPerPartEnc(CurPartEnc,CurCrcl))
+                Temp3{CurPartEnc} = cat(1,Temp3{CurPartEnc},Operators.SamplingOperator{CurCrcl}(:,:,CurPartEnc-sum(~Output.RecoPar.AngIntsPerPartEnc(1:CurPartEnc-1,CurCrcl)),:,:,:,:,:));
+            end
+      
+        end
+    end
+    
+    Operators.InDataSize = Temp2;
+    Operators.SamplingOperator = Temp3;
+    
+    
+    
+    
+    
+    
+    
+    
     
 end
 

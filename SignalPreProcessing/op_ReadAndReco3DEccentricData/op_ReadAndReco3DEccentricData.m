@@ -1,23 +1,23 @@
-function [MRStruct,RefScan,Noise,AdditionalOut] = op_ReadAndReco3DCRTData(DataFile,TrajectoryFile,Settings)
+function [MRStruct,RefScan,AdditionalOut] = op_ReadAndReco3DEccentricData(DataFile,TrajectoryFile,Settings,standdev)
 %
-% op_ReadAndReco3DCRTData Read and reconstruct data from ViennaCRT MRSI Sequence
+% op_ReadAndReco3DEccentricData Read and reconstruct data from ViennaEccentric MRSI Sequence
 %
 % This function was written by Bernhard Strasser, June 2019.
 %
 %
-% The function can read in ViennaCRT MRSI data in the Siemens raw file format ".DAT" and performs
+% The function can read in ViennaEccentric MRSI data in the Siemens raw file format ".DAT" and performs
 % the reconstruction of the data (Non-Uniform Slow FourierTransform etc.)
 %
 %
 % [kSpace, Info] = read_csi_dat(file, DesiredSize,ReadInDataSets)
 %
 % Input: 
-% -         DataFile          ...  The Siemens twix-data file of the CRT sequence   
+% -         DataFile          ...  The Siemens twix-data file of the Eccentric sequence   
 % -         TrajectoryFile    ...  The trajectory file containing information about the k-space NonCart trajectory.
 % -         Settings                ...  Struct with fields
 %                                           Debug: The Debug-settings. Subfields:
 %                                                           ShowTrajs:  If you want to plot the NonCart and Cartesian trajectories to get a feeling how you measured...
-%                                           ReadInTraj:         Settings for reading the trajectory, see io_ReadCRTTraj.m.
+%                                           ReadInTraj:         Settings for reading the trajectory, see io_ReadEccentricTraj.m.
 %                                           CalcOutTraj:        Settings for calculating the Cartesian trajectory, see sim_CalcCartTraj.m.
 %                                           NonCartReco:        Settings for the non-Cartesian MRSI Reco, see op_ReconstructNonCartMRData.m.
 %
@@ -54,8 +54,8 @@ if(~isfield_recursive(Settings,'Debug.ShowTrajs'))
     Settings.Debug.ShowTrajs = false;
 end
 
-if(~isfield_recursive(Settings,'io_Read3DCRTPars.IncludeRewinder_flag'))
-   Settings.io_Read3DCRTPars.IncludeRewinder_flag = false;    
+if(~isfield_recursive(Settings,'io_Read3DEccentricPars.IncludeRewinder_flag'))
+   Settings.io_Read3DEccentricPars.IncludeRewinder_flag = false;    
 end
 
 if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_x_us'))
@@ -82,21 +82,19 @@ end
 if(~isfield_recursive(Settings,'NonCartReco.Phaseroll_flag'))
    Settings.NonCartReco.Phaseroll_flag = true;    
 end
-if(~isfield_recursive(Settings,'NonCartReco.PhaserollRefScan_flag'))
-   Settings.NonCartReco.PhaserollRefScan_flag = false;    
-end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp_flag'))
    Settings.NonCartReco.DensComp_flag = true;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.AutoScale_flag'))
-   Settings.NonCartReco.DensComp.AutoScale_flag = true;    
+   Settings.NonCartReco.DensComp.AutoScale_flag = false;    
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.Method'))
-   Settings.NonCartReco.DensComp.Method = 'ConcentricRingTrajectory_Theoretical';    
+   Settings.NonCartReco.DensComp.Method = 'AntoinesVoronoi'; 
 end
 if(~isfield_recursive(Settings,'NonCartReco.DensComp.ApplyHammingFilter_flag'))
    Settings.NonCartReco.DensComp.ApplyHammingFilter_flag = false;    
 end
+
 if(~isfield_recursive(Settings,'NonCartReco.ConjInkSpace_flag'))
    Settings.NonCartReco.ConjInkSpace_flag = true;    
 end
@@ -109,14 +107,34 @@ end
 if(~isfield_recursive(Settings,'NonCartReco.FlipDim_flag'))
     Settings.NonCartReco.FlipDim_flag = true;
 end
+if(~isfield_recursive(Settings,'NonCartReco.PseudoReplica_flag'))
+   Settings.NonCartReco.PseudoReplica_flag = false;    
+end
+if(~isfield_recursive(Settings,'NonCartReco.nFIDpts'))
+    Settings.NonCartReco.nFIDpts = 1;
+end
 
 if(~exist('Settings','var'))
     Settings = struct;
 end
 
 
+% % Create MRStruct
+% if(isstruct(DataFile) && isfield(DataFile,'DataFile') && isfield(DataFile,'TrajectoryFile'))
+%     MRStruct = DataFile;
+% else
+%     MRStruct.DataFile = DataFile;
+%     MRStruct.TrajFile = TrajectoryFile;
+% end
+
+
+
+if(~exist('standdev','var') && Settings.NonCartReco.PseudoReplica_flag)
+    fprintf('\nWARNING in op_ReadAndReco3DEccentricData: PseudoReplica_flag was 1, althoguh no standdev variable was provided.\nSet PseudoReplica_flag to 0.');
+    Settings.NonCartReco.PseudoReplica_flag = false;    
+end
 % Create MRStruct
-if(isstruct(DataFile) && isfield(DataFile,'DataFile'))
+if(isstruct(DataFile) && isfield(DataFile,'DataFile') && isfield(DataFile,'TrajectoryFile'))
     MRStruct = DataFile;
 else
     MRStruct.DataFile = DataFile;
@@ -130,7 +148,6 @@ end
 if(~isfield(MRStruct,'TrajFile'))
     MRStruct.TrajFile = [];
 end
-
 %% Find all Trajectory Files
 
 if(~isempty(MRStruct.TrajFile) && ~iscell(MRStruct.TrajFile) && ~endsWith(MRStruct.TrajFile,'.m'))
@@ -145,85 +162,69 @@ end
 
 %% Reshape, Average & Reshape Data
 
-Noise = [];
-if(nargout > 2)
-    [MRStruct, RefScan, Noise] = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);
-    
-    standdev.RE=std(real(Noise.Data));
-    standdev.IM=std(imag(Noise.Data));
-    %standdev.RE=.1;
-    %standdev.IM=.1;
-    for ii=1:size(MRStruct.Data,2)
-        MRStruct.NoiseData{ii} = single(standdev.RE*randn(size(MRStruct.Data{ii}))+ii*standdev.IM*randn(size(MRStruct.Data{ii})));
-    end
-    AdditionalOut.stddev = standdev; 
-elseif(nargout > 1)
-    [MRStruct, RefScan] = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);    
+if(nargout > 1)
+    [MRStruct, RefScan] = io_ReadAverageReshape3DEccentricDataOwnRead(MRStruct);
 else
-    MRStruct = io_ReadAverageReshape3DCRTDataOwnRead(MRStruct);    
-end
-% MRStruct = RefScan;
-MRStruct.Data = fixnan(MRStruct.Data);
-
-if(MRStruct.Par.Hamming_flag && Settings.NonCartReco.DensComp_flag)
-    fprintf('\nWarning in op_ReadAndReco3DCRTData: Data were Hamming measured, but DensComp was on. Turned DensComp off in Reco.\n')
-    Settings.NonCartReco.DensComp_flag = false;
+MRStruct = io_ReadAverageReshape3DEccentricDataOwnRead(MRStruct);    
 end
 
 
+if (Settings.NonCartReco.PseudoReplica_flag)
+    for ii=1:size(MRStruct.Data,2)
+            temp = MRStruct.Data{ii}(:,1,1,1,1:Settings.NonCartReco.nFIDpts); 
+            clear MRStruct.Data{ii}
 
+            for jj=Settings.NonCartReco.nFIDpts+1:MRStruct.Par.vecSize
+               MRStruct.Data{ii}(:,jj) = single(standdev.RE*randn(MRStruct.Par.TrajPts(1),1)+1i*standdev.IM*randn(MRStruct.Par.TrajPts(1),1));
+            end
+            clear temp 
+    end
+end
 %% Read Trajectory
+
 
 [MRStruct] = sim_CalcCartTraj(MRStruct,Settings.CalcOutTraj);
 
 Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize NonCart trajectory to maximum of Cartesian trajectory
-[MRStruct] = io_ReadCRTTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
-
-if(nargout > 1)
-    [RefScan] = sim_CalcCartTraj(RefScan,Settings.CalcOutTraj);
-    [RefScan] = io_ReadCRTTraj(RefScan,RefScan.TrajFile,Settings.ReadInTraj);
-end
+[MRStruct] = io_ReadEccentricTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
 
 %% Spring cleaning
 
-clearvars -except Settings MRStruct RefScan AdditionalOut Noise
+clearvars -except Settings MRStruct RefScan standdev
 
+
+
+%% Reconstruct NonCart Data
+
+% Remark: Currently, the Eccentric data is a cell, for each circle one cell. This is to save the data efficiently, because different circles
+% can have different trajectory points
+[MRStruct,AdditionalOut.RecoOperators] = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
 
 
 %% DEBUG: PLOT NonCart Trajectories
 
 if(Settings.Debug.ShowTrajs)
+    PlotPartition = ceil(numel(MRStruct.InTraj.GM)/2);
     figure;
-    scatter(squeeze(MRStruct.OutTraj.GM(1,1,:)),squeeze(MRStruct.OutTraj.GM(2,1,:)),'b'), hold on   
-    for AngIntNo = 1:MRStruct.Par.nAngInts
-        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,3:end)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,3:end)),30,'r')
-        plot(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,:)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,:)),'r')
-        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,1)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,1)),30,'m')
-        scatter(squeeze(MRStruct.InTraj.GM{AngIntNo}(1,2)), squeeze(MRStruct.InTraj.GM{AngIntNo}(2,2)),	30,'g')
+    scatter(squeeze(MRStruct.OutTraj.GM(1,1,:)),squeeze(MRStruct.OutTraj.GM(2,1,:)),'b'), hold on 
+    CurInd = 1;
+    for AngIntNo = 1:MRStruct.Par.nCirc(PlotPartition)
+        CurTrajPts = MRStruct.Par.TrajPts(1);
+        scatter(squeeze(MRStruct.InTraj.GM{PlotPartition}(1,CurInd+2:CurInd-1+CurTrajPts)), squeeze(MRStruct.InTraj.GM{PlotPartition}(2,CurInd+2:CurInd-1+CurTrajPts)),30,'r')
+        plot(squeeze(MRStruct.InTraj.GM{PlotPartition}(1,CurInd:CurInd-1+CurTrajPts)), squeeze(MRStruct.InTraj.GM{PlotPartition}(2,CurInd:CurInd-1+CurTrajPts)),'r')
+        scatter(squeeze(MRStruct.InTraj.GM{PlotPartition}(1,CurInd)), squeeze(MRStruct.InTraj.GM{PlotPartition}(2,CurInd)),30,'m')
+        scatter(squeeze(MRStruct.InTraj.GM{PlotPartition}(1,CurInd+1)), squeeze(MRStruct.InTraj.GM{PlotPartition}(2,CurInd+1)),	30,'g')
+        CurInd = CurInd + CurTrajPts;
+
 
     end
     hold off
 end
 
 
-
-%% Reconstruct NonCart Data
-
-% Remark: Currently, the CRT data is a cell, for each circle one cell. This is to save the data efficiently, because different circles
-% can have different trajectory points
-[MRStruct,AdditionalOut.RecoOperators] = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
-if(nargout > 1 && isfield(RefScan,'Data'))
-    Bak = Settings.NonCartReco.Phaseroll_flag;
-    Settings.NonCartReco.Phaseroll_flag = Settings.NonCartReco.PhaserollRefScan_flag;
-    RefScan = op_ReconstructNonCartMRData(RefScan,[],Settings.NonCartReco);
-    Settings.NonCartReco.Phaseroll_flag = Bak;
-end
-
 %% Slice Reco
 
 MRStruct = op_SliceReco(MRStruct);
-if(nargout > 1 && isfield(RefScan,'Data'))
-    RefScan = op_SliceReco(RefScan);
-end
+
 
 

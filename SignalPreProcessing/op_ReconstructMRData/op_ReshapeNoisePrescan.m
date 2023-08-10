@@ -54,10 +54,16 @@ function [MRStruct,MRStructRaw] = op_ReshapeNoisePrescan(MRStructRaw)
     
     %% Preparations
     Settings = struct;
+    CurDataSet = 'NOISEADJSCAN';
+
+    if(~isfield(MRStructRaw.Data,CurDataSet))
+        fprintf('\nWarning in op_ReshapeNoisePrescan: Found no data set containing name %s',CurDataSet)        
+        MRStruct = struct;
+        return;
+    end
     
     %%
     
-    CurDataSet = 'NOISEADJSCAN';
     
     % Rearrange Data
     MRStruct.Data = cat(1,MRStructRaw.Data.NOISEADJSCAN{:});
