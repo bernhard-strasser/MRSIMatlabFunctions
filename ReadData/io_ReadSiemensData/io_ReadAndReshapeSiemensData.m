@@ -1,4 +1,4 @@
-function [csiStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file)
+function [MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file,NonCartTrajFile)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -40,45 +40,63 @@ RefStruct = struct();
 NoiseStruct = struct();
 Settings = struct();
 
+if(~exist('NonCartTrajFile','var'))
+    NonCartTrajFile = [];
+end
+
 
 %% Find out Dicom, VB or VD/VE software version, and assumed sequence
 dicom_flag = false;
-Version = 'vb';
+
 if(endsWith(file,'.IMA'))
 	dicom_flag = true;
-else
-	Version = io_DetectSiemensTwixSoftwareVersion(file);
 end
-if(strcmpi(Version,'vb'))
-	csiStruct.Par = read_ascconv(file);
-else
-	csiStruct.Par = read_ascconv_VE11_eh(file);
-end
+	MRStruct.Par = read_ascconv(file);
+
 
 
 %% Read Data
+
 if(dicom_flag)
-	csiStruct.Data = read_csi_dicom(file); % Differences between VB and VD/VE?
-    csiStruct = op_PermuteMRData(csiStruct,[2 3 4 5 6 1]);
-    csiStruct.Par.dicom_flag = true;
+	MRStruct.Par.dicom_flag = true;	
+	MRStruct.Data = read_csi_dicom(file); % Differences between VB and VD/VE?
 else
-	if(strcmpi(csiStruct.Par.AssumedSequence,'ViennaCRT'))
-		[csiStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file);
-	elseif(strcmpi(csiStruct.Par.AssumedSequence,'BorjanSpiral'))
-		csiStruct = io_ReadAverageReshapeBorjanSpiralData(file);
-    elseif(strcmpi(csiStruct.Par.AssumedSequence,'CSIOrSVS'))
-        [csiStruct, RefStruct] = io_ReadAverageReshapePhaseEncodedMRSIData(file);
+	if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))
+		[MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file);
+        MRStruct.TrajFile = NonCartTrajFile; RefStruct.TrajFile = NonCartTrajFile;
+	elseif(strcmpi(MRStruct.Par.AssumedSequence,'BorjanSpiral'))
+		MRStruct = io_ReadAverageReshapeBorjanSpiralData(file,NonCartTrajFile);
+    elseif(strcmpi(MRStruct.Par.AssumedSequence,'CSIOrSVS'))
+        [MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshapePhaseEncodedMRSIData(file);
+    elseif(strcmpi(MRStruct.Par.AssumedSequence,'Imaging_GRE'))
+        MRStruct = io_ReadAverageReshapeImagingGREData(file);
+    elseif(strcmpi(MRStruct.Par.AssumedSequence,'AntoinesEccentricOrRosette')) % SB2022
+        MRStruct = io_ReadAverageReshape3DEccentricDataOwnRead(file);   
 	else
-		csiStruct = io_ReadAverageReshapeGenericData(file);
+		MRStruct = io_ReadAverageReshapeGenericData(file);
 	end
 end
 
 
+%% Add files
 
+MRStruct.DataFile = file;
+if(exist('NonCartTrajFile','var'))
+    MRStruct.TrajFile = NonCartTrajFile;
+end
+if(~isempty(RefStruct) && ~isempty(fieldnames(RefStruct)))
+    RefStruct.DataFile = file;
+    if(exist('NonCartTrajFile','var'))
+        RefStruct.TrajFile = NonCartTrajFile;
+    end
+end
+if(~isempty(NoiseStruct) && ~isempty(fieldnames(NoiseStruct)))
+    NoiseStruct.DataFile = file;
+end
 
 %% Postparations
 
-csiStruct = supp_UpdateRecoSteps(csiStruct,Settings);
+MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
 RefStruct = supp_UpdateRecoSteps(RefStruct,Settings);
 NoiseStruct = supp_UpdateRecoSteps(NoiseStruct,Settings);
 

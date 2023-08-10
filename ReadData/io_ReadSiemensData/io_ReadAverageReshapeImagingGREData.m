@@ -1,4 +1,4 @@
-function [MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshapePhaseEncodedMRSIData(file)
+function [MRStruct,AdditionalOut] = io_ReadAverageReshapeImagingGREData(file)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -50,70 +50,37 @@ function [MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshapePhaseEncodedMRS
 if(~exist('Settings','var'))
     Settings = struct;
 end
+MRStruct.DataFile = file;
 
 
 %% Read Data
 
-MRStructRaw = io_ReadSiemensData(file);
+% Initial size: [nAngInt*nTempInt x samples x nADCs x nCha x nAvg x nPart x nSlc]
+MRStruct.Data = mapVBVD(file);
 
+% ver = MRStruct.Data.image.softwareVersion;
+MRStruct.Data = MRStruct.Data.image();
+MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
 
-%% Create WeightedAveragingMap
+MRStruct.Par = read_ascconv(file);
 
-for CurSet2 = transpose(fieldnames(MRStructRaw.mdhInfo))
-    CurSet = CurSet2{:};
-
-    WeightedAveragingMap.(CurSet) = zeros([MRStructRaw.mdhInfo.(CurSet).NLin MRStructRaw.mdhInfo.(CurSet).NSeg MRStructRaw.mdhInfo.(CurSet).NPar]); 
-    for ii = 1:numel(MRStructRaw.mdhInfo.(CurSet).Ave)
-        WeightedAveragingMap.(CurSet)(MRStructRaw.mdhInfo.(CurSet).Lin(ii),MRStructRaw.mdhInfo.(CurSet).Seg(ii),MRStructRaw.mdhInfo.(CurSet).Par(ii)) = MRStructRaw.mdhInfo.(CurSet).Ave(ii); 
-    end
-end
-
+MRStruct.Data = single(MRStruct.Data);
 
 
 %% Reshape Data
 
+MRStruct = op_PermuteMRData(MRStruct,[1 3 4 5 7 2 10 11 6 8 9 12 13 14 15]);
 
-[MRStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,'ONLINE');
-MRStruct.WeightedAveragingMap = WeightedAveragingMap.ONLINE;
-[RefStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,'PATREF*');
-if(numel(fieldnames(RefStruct)) > 0)
-    MRStruct.WeightedAveragingMap = WeightedAveragingMap.PATREFSCAN;
-end
-NoiseStruct = op_ReshapeNoisePrescan(MRStructRaw);
+% % Assymmetric Echo Zerofilling
+% if(MRStruct.RecoPar.DataSize(1) < MRStruct.Par.nFreqEnc*2 )
+%     NewDataSize = MRStruct.RecoPar.DataSize; NewDataSize(1) = MRStruct.Par.nFreqEnc*2;
+%     MRStruct = op_XFillOrCutData(MRStruct,struct('X',0,'Zerofill_To',NewDataSize,'AppendZerosTo',{{'Beginning'}}));
+% end
+MRStruct.Data = {MRStruct.Data};
 
-
-
-
-%% Correct RefStruct fields
-
-if(numel(fieldnames(RefStruct)) > 0)
-    RefStruct.Par.AssumedSequence = 'Imaging_GRE';
-    RefStruct.Par.nFreqEnc = size(RefStruct.Data,5)/2;
-    RefStruct.Par.nPhasEnc = size(RefStruct.Data,1);
-    RefStruct.Par.nFreqEnc_FinalMatrix = size(RefStruct.Data,5);
-    RefStruct.Par.nPhasEnc_FinalMatrix = size(RefStruct.Data,1);
-    RefStruct.Par.SpatialSpectralEncoding_flag = false;
-end
-MRStruct.Par.SpatialSpectralEncoding_flag = false;
-
-
-%% Reshape MRI Data
-
-
-if(regexp(MRStruct.Par.ScannerVersion,'syngo MR B'))
-    RefStruct = op_PermuteMRData(RefStruct,[5 1 3 4 2 6 10 7 8 9]);
-%     RefStruct = op_PermuteMRData(RefStruct,[1 3 4 5 7 2 10 6 8 9 11 12 13 14 15 16]);     % For MapVBVD
-%     MRStruct = op_PermuteMRData(MRStruct,[3 7 4 5 1 2 6 8 9 10 11 12 13 14 15 16]);
-else
-    MRStruct = op_PermuteMRData(MRStruct,[11 1 3 4 5 6 7 2 8 9 10]);
+    
 end
 
-
-%% Postparations
-
-MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
-RefStruct = supp_UpdateRecoSteps(RefStruct,Settings);
-NoiseStruct = supp_UpdateRecoSteps(NoiseStruct,Settings);
 
 
 

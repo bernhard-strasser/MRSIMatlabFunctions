@@ -58,6 +58,7 @@ end
 % Initial size: [nAngInt*nTempInt x samples x nADCs x nCha x nAvg x nPart x nSlc]
 MRStruct.Data = mapVBVD(file);
 MRStruct.Data = MRStruct.Data.image();
+MRStruct.Par = read_ascconv(file);
 MRStruct.Par.dicom_flag = false;
 MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
 
@@ -65,6 +66,7 @@ MRStruct.Data = single(MRStruct.Data);
 
 % MRStruct.Data = reshape();      % Just assume CSI size
 
+end
 
 
 
