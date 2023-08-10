@@ -88,6 +88,15 @@ csi = csi .* exp(myrepmat(2*pi*1i*B0map,size(csi)) .* myrepmat(t,size(csi)));
 %     
 % end
 
+
+%% Early exit if not overdiscrete
+
+if(all(fac == 1))
+    csi_sum = csi;
+    return;
+end
+
+
 %% General cases
 fac_new = zeros(1,3);
 S_map_new = zeros(size(S_map));

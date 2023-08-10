@@ -163,7 +163,7 @@ else
 		%calculate Hamming filter
 		n = size(OutArray,hamming_dim);
 		hamming_1D = hamming(  ceil(FilterWidth/100*n)  );
-		hamming_1D = cat(1, hamming_1D(1:ceil(ceil(FilterWidth/100*n)/2)), ones([n-numel(hamming_1D) 1]), hamming_1D(ceil(ceil(FilterWidth/100*n)/2)+1:end));
+		hamming_1D = cat(1, hamming_1D(1:ceil(ceil(FilterWidth/100*n)/2),1), ones([n-numel(hamming_1D) 1]), hamming_1D(ceil(ceil(FilterWidth/100*n)/2)+1:end,1));
 
 
 		if(hamming_dim == 1)

@@ -46,26 +46,43 @@ if(~exist('y_shift','var'))
     y_shift = 0;
 end
 
+if(endsWith(csi_path,'.IMA'))
+    csi_first_file = csi_path;
+    csi_path_allfiles{1} = csi_path;
+else
+    csi_path_allfiles = dir( fullfile(csi_path,'*.IMA') );
+    csi_path_allfiles = {csi_path_allfiles.name}';
+    csi_path_allfiles = strcat(csi_path,'/',csi_path_allfiles);
+    if(numel(csi_path_allfiles) > 0)
+        csi_first_file = csi_path_allfiles{1};
+    else
+        fprintf('\nError in read_csi_dicom: Could not find any DICOM file. Abort.\n');
+        csi = [];
+        return;
+    end
+    
+end
 
 % Read info from ascconv header
-ParList = read_ascconv(csi_path);
+ParList = read_ascconv(csi_first_file);
 total_channel_no = ParList.total_channel_no_reco;
 
-if(not(isnan(ParList.nFreqEnc_FinalMatrix)))
-    ROW = ParList.nFreqEnc_FinalMatrix;              % This gives the value FinalMatrixSize in the ascconv header, so the Matrix Size that is written to DICOM
-else                                    % file. In SVS these entries in the ascconv header do not exist.
+% if(not(isnan(ParList.nFreqEnc_FinalMatrix)))
+%     ROW = ParList.nFreqEnc_FinalMatrix;              % This gives the value FinalMatrixSize in the ascconv header, so the Matrix Size that is written to DICOM
+% else                                    % file. In SVS these entries in the ascconv header do not exist.
     ROW = ParList.nFreqEnc;                  
-end                                     
-if(not(isnan(ParList.nPhasEnc_FinalMatrix)))
-    COL = ParList.nPhasEnc_FinalMatrix;
-else
+% end                                     
+% if(not(isnan(ParList.nPhasEnc_FinalMatrix)))
+%     COL = ParList.nPhasEnc_FinalMatrix;
+% else
     COL = ParList.nPhasEnc;
-end
-if(not(isnan(ParList.nPhasEnc_FinalMatrix)))
-    SLC = ParList.nSLC_FinalMatrix;
-else
-    SLC = ParList.nPartEnc;
-end
+% end
+% if(not(isnan(ParList.nPhasEnc_FinalMatrix)))
+%     SLC = ParList.nSLC_FinalMatrix;
+% else
+%     SLC = ParList.nPartEnc;
+% end
+SLC = numel(csi_path_allfiles);
 if(ROW < 1)
     ROW = 1;
 end
@@ -85,9 +102,14 @@ clear ParList
 
 tic
 
-% Read Data
-csi_fid = fopen(csi_path,'r');
+csi = zeros(total_channel_no,ROW,COL,SLC,1,vecSize);
+csi = complex(csi,csi);
 
+
+for CurSlc = 1:SLC
+
+% Read Data
+    csi_fid = fopen(csi_path_allfiles{CurSlc},'r');
 % Find a certain bit pattern which indicates the end of the data
 % (For some reason, some of the VE spiral data sets have traling zeros at the end of the file
 % I dont understand the reason for that, but this code should work in both cases.)
@@ -99,14 +121,14 @@ FoundBitPattern_Ind = SearchBytesFromBack*8-strfind(SearchBitPattern',FindBitPat
 
 % Go to beginning of data: From the end of data (end - FoundBitPattern_Ind/8) back the amount of data we expect ( -((vecSize*ROW*COL*SLC*2*4)) )
 if(isempty(FoundBitPattern_Ind))
-    pause(2)
-    fseek(csi_fid, -((vecSize*ROW*COL*SLC*2*4)), 'eof');
+        pause(0.1)
+        fseek(csi_fid, -((vecSize*ROW*COL*2*4)), 'eof');
 else
-    fseek(csi_fid, -((vecSize*ROW*COL*SLC*2*4)) - FoundBitPattern_Ind/8, 'eof');   % /8 because I searched for bits, but fseek works with bytes
+        fseek(csi_fid, -((vecSize*ROW*COL*2*4)) - FoundBitPattern_Ind/8, 'eof');   % /8 because I searched for bits, but fseek works with bytes
 end
 
 % Read data
-csi_data = fread(csi_fid,vecSize*ROW*COL*SLC*2,'float32');
+    csi_data = fread(csi_fid,vecSize*ROW*COL*2,'float32');
 fclose(csi_fid);
 
 % Separate real & imaginary part
@@ -118,24 +140,14 @@ csi_complex=complex(csi_real,csi_imag);
 csi_complex(isnan(csi_complex)) = 0;
 
 
+    % total channel number not yet implemented, since ICE always creates 1 fiile per channel. there is anyway only one channel in the DICOM file.
+    csi_complex2 = permute(reshape(csi_complex,[vecSize ROW COL]),[4 2 3 5 6 1]);
+    csi(1,:,:,CurSlc,1,:) = csi_complex2;
 
-% Reshape to 6D-Matrix
-csi = zeros(total_channel_no,ROW,COL,SLC,1,vecSize);
-csi = complex(csi,csi);
 
-k=-1;
-for z=1:SLC
-    for y=1:ROW
-        for x=1:COL
-            k=k+1;
-            csi(1,x,y,z,1,:) = csi_complex(k*vecSize+1:(k+1)*vecSize);	% total channel number not yet implemented, since ICE always creates 1 fiile per channel
-        end                                                             % there is anyway only one channel in the DICOM file.
     end
-end
-
 
 display(['Read in took ... ' num2str(toc) 'seconds.'])
-
 
 
 

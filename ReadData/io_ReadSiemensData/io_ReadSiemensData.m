@@ -39,6 +39,9 @@ function MRStruct = io_ReadSiemensData(MRStructOrFile)
 tic
 fprintf('\n\tReading data\t\t\t\t...')
 
+
+Settings = struct; 
+
 % Find out memory used by MATLAB
 memused_before = memused_linux(1); 
 
@@ -49,7 +52,9 @@ else
 end
 % MRStruct.mdhInfo.mdhEntryNames = {'channel','kx','ky','kz','slice','echo','avg','rep','samples','samples before echo','ida','idb','idc','idd','FreeIcePara1','FreeIcePara2','FreeIcePara3','FreeIcePara4'};
 
+% ls DataFile, in case the user used wildcard to indicate the file (e.g. if only one dat file is in the folder, user might say file = '[path]/*.dat'
 
+MRStruct.DataFile = strtrim(ls(MRStruct.DataFile));
 
 %% 1. Gather information from header
 
@@ -88,6 +93,7 @@ if and(firstInt < 10000, secondInt <= 64)
     fileID = fread(file_fid,1,'uint32');
     measOffset = cell(1, NScans);
     measLength = cell(1, NScans);
+    IceParamOffSet = 48;
     for k=1:NScans
         measOffset{k} = fread(file_fid,1,'uint64');
         measLength{k} = fread(file_fid,1,'uint64'); 
@@ -101,22 +107,23 @@ else
     measOffset{1} = 0;
     measLength{1} = fileSize;
     NScans     = 1; % VB does not support multiple scans in one file
+    IceParamOffSet = 34;
 end
 
 if(strcmpi(version,'vd'))
-    ParList = read_ascconv_VE11_eh(MRStruct.DataFile);
     MdhSizeInBytes = 192;
     EvalInfoRelPosInBytes = 41;
     ChannelMdhOffset = 8;
     HeaderMdhOffset = 0;
     
 else
-    ParList = read_ascconv(MRStruct.DataFile);    
     MdhSizeInBytes = 128;
     EvalInfoRelPosInBytes = 21;
     ChannelMdhOffset = 0;
     HeaderMdhOffset = 32;
 end
+
+ParList = read_ascconv(MRStruct.DataFile);
 MRStruct.Par = ParList;
 
 
@@ -126,7 +133,7 @@ MRStruct.Par = ParList;
 CurInfoPt = struct;
 CurADC = struct;
 
-for CurSet = 1:1    %NScans % Currently not implemented
+for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read last scan
 
     cPos = measOffset{CurSet};
     fseek(file_fid,cPos,'bof');
@@ -177,8 +184,10 @@ for CurSet = 1:1    %NScans % Currently not implemented
             CurInfoPt.(CurrentMeasSet) = 1;
         end
         
-        
-        
+        %if(CurADC.NOISEADJSCAN == 34)
+        %    ACQEND_flag = true;
+        %    continue;        
+        %end
         % Save mdh-Info for later reshaping
         MRStruct.mdhInfo.(CurrentMeasSet).Col(CurADC.(CurrentMeasSet)) = chak_header(8);                % samples
         MRStruct.mdhInfo.(CurrentMeasSet).Lin(CurADC.(CurrentMeasSet)) = chak_header(10) + 1;           % kx (Line Index)
@@ -195,7 +204,7 @@ for CurSet = 1:1    %NScans % Currently not implemented
         MRStruct.mdhInfo.(CurrentMeasSet).Idc(CurADC.(CurrentMeasSet)) = chak_header(21) + 1;           % idc
         MRStruct.mdhInfo.(CurrentMeasSet).Idd(CurADC.(CurrentMeasSet)) = chak_header(22) + 1;           % idd
         MRStruct.mdhInfo.(CurrentMeasSet).Ide(CurADC.(CurrentMeasSet)) = chak_header(23) + 1;           % ide
-        MRStruct.mdhInfo.(CurrentMeasSet).iceParam(1:24,CurADC.(CurrentMeasSet)) = chak_header(48:71);  % FreeIcePara1-24 % I dont know why starting from 48, but it looks right
+        MRStruct.mdhInfo.(CurrentMeasSet).iceParam(1:24,CurADC.(CurrentMeasSet)) = chak_header(IceParamOffSet:IceParamOffSet+23);  % FreeIcePara1-24 % I dont know why starting from 48, but it looks right
         MRStruct.mdhInfo.(CurrentMeasSet).cutoff(1:2,CurADC.(CurrentMeasSet)) = 0;	% chak_header(38) *2% samples before echo. TURNED OFF FOR NOW
 	        
         
@@ -222,6 +231,9 @@ for CurSet = 1:1    %NScans % Currently not implemented
         
         chak_data = fread(file_fid, (MRStruct.mdhInfo.(CurrentMeasSet).Col(CurADC.(CurrentMeasSet))*2+ChannelMdhOffset+HeaderMdhOffset)*ParList.total_channel_no_measured, 'float32=>float32'); 
         fseek(file_fid, -HeaderMdhOffset*4,'cof');
+        if(round(numel(chak_data)/ParList.total_channel_no_measured) - numel(chak_data)/ParList.total_channel_no_measured ~= 0)
+            break;
+        end
         chak_data = reshape(chak_data,[numel(chak_data)/ParList.total_channel_no_measured ParList.total_channel_no_measured]);
         MRStruct.Data.(CurrentMeasSet){CurADC.(CurrentMeasSet)} = complex(chak_data(ChannelMdhOffset+1:2:end-HeaderMdhOffset,:),chak_data(ChannelMdhOffset+2:2:end-HeaderMdhOffset,:));
         
@@ -255,6 +267,8 @@ for CurSet = 1:1    %NScans % Currently not implemented
         CurDataset = CurDataset2{1};
         Dummy = structfun(@numel,structfun(@unique,MRStruct.mdhInfo.(CurDataset),'uni',0),'uni',0);
         MRStruct.mdhInfo.(CurDataset) = catstruct(  MRStruct.mdhInfo.(CurDataset),cell2struct( struct2cell(Dummy),strcat('N',fieldnames(Dummy)) )  );
+        MRStruct.mdhInfo.(CurDataset).NCol = MRStruct.mdhInfo.(CurDataset).Col(1);
+        MRStruct.mdhInfo.(CurDataset).NCha = size(MRStruct.Data.(CurDataset){1},2);        
     end
     
     for CurDataset2 = transpose(fieldnames(MRStruct.Data))
@@ -262,9 +276,9 @@ for CurSet = 1:1    %NScans % Currently not implemented
 %         MRStruct.mdhInfo.(CurDataset).Seg = MRStruct.mdhInfo.(CurDataset).Seg - 1; % We take +1 above, but this index goes from -N/2 to N/2
         MRStruct.mdhInfo.(CurDataset).Seg(MRStruct.mdhInfo.(CurDataset).Seg > 1E4) = ...
         MRStruct.mdhInfo.(CurDataset).Seg(MRStruct.mdhInfo.(CurDataset).Seg > 1E4) - 65535 - 1;
+        if(any(MRStruct.mdhInfo.(CurDataset).Seg <= 0))
         MRStruct.mdhInfo.(CurDataset).Seg = MRStruct.mdhInfo.(CurDataset).Seg + floor(MRStruct.mdhInfo.(CurDataset).NSeg/2);
-    
-    
+        end
     end
     
     
@@ -279,9 +293,17 @@ end
 
 
 
+
+
 %% 7. Postparations
 
 memused_after = memused_linux(1); 
 display([' and used ' num2str(memused_after-memused_before) '% of the total memory.'])
+
+
+MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
+
+end
+
 
 

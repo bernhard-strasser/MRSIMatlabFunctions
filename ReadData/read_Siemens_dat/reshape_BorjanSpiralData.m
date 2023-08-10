@@ -47,7 +47,7 @@ kSpace.Data = squeeze_single_dim(sum(kSpace.Data,6),6);  % squeeze causes non-pr
 
 % Reshape to [nTempInt x nAngInt x samples*nADCs x nCha x nAvg x nPart x nSlc]
 % Cut those ADC-points that are noise only away
-ADC_Points = kSpace.Par.vecSize * kSpace.Par.TrajTotPts/kSpace.Par.nTempInt;        % 
+ADC_Points = kSpace.Par.vecSize * kSpace.Par.TrajTotPts(1)/kSpace.Par.nTempInt;        % 
 Size_D2 = size(kSpace.Data);
 kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) prod(Size_D2(3:4)) Size_D2(5:end)]);
 if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
@@ -64,7 +64,7 @@ if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
     kSpace.NoiseData = kSpace.NoiseData(:,:,1:ADC_Points,:,:,:,:);
 end
 for curTempInt = 1:kSpace.Par.nTempInt
-    StartPt = (curTempInt-1)/kSpace.Par.nTempInt*kSpace.Par.TrajTotPts;        
+    StartPt = (curTempInt-1)/kSpace.Par.nTempInt*kSpace.Par.TrajTotPts(1);        
 %     EndPt = ADC_Points - StartPt;
     kSpace.Data(curTempInt,:,:,:,:,:,:) = cat(3,kSpace.Data(curTempInt,:,StartPt+1:ADC_Points,:,:,:,:), LastPts(curTempInt,:,1:StartPt,:,:,:,:));
     if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
@@ -77,10 +77,10 @@ clear LastPts
 % Reshape to [nTempInt x nAngInt x nTrajPoints x vecSize x nCha x nAvg x nPart x nSlc]
 % Cut the rewinder away, and save the final size
 kSpace.Data = reshape(kSpace.Data,[Size_D2(1:2) kSpace.Par.TrajTotPts(1) kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
-kSpace.Data = kSpace.Data(:,:,1:kSpace.Par.TrajPts,:,:,:,:,:);
+kSpace.Data = kSpace.Data(:,:,1:kSpace.Par.TrajPts(1),:,:,:,:,:);
 if(isfield(kSpace,'NoiseData') && ~isempty(kSpace.NoiseData))
-    kSpace.NoiseData = reshape(kSpace.NoiseData,[Size_D2(1:2) kSpace.Par.TrajTotPts kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
-    kSpace.NoiseData = kSpace.NoiseData(:,:,1:kSpace.Par.TrajPts,:,:,:,:,:);
+    kSpace.NoiseData = reshape(kSpace.NoiseData,[Size_D2(1:2) kSpace.Par.TrajTotPts(1) kSpace.Par.vecSize/kSpace.Par.nTempInt Size_D2(5:end)]);
+    kSpace.NoiseData = kSpace.NoiseData(:,:,1:kSpace.Par.TrajPts(1),:,:,:,:,:);
 end
 
 % % DEBUG: ONLY USE FIRST FID POINT

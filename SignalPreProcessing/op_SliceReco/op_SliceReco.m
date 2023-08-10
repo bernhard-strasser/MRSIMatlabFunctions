@@ -51,16 +51,25 @@ if(~isfield(MRStruct,'RecoPar'))
 end
 
 
-%% Remove Slice Index
+%% Remove Slice or Partition Index
 
-MRStruct.Data = squeeze_single_dim(MRStruct.Data,Settings.SliceIndex);
+if(size(MRStruct.Data,Settings.SliceIndex) > 1)
+    
+    RemoveInd = 3;
+else
+    RemoveInd = Settings.SliceIndex;
+end
+
+MRStruct.Data = squeeze_single_dim(MRStruct.Data,RemoveInd); 
 if(isfield(MRStruct,'NoiseData'))
-    MRStruct.NoiseData = squeeze_single_dim(MRStruct.NoiseData,Settings.SliceIndex);
+    MRStruct.NoiseData = squeeze_single_dim(MRStruct.NoiseData,RemoveInd);
 end
 
 
 %% Update RecoPar
-
+if(isfield(MRStruct.RecoPar,'dimnames'))
+    MRStruct.RecoPar.dimnames(RemoveInd) = [];
+end
 MRStruct.RecoPar.DataSize = cat(2,size(MRStruct.Data),ones([1 6-ndims(MRStruct.Data)]));
 MRStruct.RecoPar.nSLC = 1;
 
