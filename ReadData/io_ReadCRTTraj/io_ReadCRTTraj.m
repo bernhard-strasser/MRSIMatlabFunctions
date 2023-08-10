@@ -36,6 +36,10 @@ function [DataStruct] = io_ReadCRTTraj(DataStruct,TrajFile,Settings)
 
 %% 0. Preparations
 
+if(~exist('Settings','var'))
+    Settings = [];
+end
+
 if(~isfield(DataStruct.Par,'GradDelay_x_us'))
     if(isfield(Settings,'GradDelay_x_us'))
         DataStruct.Par.GradDelay_x_us = Settings.GradDelay_x_us;
@@ -69,6 +73,20 @@ DataStruct.Par.GradDelay_x_us = 0;
 
 DataStruct.Par.RewPts = 0;
 
+
+
+%% Calc from Header Info
+
+if(~exist('TrajFile','var') || isempty(TrajFile))
+    Radii = sqrt(DataStruct.Par.FirstCirclekSpacePoint(1,:).^2 + DataStruct.Par.FirstCirclekSpacePoint(2,:).^2); 
+    phi0s = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2;
+    for ii = 1:DataStruct.Par.nAngInts
+        DeltaPhi = 2*pi/DataStruct.Par.TrajPts(ii); 
+        Phi = (0:-1:-DataStruct.Par.TrajPts(ii)+1)*DeltaPhi; 
+        DataStruct.InTraj.GM{ii} = cat(1,real(Radii(ii)*exp(1i*(Phi+phi0s(ii)))),imag(Radii(ii)*exp(1i*(Phi+phi0s(ii))))); 
+    end
+
+else
 
 %% Run Files 
 
@@ -134,10 +152,18 @@ for ii = 1:numel(dGradientValues)
 %     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
 end
 
+end
+
 %% Normalize DataStruct.InTraj
 
 DataStruct.InTraj.GM = cellfun(@(x) x/(Settings.maxR*2), DataStruct.InTraj.GM,'uni',false);
 
+
+
+%% Calc Radii
+
+DataStruct.Par.kSpaceRadii =  cellfun(@(x) sqrt(x(1,1)^2+x(2,1)^2) , DataStruct.InTraj.GM,'uni',0);
+DataStruct.Par.kSpaceRadii = cat(2,DataStruct.Par.kSpaceRadii{:});
 
 
 %% Debug: Show Trajectories

@@ -1,4 +1,4 @@
-function [ParList,ascconv] = read_ascconv_VE11_eh(file_path)
+function [ParList,ascconv] = read_ascconv_VE11_eh(file_path,NumberOfAscconvEnds)
 %
 % read_ascconv Read ascconv header part of DICOM and Siemens raw data
 %
@@ -45,6 +45,10 @@ function [ParList,ascconv] = read_ascconv_VE11_eh(file_path)
 
 
 %% 0. Preparations
+
+if(~exist('NumberOfAscconvEnds','var'))
+    NumberOfAscconvEnds = 3;
+end
 
 
 % Define for which entries the ascconv should be searched for
@@ -101,12 +105,13 @@ ParList_Search =  { ...
 'tSequenceFileName',											...		% 42	Which sequence was used
 'alTI\[\d+\]',                                                  ...		% 51	TI
 'alTR\[\d+\]',                                                  ...		% 52	TR
-'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude'             ...     % 50
-'lTotalScanTimeSec'                                             ...     % 53    Total scan time
-'sTXSPEC\.asNucleusInfo\[0\]\.tNucleus'                         ...     % 54    Nucleus
-'sAdjData\.sAdjVolume.dThickness'                               ...     % 55    AdjBoxSize slice
-'sAdjData\.sAdjVolume.dPhaseFOV'                                ...     % 56    AdjBoxSize Phase
-'sAdjData\.sAdjVolume.dReadoutFOV'                              ...     % 57    AdjBoxSize Read
+'sTXSPEC\.asNucleusInfo\[0\]\.flReferenceAmplitude',            ...     % 50
+'lTotalScanTimeSec',                                            ...     % 53    Total scan time
+'sTXSPEC\.asNucleusInfo\[0\]\.tNucleus',                        ...     % 54    Nucleus
+'sAdjData\.sAdjVolume.dThickness',                              ...     % 55    AdjBoxSize slice
+'sAdjData\.sAdjVolume.dPhaseFOV',                               ...     % 56    AdjBoxSize Phase
+'sAdjData\.sAdjVolume.dReadoutFOV',                             ...     % 57    AdjBoxSize Read
+'sWipMemBlock\.adFree\[(\d){1,2}\]'                     		...		% 58	All variables set in Special Card + those from above
 };
 
 
@@ -169,7 +174,8 @@ ParList_Assign = { ...
 'Nucleus',                                                          ...     % 54
 'AdjBoxSize_Slice',                                                 ...     % 55
 'AdjBoxSize_Phase',                                                 ...     % 56
-'AdjBoxSize_Read'                                                   ...     % 57
+'AdjBoxSize_Read',                                                  ...     % 57
+'WipMemBlock_adFree'												...		% 58
 };
 
 
@@ -232,6 +238,7 @@ ParList_Convert = { ...
 'str2double',                                                       ...     % 55
 'str2double',														...		% 56
 'str2double',														...		% 57
+'str2double'														...		% 58
 };
 
 
@@ -270,7 +277,7 @@ while(sLine > -1)
     else                                                            % If begin of ascconv has already been found
         
         if(not(isempty(strfind(sLine,'### ASCCONV END ###'))))      % If the end was found --> stop while loop
-            if(Ascconv_No < 3) 		% THIS IS A HACK!
+            if(Ascconv_No < NumberOfAscconvEnds) 		% THIS IS A HACK!
                 begin_found = false;
                 ascconv = [];
             else
@@ -283,7 +290,6 @@ while(sLine > -1)
         end
         
     end
-   
         
 end
 
@@ -313,9 +319,18 @@ ascconv = regexp(ascconv, '=','split');
 ascconv = transpose([ascconv{:}]);
 
 % Now seperate the pre-= and the post-= parts, remove all white spaces before and after the entries.
+if(mod(numel(ascconv),2) == 1)
+    ascconv = ascconv(1:end-1); 
+end
 ascconv = strtrim([ascconv(1:2:end) ascconv(2:2:end)]);
 
 % Now we are happy and have our 348x2 cell array of strings.
+
+
+
+%% 5. Close File
+
+fclose(fid);
 
 
 
@@ -428,22 +443,35 @@ end
 % Corrections
 
 ParList.AssumedSequence = 'CSIOrSVS';
-if((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
+if(~isempty(regexpi(ParList.tSequenceFileName,'Eccentric')))
+        ParList.AssumedSequence = 'AntoinesEccentricOrRosette';
+elseif((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
     ParList.AssumedSequence = 'ViennaCRT';
 elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
         ParList.AssumedSequence = 'BorjanSpiral';
-elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre')))
+elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre|tfl|bow_ph_map')))
         ParList.AssumedSequence = 'Imaging_GRE';    
 end
     
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
+
+[~, Tmp] = unix(['grep -a -m 4 ReadoutOSFactor ' file_path]);
+Tmp = regexp(Tmp, '<ParamDouble."flReadoutOSFactor">  { <Precision> 6  .*  }','match');
+Tmp = regexp(Tmp{1}, '{.*}','match');
+Tmp = regexprep(Tmp,'{ <Precision> 6  ','');
+Tmp = regexprep(Tmp,'\s+}','');
+ParList.ReadoutOSFactor = str2double(Tmp{1});
+if(isempty(ParList.ReadoutOSFactor) || isnan(ParList.ReadoutOSFactor))
+    ParList.ReadoutOSFactor = 2;
+end
+
 if(numel(strfind(file_path, '.dat')) > 0 ...
 	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
- 	ParList.vecSize = 2 * ParList.vecSize;
-    if( strcmp(ParList.AssumedSequence,'ViennaCRT') )      % if Rollercoaster
-        ParList.Dwelltimes = 2 * ParList.Dwelltimes;    % Because we have oversampling enabled, and the scanner interprets that we oversample in the spectral domain, which we dont...
+ 	ParList.vecSize = ParList.ReadoutOSFactor * ParList.vecSize;
+    if( strcmp(ParList.AssumedSequence,'ViennaCRT') || strcmp(ParList.AssumedSequence,'AntoinesEccentricOrRosette') )      % if Rollercoaster
+        ParList.Dwelltimes = ParList.ReadoutOSFactor * ParList.Dwelltimes;    % Because we have oversampling enabled, and the scanner interprets that we oversample in the spectral domain, which we dont...
     end
 end
 if( numel(strfind(file_path, '.IMA') > 0) ) 
@@ -496,6 +524,10 @@ end
 % Add field gyromagnetic ratio based on nucleus
 if(~isempty(regexp(ParList.Nucleus,'1H','ONCE')))
     ParList.GyroMagnRatioOverTwoPi = 42.57747892 * 10^6;
+elseif(~isempty(regexp(ParList.Nucleus,'2H','ONCE')))
+    ParList.GyroMagnRatioOverTwoPi =  6.5357349913 * 10^6;
+elseif(~isempty(regexp(ParList.Nucleus,'31P','ONCE')))
+    ParList.GyroMagnRatioOverTwoPi =  17.25263 * 10^6;
 end
 
 
@@ -527,9 +559,7 @@ end
 
 
 
-%% 5. Postparations
 
-fclose(fid);
 
 end
 

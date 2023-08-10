@@ -349,11 +349,17 @@ end
 
 %% Call VE11 version if necessary
 
+CurAscconvEndCount = 1;
 if(ParList.TR == 0 && all(ParList.TEs == 0) && all(ParList.Dwelltimes == 0) && strcmpi(ParList.Nucleus,'0'))
-    [ParList,ascconv] = read_ascconv_VE11_eh(file_path);
+    while(ParList.TR == 0 && all(ParList.TEs == 0) && all(ParList.Dwelltimes == 0) && strcmpi(ParList.Nucleus,'0') && CurAscconvEndCount < 10)
+        try
+            [ParList,ascconv] = read_ascconv_VE11_eh(file_path,CurAscconvEndCount);
+        catch Me
+        end
+        CurAscconvEndCount = CurAscconvEndCount + 1;
+    end
     return;
 end
-
 
 
 %% 5. Change & Correct certain values
@@ -370,6 +376,15 @@ end
 
 
 
+
+
+
+% FoV in Partition Direction
+if(ParList.nPartEnc == 1)
+    ParList.FoV_Partition(1) = ParList.VoI_Partition(1);
+else
+    ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
+end
 
 % Convert from 0x1 etc. to logicals
 
@@ -443,7 +458,7 @@ if((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParLi
     ParList.AssumedSequence = 'ViennaCRT';
 elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
         ParList.AssumedSequence = 'BorjanSpiral';
-elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre')))
+elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre|tfl|bow_ph_map')))
         ParList.AssumedSequence = 'Imaging_GRE';    
 end
     
@@ -506,10 +521,6 @@ if(ParList.nSLC > 1)
 else
     ParList.SliceGap = 0;
 end
-
-
-% FoV in Partition Direction
-ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
 
 
 % Add field gyromagnetic ratio based on nucleus
