@@ -1,4 +1,4 @@
-function [Out] = supp_UpdateRecoSteps(Out,Settings,OverwriteFieldName)
+function [MRStruct] = supp_UpdateRecoSteps(MRStruct,Settings,OverwriteFieldName)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -36,16 +36,21 @@ function [Out] = supp_UpdateRecoSteps(Out,Settings,OverwriteFieldName)
 
 %% 0. Preparations
 
-
+if(~exist('MRStruct','var') || ~isstruct(MRStruct) || isempty(fieldnames(MRStruct)))
+    return;
+end
 
 
 %% 1. Update
 
-
-if(~exist('Out','var') || ~isfield(Out,'RecoSteps'))
-    Out.RecoSteps.TotSteps = 0;
+if(isempty(MRStruct))
+    MRStruct = [];
+    return;
 end 
-Out.RecoSteps.TotSteps = Out.RecoSteps.TotSteps+1;
+if(~exist('MRStruct','var') || ~isfield(MRStruct,'RecoSteps'))
+    MRStruct.RecoSteps.TotSteps = 0;
+end 
+MRStruct.RecoSteps.TotSteps = MRStruct.RecoSteps.TotSteps+1;
 
 if(exist('OverwriteFieldName','var') && ischar(OverwriteFieldName))
     RecoName = OverwriteFieldName;
@@ -53,10 +58,10 @@ else
     st = dbstack;
     RecoName = st(2).name;
 end
-FieldName = ['Step' num2str(Out.RecoSteps.TotSteps) '_' RecoName];
+FieldName = ['Step' num2str(MRStruct.RecoSteps.TotSteps) '_' RecoName];
 
 
-Out.RecoSteps.(FieldName) = Settings;
+MRStruct.RecoSteps.(FieldName) = Settings;
 
 
 

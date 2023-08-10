@@ -64,7 +64,7 @@ if(isstruct(NoiseStructOrNoiseCorrMat))
     
     Noise_mat = reshape(NoiseStructOrNoiseCorrMat.Data,[size(NoiseStructOrNoiseCorrMat.Data,1) numel(NoiseStructOrNoiseCorrMat.Data)/size(NoiseStructOrNoiseCorrMat.Data,1)]);
     Noise_mat = Noise_mat(:,20:end);
-    NoiseScalingFactor = sqrt(NoiseStructOrNoiseCorrMat.Par.Dwelltimes(1) / MRStruct.Par.Dwelltimes(1));
+    NoiseScalingFactor = sqrt(NoiseStructOrNoiseCorrMat.Par.Dwelltimes(1) / (MRStruct.RecoPar.Dwelltimes(1)*MRStruct.RecoPar.nTempIntsPerAngInt(1)/MRStruct.RecoPar.DataSize{1}(1)));
     % NoiseScalingFactor = 1;
     Noise_mat = Noise_mat * NoiseScalingFactor;
     NoiseCorrMat = 1/(size(Noise_mat,2)) * (Noise_mat * Noise_mat');
@@ -74,39 +74,30 @@ end
 AdditionalOut.NoiseCorrMat = NoiseCorrMat;
 
 
-%% Uncell MRStruct data if necessary
-    
-WasCell_flag = false;
-if(iscell(MRStruct.Data))
-    MRStruct.Data = cat(1,MRStruct.Data{:});
-    WasCell_flag = true;
-end
-
-
 %% Perform NoiseDecorrelation
+    
+Tmp = MRStruct; 
 
+if(iscell(MRStruct.Data))
+    Tmp.Data = MRStruct.Data{1};
+    for ii = 1:numel(MRStruct.Data)
+        Tmp.Data = MRStruct.Data{ii};
+        Tmp = op_PermuteMRData(Tmp,[6 1 2 3 4 5 7:numel(size(Tmp.Data))]);
+        Tmp.Data = PerformNoiseDecorrelation(Tmp.Data,NoiseCorrMat);
+        Tmp = op_PermuteMRData(Tmp,[2 3 4 5 6 1 7:numel(size(Tmp.Data))]);
+        MRStruct.Data{ii} = Tmp.Data;
+end
+    clear Tmp;
+else
 MRStruct = op_PermuteMRData(MRStruct,[6 1 2 3 4 5 7:numel(size(MRStruct.Data))]);
 MRStruct.Data = PerformNoiseDecorrelation(MRStruct.Data,NoiseCorrMat);
 MRStruct = op_PermuteMRData(MRStruct,[2 3 4 5 6 1 7:numel(size(MRStruct.Data))]);
-
-
-%% Cell MRStruct data if necessary
-
-if(WasCell_flag)
-    CurPt = 1;
-    Bak = cell([1 numel(MRStruct.RecoPar.TrajPts)]);
-    for CurAI = 1:numel(MRStruct.RecoPar.TrajPts)
-        Bak{CurAI} = MRStruct.Data(CurPt:CurPt+MRStruct.RecoPar.TrajPts(CurAI)-1,:,:,:,:,:,:,:);
-        CurPt = CurPt + MRStruct.RecoPar.TrajPts(CurAI);
     end
-    MRStruct.Data = Bak; clear Bak;
-end
-
 
 
 %% 
 if(Settings.CreateNoiseData)
-    if(WasCell_flag)
+    if(iscell(MRStruct.Data))
         for CurAI = 1:numel(MRStruct.RecoPar.TrajPts)
             MRStruct.NoiseData{CurAI} = randn(size(MRStruct.Data{CurAI})); 
         end

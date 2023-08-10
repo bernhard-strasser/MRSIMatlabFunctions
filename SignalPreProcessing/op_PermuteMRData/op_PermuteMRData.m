@@ -31,6 +31,11 @@ function [MRStruct] = op_PermuteMRData(MRStruct, Settings)
 
 
 %% Prep
+
+if(~isstruct(MRStruct) || numel(fieldnames(MRStruct)) < 1)
+    return;
+end
+
 if(~exist('Settings','var'))
    Settings = struct; 
 else
@@ -60,16 +65,25 @@ end
 
 for fieldyy = {'Data','NoiseData','Mask','BrainMask','LipMask'}
     if(isfield(MRStruct,fieldyy{1}))
+        if(iscell(MRStruct.(fieldyy{1})))
+            for ii = 1:numel(MRStruct.(fieldyy{1}))
+                MRStruct.(fieldyy{1}){ii} = permute(MRStruct.(fieldyy{1}){ii},Settings.PermuteVec);
+                MRStruct.RecoPar.DataSize{ii} = size(MRStruct.Data{ii});
+            end
+        else
         MRStruct.(fieldyy{1}) = permute(MRStruct.(fieldyy{1}),Settings.PermuteVec);
+            MRStruct.RecoPar.DataSize = size(MRStruct.Data);
     end    
 end
-MRStruct.RecoPar.DataSize = size(MRStruct.Data);
+end
 
 
 %% Reorder dimnames
 if(isfield(MRStruct.RecoPar,'dimnames'))
     MRStruct.RecoPar.dimnames = MRStruct.RecoPar.dimnames(Settings.PermuteVec);
-    MRStruct.RecoPar.dimnames_small = MRStruct.RecoPar.dimnames(1:numel(MRStruct.RecoPar.DataSize));
+end
+if(isfield(MRStruct.RecoPar,'dimnames_small'))
+    MRStruct.RecoPar.dimnames_small = MRStruct.RecoPar.dimnames_small(Settings.PermuteVec);
 end
 
 

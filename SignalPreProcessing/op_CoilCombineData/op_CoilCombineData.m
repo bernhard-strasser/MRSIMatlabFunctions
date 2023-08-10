@@ -45,6 +45,13 @@ if(isfield(Settings,'ResizeMethod') && strdist(Settings.ResizeMethod,'Imresize')
 else
     ImResize_flag = false;
 end
+if(~isfield(Settings,'ScalingMethod'))
+    if(exist('CoilWeightMap','var'))
+        Settings.ScalingMethod = 'UniformSensitivity';
+    else
+        Settings.ScalingMethod = 'UniformNoise';   
+    end
+end
 if(isfield(Settings,'ScalingMethod') && strdist(Settings.ScalingMethod,'UniformNoise') < strdist(Settings.ScalingMethod,'UniformSensitivity'))
     UniformSignal_flag = false;
 else
@@ -84,6 +91,10 @@ if(numel(CoilWeightMap.Data) == 1)
     return;
 end
 
+if(any(CoilWeightMap.RecoPar.DataSize([4 6]) > 1))
+    CoilWeightMap.Data = CoilWeightMap.Data(:,:,:,1,:,1);
+    CoilWeightMap.RecoPar.DataSize([4 6]) = 1;
+end
 
 %% Resize SensMap
 
