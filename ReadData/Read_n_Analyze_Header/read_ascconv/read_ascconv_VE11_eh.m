@@ -457,8 +457,15 @@ end
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
 
-[~, Tmp] = unix(['grep -a -m 4 ReadoutOSFactor ' file_path]);
-Tmp = regexp(Tmp, '<ParamDouble."flReadoutOSFactor">  { <Precision> 6  .*  }','match');
+BasicInfo = io_GetBasicTwixfileInfos(file_path);
+fid = fopen(file_path,'r');
+wiff = fread(fid,BasicInfo.BeginningOfData,'int8=>char');   % Read in only until beginning of data. Otherwise the search of big files takes ages.
+wiff = convertCharsToStrings(wiff);
+Tmp = regexp(wiff,'<ParamDouble."flReadoutOSFactor">  { <Precision> 6  \d\.\d*\s*}','match');
+fclose(fid);
+
+% [~, Tmp] = unix(['grep -a -m 4 ReadoutOSFactor ' file_path]);
+% Tmp = regexp(Tmp, '<ParamDouble."flReadoutOSFactor">  { <Precision> 6  .*  }','match');
 Tmp = regexp(Tmp{1}, '{.*}','match');
 Tmp = regexprep(Tmp,'{ <Precision> 6  ','');
 Tmp = regexprep(Tmp,'\s+}','');
