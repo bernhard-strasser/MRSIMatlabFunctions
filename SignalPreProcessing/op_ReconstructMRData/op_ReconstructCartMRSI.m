@@ -57,7 +57,7 @@ end
 
 %% Sum Averages
 
-[MRStruct] = op_AverageMRIData(MRStruct,Settings.Averaging);
+[MRStruct] = op_AverageMRData(MRStruct,Settings.Averaging);
 
 
 

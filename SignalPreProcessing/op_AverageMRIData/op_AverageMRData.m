@@ -1,4 +1,4 @@
-function [MRStruct,AdditionalOut] = op_AverageMRIData(MRStruct,Settings)
+function [MRStruct,AdditionalOut] = op_AverageMRData(MRStruct, Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -37,14 +37,14 @@ function [MRStruct,AdditionalOut] = op_AverageMRIData(MRStruct,Settings)
 %%
 
 if(~exist('Settings','var'))
-    Settings = struct;
-end
+   Settings = struct; 
+    end
 if(~isfield_recursive(Settings,'UndoWeightedAveraging_flag'))
     Settings.UndoWeightedAveraging_flag = true;
 end
 if(~isfield(MRStruct,'RecoPar'))
 	MRStruct.RecoPar = MRStruct.Par;
-end
+    end
 
 if(isfield(MRStruct.RecoPar,'dimnames'))
     DimNames = MRStruct.RecoPar.dimnames;
@@ -57,7 +57,7 @@ end
 if(exist('DimNames','var'))
     AvgInd =  find(~cellfun(@isempty,regexpi(DimNames,'Ave')));
     if(isempty(AvgInd))
-        fprintf('\nWarning in op_AverageMRIData: There seems to be no dimension that corresponds to averages (name ''Ave''). Don''t do anything.')       
+        fprintf('\nWarning in op_AverageMRData: There seems to be no dimension that corresponds to averages (name ''Ave''). Don''t do anything.')       
         return;
     end
     DimNames(AvgInd) = [];
@@ -67,7 +67,7 @@ if(isfield(MRStruct.RecoPar,'dimnames'))
         MRStruct.RecoPar.dimnames_small(AvgInd) = [];
     end
 else
-    fprintf('\nWarning in op_AverageMRIData: I am not sure which dimension I should average. Don''t do anything.')
+    fprintf('\nWarning in op_AverageMRData: I am not sure which dimension I should average. Don''t do anything.')
     return;
 end
 MRStruct.Data = sum(MRStruct.Data,AvgInd)/size(MRStruct.Data,AvgInd);
@@ -82,7 +82,7 @@ if(Settings.UndoWeightedAveraging_flag && isfield(MRStruct,'WeightedAveragingMap
     Tmp(Tmp == 0) = 1;
     MRStruct.Data = MRStruct.Data ./ Tmp; 
 end
-    
+
 %% Postparations
 
 MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
