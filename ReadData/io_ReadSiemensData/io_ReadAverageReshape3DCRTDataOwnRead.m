@@ -77,7 +77,7 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     fprintf('\tReading Parameters\t\t\t...')
     ticcyReadPars = tic;
     [MRStruct,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'ONLINE'); 
-    MRStruct_refscan = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFSCAN');
+    [MRStruct_refscan,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFSCAN');
     MRStruct.Par.dicom_flag = false;
     MRStruct_refscan.Par.dicom_flag = false;
     fprintf('\n\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadPars))

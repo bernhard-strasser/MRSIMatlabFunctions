@@ -220,7 +220,7 @@ end
 
 
 %% Scale Noise Data
-if(iscell(MRStruct.NoiseData))
+if(isfield(MRStruct,'NoiseData') && iscell(MRStruct.NoiseData))
     for ii = 1:numel(MRStruct.NoiseData)
         MRStruct.NoiseData{ii} = MRStruct.NoiseData{ii} * CircleFactors(ii);
     end
