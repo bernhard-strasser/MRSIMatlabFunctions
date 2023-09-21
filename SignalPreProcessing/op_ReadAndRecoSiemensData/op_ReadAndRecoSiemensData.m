@@ -46,10 +46,31 @@ if(~exist('NonCartTrajFile','var'))
     NonCartTrajFile = [];
 end
 
+
+% Always make cell to be consistent
+if(~iscell(file))
+    tmp{1} = file;
+    file = tmp; clear tmp;
+end
+
+if(numel(file) > 1 && ~endsWith(file{1},'IMA'))
+    fprintf('\nError in op_ReadAndRecoSiemensData: You gave me several non-DICOM files. I cannot digest that. Need to stop here.')
+    return;
+end
+
+
 %% Read Data
 
-
-[MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file,NonCartTrajFile);
+dicom_flag = false;
+if(  endsWith(file{1},'IMA') || isdir(file{1})  )
+    dicom_flag = true;
+    MRStruct = read_csi_dicom(file);
+    MRStruct.Par.dicom_flag = true;	
+    RefStruct = struct; NoiseStruct = struct;
+else
+    [MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file{1},NonCartTrajFile);
+    MRStruct.Par.dicom_flag = false;
+end
 
 
 
@@ -61,10 +82,10 @@ end
 
 
 %% Reconstruct Data
-
-MRStruct = op_ReconstructMRData(MRStruct,NoiseStruct,Settings);
-RefStruct = op_ReconstructMRData(RefStruct,NoiseStruct,Settings);
-
+if(~dicom_flag)
+    MRStruct = op_ReconstructMRData(MRStruct,NoiseStruct,Settings);
+    RefStruct = op_ReconstructMRData(RefStruct,NoiseStruct,Settings);
+end
 
 %% Postparations
 

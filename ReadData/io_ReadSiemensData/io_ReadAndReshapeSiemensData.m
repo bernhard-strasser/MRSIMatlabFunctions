@@ -45,22 +45,22 @@ if(~exist('NonCartTrajFile','var'))
 end
 
 
-%% Find out Dicom, VB or VD/VE software version, and assumed sequence
-dicom_flag = false;
-
-if(endsWith(file,'.IMA'))
-	dicom_flag = true;
+% Always make cell to be consistent
+if(~iscell(file))
+    tmp{1} = file;
+    file = tmp; clear tmp;
 end
-	MRStruct.Par = read_ascconv(file);
-
 
 
 %% Read Data
 
-if(dicom_flag)
+if(endsWith(file{1},'IMA') || isdir(file{1}))
+	MRStruct = read_csi_dicom(file); % Differences between VB and VD/VE?
 	MRStruct.Par.dicom_flag = true;	
-	MRStruct.Data = read_csi_dicom(file); % Differences between VB and VD/VE?
+	RefStruct = struct; NoiseStruct = struct;
 else
+	MRStruct.Par = read_ascconv(file);
+	MRStruct.Par.dicom_flag = false;	
 	if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))
 		[MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file);
         MRStruct.TrajFile = NonCartTrajFile; RefStruct.TrajFile = NonCartTrajFile;
