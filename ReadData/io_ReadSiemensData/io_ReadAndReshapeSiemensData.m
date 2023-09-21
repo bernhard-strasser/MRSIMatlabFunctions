@@ -57,23 +57,23 @@ end
 if(endsWith(file{1},'IMA') || isdir(file{1}))
 	MRStruct = read_csi_dicom(file); % Differences between VB and VD/VE?
 	MRStruct.Par.dicom_flag = true;	
-	RefStruct = struct; NoiseStruct = struct;
+    RefStruct = struct; NoiseStruct = struct;
 else
-	MRStruct.Par = read_ascconv(file);
-	MRStruct.Par.dicom_flag = false;	
+    MRStruct.Par = read_ascconv(file{1});
+    MRStruct.Par.dicom_flag = false;	
 	if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))
-		[MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file);
+		[MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file{1});
         MRStruct.TrajFile = NonCartTrajFile; RefStruct.TrajFile = NonCartTrajFile;
 	elseif(strcmpi(MRStruct.Par.AssumedSequence,'BorjanSpiral'))
-		MRStruct = io_ReadAverageReshapeBorjanSpiralData(file,NonCartTrajFile);
+		MRStruct = io_ReadAverageReshapeBorjanSpiralData(file{1},NonCartTrajFile);
     elseif(strcmpi(MRStruct.Par.AssumedSequence,'CSIOrSVS'))
-        [MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshapePhaseEncodedMRSIData(file);
+        [MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshapePhaseEncodedMRSIData(file{1});
     elseif(strcmpi(MRStruct.Par.AssumedSequence,'Imaging_GRE'))
-        MRStruct = io_ReadAverageReshapeImagingGREData(file);
+        MRStruct = io_ReadAverageReshapeImagingGREData(file{1});
     elseif(strcmpi(MRStruct.Par.AssumedSequence,'AntoinesEccentricOrRosette')) % SB2022
-        MRStruct = io_ReadAverageReshape3DEccentricDataOwnRead(file);   
+        MRStruct = io_ReadAverageReshape3DEccentricDataOwnRead(file{1});   
 	else
-		MRStruct = io_ReadAverageReshapeGenericData(file);
+		MRStruct = io_ReadAverageReshapeGenericData(file{1});
 	end
 end
 
