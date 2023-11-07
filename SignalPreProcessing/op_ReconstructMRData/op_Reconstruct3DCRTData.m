@@ -94,6 +94,10 @@ MRStruct.Par.TargetDataSize = [size_MultiDims(MRStruct.OutTraj.GM,[3 4]) MRStruc
                    MRStruct.Par.vecSize MRStruct.Par.total_channel_no_measured];
 
 
+if(isfield(MRStruct.InTraj,'StartingPointAfterLaunchTrack'))
+    Settings.NonCartReco.RemoveFirstADCPoints = MRStruct.InTraj.StartingPointAfterLaunchTrack;
+end
+
 % Reco MRStruct
 MRStruct = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
 

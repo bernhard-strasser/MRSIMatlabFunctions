@@ -112,6 +112,70 @@ tic
 fprintf('\n\nReconstructing data\t\t...')
 
 
+
+
+%% Remove first ADC Points
+
+if(isfield(Settings,'RemoveFirstADCPoints'))
+    for ii = 1:numel(Output.Data)
+        Siz = size(Output.Data{ii}); 
+        Tmpp = permute(Output.Data{ii},[1 5 2 3 4 6]);
+        Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4)]); 
+        Start = Settings.RemoveFirstADCPoints{ii};
+        RmFIDPts = ceil(Start/Siz(1));
+        End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
+        Tmpp = Tmpp(Start:End,:,:,:,:,:);
+        NewSiz = zeros([1 numel(Siz)]); NewSiz(5) = RmFIDPts*Output.Par.nTempIntsPerAngInt(ii); NewSiz = Siz - NewSiz;
+        NewSiz2 = cat(2,NewSiz([1 5 2 3 4]),NewSiz(6:end));
+        Tmpp = reshape(Tmpp,NewSiz2);
+        Tmpp = permute(Tmpp,[1 3 4 5 2 6]);
+        Output.Data{ii} = reshape(Tmpp,NewSiz);
+        
+        Output.Par.DataSize{ii}(5) = NewSiz(5);
+    end
+    
+    % Noise Data
+    if(isfield(Output,'NoiseData'))
+        for ii = 1:numel(Output.NoiseData)
+            Siz = size(Output.NoiseData{ii}); 
+            Tmpp = permute(Output.NoiseData{ii},[1 5 2 3 4 6]);
+            Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4)]); 
+            Start = Settings.RemoveFirstADCPoints{ii};
+            RmFIDPts = ceil(Start/Siz(1));
+            End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
+            Tmpp = Tmpp(Start:End,:,:,:,:,:);
+            NewSiz = zeros([1 numel(Siz)]); NewSiz(5) = RmFIDPts*Output.Par.nTempIntsPerAngInt(ii); NewSiz = Siz - NewSiz;
+            NewSiz2 = cat(2,NewSiz([1 5 2 3 4]),NewSiz(6:end));
+            Tmpp = reshape(Tmpp,NewSiz2);
+            Tmpp = permute(Tmpp,[1 3 4 5 2 6]);
+            Output.NoiseData{ii} = reshape(Tmpp,NewSiz);
+        end    
+    end
+    
+    
+    % Find out Min vecSize for all Temporal Interleaves. Cut all FIDs to the same vectorSize
+    tmp = cat(1,Output.Par.DataSize{:});
+    minvecSize = min(tmp(:,5));
+    for ii = 1:numel(Output.Data)
+        Output.Data{ii} = Output.Data{ii}(:,:,:,:,1:minvecSize);
+        Output.Par.DataSize{ii}(5) = minvecSize;
+        
+        if(isfield(Output,'NoiseData'))
+            Output.NoiseData{ii} = Output.NoiseData{ii}(:,:,:,:,1:minvecSize);
+            Output.Par.DataSize{ii}(5) = minvecSize;            
+        end
+        
+    end
+    
+    Output.RecoPar.vecSize = NewSiz(5);
+    Output.Par.vecSize = NewSiz(5);
+    Output.RecoPar.DataSize(5) = NewSiz(5);
+    clear ii Siz Tmpp Start RmFIDPts End NewSiz;
+end
+
+
+
+
 %% FOV SHIFTs Add correct phaseses to the data and shift the FOV to the image center.
 LPH=[Output.RecoPar.Pos_Cor Output.RecoPar.Pos_Sag Output.RecoPar.Pos_Tra];
 Normal1=[Output.RecoPar.SliceNormalVector_y Output.RecoPar.SliceNormalVector_x Output.RecoPar.SliceNormalVector_z];

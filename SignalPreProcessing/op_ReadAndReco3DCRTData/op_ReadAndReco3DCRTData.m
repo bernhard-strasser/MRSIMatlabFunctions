@@ -133,7 +133,7 @@ end
 
 %% Find all Trajectory Files
 
-if(~isempty(MRStruct.TrajFile) && ~iscell(MRStruct.TrajFile) && ~endsWith(MRStruct.TrajFile,'.m'))
+if(~isempty(MRStruct.TrajFile) && ~iscell(MRStruct.TrajFile) && ~(endsWith(MRStruct.TrajFile,'.m') || endsWith(MRStruct.TrajFile,'.mat')))
     Files = dir(MRStruct.TrajFile);
     Files = {Files.name};
     Files = Files(endsWith(Files,'.m'));
@@ -154,7 +154,7 @@ if(nargout > 2)
     %standdev.RE=.1;
     %standdev.IM=.1;
     for ii=1:size(MRStruct.Data,2)
-        MRStruct.NoiseData{ii} = single(standdev.RE*randn(size(MRStruct.Data{ii}))+ii*standdev.IM*randn(size(MRStruct.Data{ii})));
+        MRStruct.NoiseData{ii} = single(standdev.RE*randn(size(MRStruct.Data{ii}))+1i*standdev.IM*randn(size(MRStruct.Data{ii})));
     end
     AdditionalOut.stddev = standdev; 
 elseif(nargout > 1)
@@ -178,6 +178,20 @@ end
 
 Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize NonCart trajectory to maximum of Cartesian trajectory
 [MRStruct] = io_ReadCRTTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
+
+
+% % Use Measured Trajectory just to know how much to shift the trajectory (StartingPointAfterLaunchTrack),
+% % but then actually use calculated and shifted trajectory
+% [MRStruct2] = io_ReadCRTTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);wuff = MRStruct2.InTraj.StartingPointAfterLaunchTrack;MRStruct.TrajFile = [];
+% [MRStruct] = io_ReadCRTTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
+% MRStruct.InTraj.StartingPointAfterLaunchTrack = wuff; 
+% for ii = 1:numel(MRStruct.InTraj.GM); MRStruct.InTraj.GM{ii} = circshift(MRStruct.InTraj.GM{ii}, [0 -MRStruct.InTraj.StartingPointAfterLaunchTrack{ii}+1]); end
+
+
+if(isfield(MRStruct.InTraj,'StartingPointAfterLaunchTrack'))
+    Settings.NonCartReco.RemoveFirstADCPoints = MRStruct.InTraj.StartingPointAfterLaunchTrack;
+end
+    
 
 if(nargout > 1)
     [RefScan] = sim_CalcCartTraj(RefScan,Settings.CalcOutTraj);

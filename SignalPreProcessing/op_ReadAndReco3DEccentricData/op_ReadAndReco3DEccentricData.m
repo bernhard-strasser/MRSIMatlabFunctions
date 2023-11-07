@@ -150,7 +150,7 @@ if(~isfield(MRStruct,'TrajFile'))
 end
 %% Find all Trajectory Files
 
-if(~isempty(MRStruct.TrajFile) && ~iscell(MRStruct.TrajFile) && ~endsWith(MRStruct.TrajFile,'.m'))
+if(~isempty(MRStruct.TrajFile) && ~iscell(MRStruct.TrajFile) && ~(endsWith(MRStruct.TrajFile,'.m') || endsWith(MRStruct.TrajFile,'.mat')))
     Files = dir(MRStruct.TrajFile);
     Files = {Files.name};
     Files = Files(endsWith(Files,'.m'));
@@ -187,6 +187,19 @@ end
 
 Settings.ReadInTraj.maxR = MRStruct.OutTraj.maxR;  % Normalize NonCart trajectory to maximum of Cartesian trajectory
 [MRStruct] = io_ReadEccentricTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
+
+% % Use Measured Trajectory just to know how much to shift the trajectory (StartingPointAfterLaunchTrack), 
+% % but then actually use calculated and shifted trajectory.
+% [MRStruct2] = io_ReadEccentricTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);wuff = MRStruct2.InTraj.StartingPointAfterLaunchTrack;MRStruct.TrajFile = [];
+% [MRStruct] = io_ReadEccentricTraj(MRStruct,MRStruct.TrajFile,Settings.ReadInTraj);
+% MRStruct.InTraj.StartingPointAfterLaunchTrack = wuff; 
+% for ii = 1:numel(MRStruct.InTraj.GM); MRStruct.InTraj.GM{ii} = circshift(MRStruct.InTraj.GM{ii}, [0 -MRStruct.InTraj.StartingPointAfterLaunchTrack{ii}+1]); end
+    
+
+if(isfield(MRStruct.InTraj,'StartingPointAfterLaunchTrack'))
+    Settings.NonCartReco.RemoveFirstADCPoints = MRStruct.InTraj.StartingPointAfterLaunchTrack;
+end
+
 
 %% Spring cleaning
 

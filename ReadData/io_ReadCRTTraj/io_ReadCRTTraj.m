@@ -40,21 +40,6 @@ if(~exist('Settings','var'))
     Settings = [];
 end
 
-if(~isfield(DataStruct.Par,'GradDelay_x_us'))
-    if(isfield(Settings,'GradDelay_x_us'))
-        DataStruct.Par.GradDelay_x_us = Settings.GradDelay_x_us;
-    else
-        DataStruct.Par.GradDelay_x_us = 0;
-    end
-end
-if(~isfield(DataStruct.Par,'GradDelay_y_us'))
-    if(isfield(Settings,'GradDelay_x_us'))
-        DataStruct.Par.GradDelay_y_us = Settings.GradDelay_y_us;
-else
-        DataStruct.Par.GradDelay_y_us = 0;
-    end    
-end
-
 if(~isfield(Settings,'IncludeRewinder_flag'))
     Settings.IncludeRewinder_flag = false;
 end
@@ -65,13 +50,36 @@ if(~isfield(Settings,'ShowTrajs'))
     Settings.ShowTrajs = false;
 end
 
-
-
-DataStruct.Par.GradDelay_y_us = 0;
-DataStruct.Par.GradDelay_x_us = 0;
-
-
 DataStruct.Par.RewPts = 0;
+
+
+TIs = unique(DataStruct.Par.nTempIntsPerAngInt);
+NoOfTIs = numel(TIs);
+
+if(~exist('TrajFile','var') || isempty(TrajFile))
+    if(~isfield(Settings,'GradDelayPerTempInt_us')) % 1 Value per Temporal Interleaf, not per axis!
+        Settings.GradDelayPerTempInt_us = [12.562838,12.540197,10.082248];     % Estimated on Phantom Trajectory Measurement at Vienna 7 T (Measurement from 2023-10).
+    end
+    if(numel(Settings.GradDelayPerTempInt_us) < NoOfTIs)
+        Settings.GradDelayPerTempInt_us = repmat(Settings.GradDelayPerTempInt_us,[1 NoOfTIs]);
+    end
+    if(numel(Settings.GradDelayPerTempInt_us) > NoOfTIs)
+        Settings.GradDelayPerTempInt_us = Settings.GradDelayPerTempInt_us(1:NoOfTIs);
+    end
+else
+    Settings.GradDelayPerTempInt_us = zeros([1 NoOfTIs]);
+end
+
+if(isfield(Settings,'GradDelayPerTempInt_us'))
+    Settings.GradDelayAngle_rad = -Settings.GradDelayPerTempInt_us(TIs)*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(TIs);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
+    
+    TIDist = zeros([1 NoOfTIs]);
+    for ii = 1:NoOfTIs
+        TIDist(ii) = sum(DataStruct.Par.nTempIntsPerAngInt == TIs(ii));
+    end
+    Settings.GradDelayAngle_rad  = repelem(Settings.GradDelayAngle_rad,TIDist);
+end
+
 
 
 
@@ -79,12 +87,18 @@ DataStruct.Par.RewPts = 0;
 
 if(~exist('TrajFile','var') || isempty(TrajFile))
     Radii = sqrt(DataStruct.Par.FirstCirclekSpacePoint(1,:).^2 + DataStruct.Par.FirstCirclekSpacePoint(2,:).^2); 
-    phi0s = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2;
+    phi0s = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2 + Settings.GradDelayAngle_rad;
     for ii = 1:DataStruct.Par.nAngInts
         DeltaPhi = 2*pi/DataStruct.Par.TrajPts(ii); 
         Phi = (0:-1:-DataStruct.Par.TrajPts(ii)+1)*DeltaPhi; 
         DataStruct.InTraj.GM{ii} = cat(1,real(Radii(ii)*exp(1i*(Phi+phi0s(ii)))),imag(Radii(ii)*exp(1i*(Phi+phi0s(ii))))); 
     end
+
+elseif(endsWith(TrajFile,'.mat'))
+    
+    Tmp = load(TrajFile);
+    DataStruct.InTraj = Tmp.kSpaceTrajectory;
+    Settings.maxR = 0.5;
 
 else
 

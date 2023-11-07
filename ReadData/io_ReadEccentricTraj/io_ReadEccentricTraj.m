@@ -192,7 +192,14 @@ if(~exist('TrajFile','var') || isempty(TrajFile))
     
     DataStruct.InTraj.GM = cellfun(@(x) x*1000, DataStruct.InTraj.GM,'uni',false);
     
+elseif(endsWith(TrajFile,'.mat'))
+    
+    Tmp = load(TrajFile);
+    DataStruct.InTraj = Tmp.kSpaceTrajectory;
+    Settings.maxR = 0.5;
+    
 else
+    
 if(~iscell(TrajFile) && ~endsWith(TrajFile,'.m'))
     Files = dir(TrajFile);
     Files = {Files.name};
@@ -255,7 +262,12 @@ for ii = 1:numel(dGradientValues)
 %     DataStruct.InTraj.GM(:,:,ii) = [real(blaa); imag(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
 %     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
 end
+    
+    
 end 
+    
+    
+ 
 %% Normalize DataStruct.InTraj
 
 DataStruct.InTraj.GM = cellfun(@(x) x/(Settings.maxR*2), DataStruct.InTraj.GM,'uni',false);
