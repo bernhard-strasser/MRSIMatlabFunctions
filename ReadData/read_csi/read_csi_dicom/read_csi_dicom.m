@@ -76,7 +76,7 @@ if(numel(csi_path) > 1)
 else
     
     % If we get one IMA file
-    if(endsWith(csi_path{1},'.IMA'))
+    if(endsWith(csi_path{1},{'.IMA','.dcm'}))
         csi_first_file = csi_path{1};
         csi_path_allfiles = csi_path(1);
         
@@ -84,6 +84,12 @@ else
     else
         csi_path_allfiles = dir( fullfile(csi_path{1},'*.IMA') );
         csi_path_allfiles = {csi_path_allfiles.name}';
+        
+        csi_path_allfiles2 = dir( fullfile(csi_path{1},'*.dcm') );
+        csi_path_allfiles2 = {csi_path_allfiles2.name}';
+        
+        csi_path_allfiles = cat(1,csi_path_allfiles,csi_path_allfiles2);
+        
         csi_path_allfiles = strcat(csi_path,'/',csi_path_allfiles);
         if(numel(csi_path_allfiles) == 0)
             fprintf('\nError in read_csi_dicom: Could not find any DICOM file. Abort.\n');
@@ -236,7 +242,7 @@ end
 %%
 
 if(Settings.RemoveFIDZerofilling_flag)
-    RealVecSize = squeeze(sum(sum(sum(MRStruct.Data))));
+    RealVecSize = squeeze(sum(sum(sum(MRStruct.Data,1),2),3));
     RealVecSize = sum(abs(RealVecSize(:,1,1,1,1)) > 0);
     MRStruct.Data = MRStruct.Data(:,:,:,1:RealVecSize,:,:,:,:);
     MRStruct.RecoPar.vecSize = RealVecSize;

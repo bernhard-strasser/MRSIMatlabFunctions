@@ -200,24 +200,24 @@ elseif(endsWith(TrajFile,'.mat'))
     
 else
     
-if(~iscell(TrajFile) && ~endsWith(TrajFile,'.m'))
-    Files = dir(TrajFile);
-    Files = {Files.name};
-    Files = Files(endsWith(Files,'.m'));
-    TrajFile = strcat(TrajFile,'/',Files);
-end
-dGradientValues = cell(1);
-for ii = 1:numel(TrajFile)
-    run(TrajFile{ii});
-    CurLoop = numel(dGradientValues);                       % The files are not ordered correctly, so need this complication
-    dGradientValues2(CurLoop) = dGradientValues(CurLoop);
-    clear dGradientValues
-    NumberOfBrakeRunPointsCell{CurLoop} = NumberOfBrakeRunPoints(CurLoop);
-    NumberOfLaunTrackPointsCell{CurLoop} = NumberOfLaunTrackPoints(CurLoop);
-    NumberOfLoopPointsCell{CurLoop} = NumberOfLoopPoints(CurLoop);
-end
-clear Files TrajFile
-dGradientValues = dGradientValues2; clear dGradientValues2;
+    if(~iscell(TrajFile) && ~endsWith(TrajFile,'.m'))
+        Files = dir(TrajFile);
+        Files = {Files.name};
+        Files = Files(endsWith(Files,'.m'));
+        TrajFile = strcat(TrajFile,'/',Files);
+    end
+    dGradientValues = cell(1);
+    for ii = 1:numel(TrajFile)
+        run(TrajFile{ii});
+        CurLoop = numel(dGradientValues);                       % The files are not ordered correctly, so need this complication
+        dGradientValues2(CurLoop) = dGradientValues(CurLoop);
+        clear dGradientValues
+        NumberOfBrakeRunPointsCell{CurLoop} = NumberOfBrakeRunPoints(CurLoop);
+        NumberOfLaunTrackPointsCell{CurLoop} = NumberOfLaunTrackPoints(CurLoop);
+        NumberOfLoopPointsCell{CurLoop} = NumberOfLoopPoints(CurLoop);
+    end
+    clear Files TrajFile
+    dGradientValues = dGradientValues2; clear dGradientValues2;
 
     % SB2022: numer of Trajectories is smaller for Ellipses 
     DataStruct.Par.nAngInts=numel(dGradientValues);
@@ -225,47 +225,45 @@ dGradientValues = dGradientValues2; clear dGradientValues2;
 
 
 
-%% Interpolate to ADC
+    %% Interpolate to ADC
 
-% The points in our trajectory are GradRasterTime apart from each other.
-% Simulate ADC_dt = GradientRaterTime/2
+    % The points in our trajectory are GradRasterTime apart from each other.
+    % Simulate ADC_dt = GradientRaterTime/2
 
-for ii = 1:numel(dGradientValues)
-        
-    
-    % Calculate Gradient Moments of LaunchTracks
-    GMLaunchtrack = -trapz(dGradientValues{ii}(1:NumberOfLaunTrackPointsCell{ii})*dMaxGradAmpl*10);
-    
-    
-    
-    CurTraj = dGradientValues{ii}(NumberOfLaunTrackPointsCell{ii}:NumberOfLaunTrackPointsCell{ii}+NumberOfLoopPointsCell{ii}-1);    
+    for ii = 1:numel(dGradientValues)
 
-    % The trajectory is circular, so append the first 3 points to the end, and the last ones to the beginning for better interpolation
-    % Append for now always the whole trajectory in beginning and end. When measuring few ADC points for the inner circles, I actually have
-    % ADC-dt > GRAD_RASTER_TIME. Now the 6 extra gradient points are not always dividable by ADC-dt, but if I append the whole trajectory, it is.
-    AppendPtsInBeginAndEnd = numel(CurTraj);
-    CurTraj = cat(2,CurTraj(end-AppendPtsInBeginAndEnd+1:end),CurTraj,CurTraj(1:AppendPtsInBeginAndEnd));
-    
-    % Interpolate to ADC-grid
-    DataStruct.Par.ADC_OverSamp = 1E4/DataStruct.Par.ADCdtPerAngInt_ns(ii);
-    CurTraj = interp1(1:1:numel(CurTraj),CurTraj,1:(1/DataStruct.Par.ADC_OverSamp):numel(CurTraj),'spline');
 
-    % Now remove the extra points again at beginning and end
-    TakePtsFrom = DataStruct.Par.ADC_OverSamp*AppendPtsInBeginAndEnd+1; % Lets say we interpolate to 3 x finer grid. We added 3 points, totalling 3*3=9 additional points. Should start from point 10.
-    TakePtsTo = TakePtsFrom + NumberOfLoopPointsCell{ii}*DataStruct.Par.ADC_OverSamp-1;   % Start from TakePtsFrom. Then we take all interpolated points from there, but minus 1
-    CurTraj = CurTraj(TakePtsFrom:TakePtsTo);                               % (this last point is actually the first point of the next circumference of the circle)
+        % Calculate Gradient Moments of LaunchTracks
+        GMLaunchtrack = -trapz(dGradientValues{ii}(1:NumberOfLaunTrackPointsCell{ii})*dMaxGradAmpl*10);
 
-    blaa = -cumtrapz(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
-    blaa = GMLaunchtrack + blaa;                                                   % Add Gradient Moment of LaunchTrack
-    DataStruct.InTraj.GM{ii}(:,:) = [imag(blaa); real(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
-    DataStruct.InTraj.GV{ii}(:,:) = [imag(CurTraj); real(CurTraj)];      
-%     DataStruct.InTraj.GM(:,:,ii) = [real(blaa); imag(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
-%     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
-end
-    
+
+
+        CurTraj = dGradientValues{ii}(NumberOfLaunTrackPointsCell{ii}:NumberOfLaunTrackPointsCell{ii}+NumberOfLoopPointsCell{ii}-1);    
+
+        % The trajectory is circular, so append the first 3 points to the end, and the last ones to the beginning for better interpolation
+        % Append for now always the whole trajectory in beginning and end. When measuring few ADC points for the inner circles, I actually have
+        % ADC-dt > GRAD_RASTER_TIME. Now the 6 extra gradient points are not always dividable by ADC-dt, but if I append the whole trajectory, it is.
+        AppendPtsInBeginAndEnd = numel(CurTraj);
+        CurTraj = cat(2,CurTraj(end-AppendPtsInBeginAndEnd+1:end),CurTraj,CurTraj(1:AppendPtsInBeginAndEnd));
+
+        % Interpolate to ADC-grid
+        DataStruct.Par.ADC_OverSamp = 1E4/DataStruct.Par.ADCdtPerAngInt_ns(ii);
+        CurTraj = interp1(1:1:numel(CurTraj),CurTraj,1:(1/DataStruct.Par.ADC_OverSamp):numel(CurTraj),'spline');
+
+        % Now remove the extra points again at beginning and end
+        TakePtsFrom = DataStruct.Par.ADC_OverSamp*AppendPtsInBeginAndEnd+1; % Lets say we interpolate to 3 x finer grid. We added 3 points, totalling 3*3=9 additional points. Should start from point 10.
+        TakePtsTo = TakePtsFrom + NumberOfLoopPointsCell{ii}*DataStruct.Par.ADC_OverSamp-1;   % Start from TakePtsFrom. Then we take all interpolated points from there, but minus 1
+        CurTraj = CurTraj(TakePtsFrom:TakePtsTo);                               % (this last point is actually the first point of the next circumference of the circle)
+
+        blaa = -cumtrapz(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
+        blaa = GMLaunchtrack + blaa;                                                   % Add Gradient Moment of LaunchTrack
+        DataStruct.InTraj.GM{ii}(:,:) = [imag(blaa); real(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
+        DataStruct.InTraj.GV{ii}(:,:) = [imag(CurTraj); real(CurTraj)];      
+    %     DataStruct.InTraj.GM(:,:,ii) = [real(blaa); imag(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
+    %     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
+    end   
     
 end 
-    
     
  
 %% Normalize DataStruct.InTraj

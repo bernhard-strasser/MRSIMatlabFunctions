@@ -1,4 +1,4 @@
-function out_array = squeeze_single_dim(in_array,squeeze_dims)
+function out_array = squeeze_single_dim(in_array,squeeze_dims,quiet_flag)
 %
 % SearchHistory Searches the command history. 
 %
@@ -34,19 +34,25 @@ function out_array = squeeze_single_dim(in_array,squeeze_dims)
 % 0.1 Preparations
 
 sz = size(in_array);                                 % size of the array
-
+if(~exist('quiet_flag','var'))
+    quiet_flag = false;
+end
 
 if(any(numel(sz) < squeeze_dims))
     TooHighDims = squeeze_dims(numel(sz) < squeeze_dims);
+    if(~quiet_flag)
     fprintf('\nWarning in %s: You asked me to squeeze dimension(s) %s, but your input array has only %d dimensions.', mfilename,mat2str(TooHighDims),numel(sz))
     fprintf(' Do nothing on those dimensions.\n')
+    end
     squeeze_dims = setxor(squeeze_dims,TooHighDims);
 end
 
 if(any(sz(squeeze_dims) > 1))
     NonSingDims = squeeze_dims(sz(squeeze_dims) > 1);
+    if(~quiet_flag)
     fprintf('\nWarning in %s: The dimension(s) %s is/are non-singleton, but has/ve size %s.',mfilename, mat2str(NonSingDims),mat2str(sz(NonSingDims)))
     fprintf(' Do nothing on this/these dimension(s).\n')
+    end
     squeeze_dims = setxor(squeeze_dims,NonSingDims);
 % 	regy = cell([1 numel(sz)]);
 % 	regy(:) = {':,'};

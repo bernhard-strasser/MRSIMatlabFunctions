@@ -65,6 +65,9 @@ end
 if(~isfield(Settings,'ApplyAlongDim'))
     Settings.ApplyAlongDim = find(size_InArray == max(size_InArray));
 end
+if(Settings.ApplyAlongDim ~= 4)
+    error('ApplyAlongDim has to be 4 currently, but it is %d',Settings.ApplyAlongDim);
+end
 if(~isfield(Settings,'ZerofillingFactor'))
     Settings.ZerofillingFactor = 2;
 end
@@ -124,7 +127,7 @@ elseif(isfield(MRStruct,'BrainMask'))
 elseif(isfield(MRStruct,'Mask'))
 	mask = MRStruct.Mask;    
 else
-	mask = ones(size_InArray(setdiff(1:numel(size_InArray),Settings.ApplyAlongDim)));
+	mask = ones(size_InArray(1:3));     % The mask is always only spatial
 	MaskWasProvided = false;	
 end
 

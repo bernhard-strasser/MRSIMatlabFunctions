@@ -12,6 +12,13 @@ function [] = plot_Spectra(InStruct, Settings, Mask)
 if(~exist('Settings','var'))
     Settings = struct();
 end
+
+if(~isstruct(Settings) && isnumeric(Settings))
+    Tmp.PlotVoxels = Settings;
+    Settings = Tmp; clear Tmp
+end
+
+
 if(~isfield(Settings,'plot_linewidth') || isempty(Settings.plot_linewidth))
     Settings.plot_linewidth = 1;
 end

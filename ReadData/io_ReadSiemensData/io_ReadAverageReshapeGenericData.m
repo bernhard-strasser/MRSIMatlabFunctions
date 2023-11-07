@@ -57,8 +57,11 @@ end
 
 % Initial size: [nAngInt*nTempInt x samples x nADCs x nCha x nAvg x nPart x nSlc]
 MRStruct.Data = mapVBVD(file);
+
+IceParam = MRStruct.Data.image.iceParam;
 MRStruct.Data = MRStruct.Data.image();
 MRStruct.Par = read_ascconv(file);
+MRStruct.Par.IceParam = IceParam; clear IceParam;
 MRStruct.Par.dicom_flag = false;
 MRStruct = supp_UpdateRecoSteps(MRStruct,struct(),'mapVBVD');
 
