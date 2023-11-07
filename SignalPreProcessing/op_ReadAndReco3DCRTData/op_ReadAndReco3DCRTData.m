@@ -193,7 +193,7 @@ if(isfield(MRStruct.InTraj,'StartingPointAfterLaunchTrack'))
 end
     
 
-if(nargout > 1)
+if(nargout > 1 && isfield(RefScan,'Data'))
     [RefScan] = sim_CalcCartTraj(RefScan,Settings.CalcOutTraj);
     [RefScan] = io_ReadCRTTraj(RefScan,RefScan.TrajFile,Settings.ReadInTraj);
 end
