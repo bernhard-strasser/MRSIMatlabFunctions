@@ -38,20 +38,6 @@ function [DataStruct] = io_ReadEccentricTraj(DataStruct,TrajFile,Settings)
 if(~exist('Settings','var'))
     Settings = [];
 end
-if(~isfield(DataStruct.Par,'GradDelay_x_us'))
-    if(isfield(Settings,'GradDelay_x_us'))
-        DataStruct.Par.GradDelay_x_us = Settings.GradDelay_x_us;
-    else
-        DataStruct.Par.GradDelay_x_us = 0;
-    end
-end
-if(~isfield(DataStruct.Par,'GradDelay_y_us'))
-    if(isfield(Settings,'GradDelay_x_us'))
-        DataStruct.Par.GradDelay_y_us = Settings.GradDelay_y_us;
-else
-        DataStruct.Par.GradDelay_y_us = 0;
-    end    
-end
 
 if(~isfield(Settings,'IncludeRewinder_flag'))
     Settings.IncludeRewinder_flag = false;
@@ -63,10 +49,6 @@ if(~isfield(Settings,'ShowTrajs'))
     Settings.ShowTrajs = false;
 end
 
-
-
-DataStruct.Par.GradDelay_y_us = 0;
-DataStruct.Par.GradDelay_x_us = 0;
 
 
 DataStruct.Par.RewPts = 0;

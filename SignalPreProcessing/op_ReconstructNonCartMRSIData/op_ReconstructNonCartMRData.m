@@ -118,9 +118,9 @@ fprintf('\n\nReconstructing data\t\t...')
 
 if(isfield(Settings,'RemoveFirstADCPoints'))
     for ii = 1:numel(Output.Data)
-        Siz = size(Output.Data{ii}); 
+        Siz = size(Output.Data{ii}); Siz = cat(2,Siz,ones([1 6-numel(Siz)]));
         Tmpp = permute(Output.Data{ii},[1 5 2 3 4 6]);
-        Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4)]); 
+        Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4) Siz(6)]); 
         Start = Settings.RemoveFirstADCPoints{ii};
         RmFIDPts = ceil(Start/Siz(1));
         End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
@@ -137,9 +137,9 @@ if(isfield(Settings,'RemoveFirstADCPoints'))
     % Noise Data
     if(isfield(Output,'NoiseData'))
         for ii = 1:numel(Output.NoiseData)
-            Siz = size(Output.NoiseData{ii}); 
+            Siz = size(Output.NoiseData{ii});  Siz = cat(2,Siz,ones([1 6-numel(Siz)]));
             Tmpp = permute(Output.NoiseData{ii},[1 5 2 3 4 6]);
-            Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4)]); 
+            Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4) Siz(6)]); 
             Start = Settings.RemoveFirstADCPoints{ii};
             RmFIDPts = ceil(Start/Siz(1));
             End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
@@ -157,11 +157,11 @@ if(isfield(Settings,'RemoveFirstADCPoints'))
     tmp = cat(1,Output.Par.DataSize{:});
     minvecSize = min(tmp(:,5));
     for ii = 1:numel(Output.Data)
-        Output.Data{ii} = Output.Data{ii}(:,:,:,:,1:minvecSize);
+        Output.Data{ii} = Output.Data{ii}(:,:,:,:,1:minvecSize,:,:,:);
         Output.Par.DataSize{ii}(5) = minvecSize;
         
         if(isfield(Output,'NoiseData'))
-            Output.NoiseData{ii} = Output.NoiseData{ii}(:,:,:,:,1:minvecSize);
+            Output.NoiseData{ii} = Output.NoiseData{ii}(:,:,:,:,1:minvecSize,:,:,:);
             Output.Par.DataSize{ii}(5) = minvecSize;            
         end
         

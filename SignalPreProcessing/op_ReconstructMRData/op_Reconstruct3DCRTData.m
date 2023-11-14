@@ -39,12 +39,6 @@ function [MRStruct] = op_Reconstruct3DCRTData(MRStruct,Settings)
 if(~exist('Settings','var'))
     Settings = struct();
 end
-if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_x_us'))
-    Settings.ReadInTraj.GradDelay_x_us = 0;
-end
-if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_y_us'))
-    Settings.ReadInTraj.GradDelay_y_us = 0;    
-end
 if(~isfield_recursive(Settings,'CalcOutTraj.fov_overgrid'))
     Settings.CalcOutTraj.fov_overgrid = 1;    
 end

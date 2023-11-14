@@ -58,12 +58,7 @@ if(~isfield_recursive(Settings,'io_Read3DEccentricPars.IncludeRewinder_flag'))
    Settings.io_Read3DEccentricPars.IncludeRewinder_flag = false;    
 end
 
-if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_x_us'))
-   Settings.ReadInTraj.GradDelay_x_us = 0;    
-end
-if(~isfield_recursive(Settings,'ReadInTraj.GradDelay_y_us'))
-   Settings.ReadInTraj.GradDelay_y_us = 0;    
-end
+
 % if(~isfield_recursive(Settings,'ReadInTraj.IncludeRewinder_flag'))
 %    Settings.ReadInTraj.IncludeRewinder_flag = false;    
 % end
