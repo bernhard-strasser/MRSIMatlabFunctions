@@ -130,10 +130,6 @@ end
 if(~exist('mask','var') || numel(mask) <= 1)
     mask = ones(size(squeeze_single_dim(InArray,MetaInfo.Dimt1)));
 end
-if(~exist('CPU_cores','var'))
-    CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
-	CPU_cores(CPU_cores > 20) = 20;
-end
 if(exist('ControlInfo','var') && isnumeric(ControlInfo))
 	clear ControlInfo;				% Easier to handle this way
 end
@@ -161,7 +157,8 @@ ControlWrite.DOREFS = {'DOREFS(1) = T','DOREFS(2) = F'};           % T: Use stan
 % ControlWrite.PPMREF = {'PPMREF(2,1) = 2.01'};                    % PPMREF(JREF,JCCF): What chemical shift should the delta function with number JREF for the Reference with number JCCF have?
 % ControlWrite.SHIFMNMX = {'SHIFMN(2) = -0.1','SHIFMX(2) = 0.1'};  % SHIFMN(JCCF): Minimum chemshift to search for peak. LCModel searches from PPMREF(2,1) + SHIFMN(2) to PPMREF(2,1) + SHIFMX(2)
                                                                   % SHIFMN should be negative. 
-
+% Other usage:
+% ControlWrite.SHIFMNMX = {'SHIFMN(1) = -0.1','SHIFMN(2) = -0.1','SHIFMX(1) = 0.1', 'SHIFMX(2) = 0.1'};
                                                                   
 % Water Scaling, Absolute Quantification
 ControlWrite.WSMET = 'WSMET = ''DSS''';                          % This tells LCModel what to use for scaling the absolute fitting concentrations. 
@@ -242,13 +239,13 @@ if(exist('ControlInfo','var'))
 			end
 			% Run the file with path ControlParameters if it is a file.
 			if(isfield(ControlInfo,'Path') && exist(ControlInfo.Path,'file'))
-				eval(['run ' ControlInfo.Path]);	
+				eval(fileread(ControlInfo.Path));
 			end
 
 		else																			% even if Priority is not defined, do it this way as default behavior.
 			% Run the file with path ControlParameters if it is a file.
 			if(isfield(ControlInfo,'Path') && exist(ControlInfo.Path,'file'))
-				eval(['run ' ControlInfo.Path]);	
+				eval(fileread(ControlInfo.Path));
 			end
 			% Copy existing fields of ControlInfo to ControlWrite struct.
 			for field_no = 1:numel(struct_fieldnames); 
@@ -259,7 +256,7 @@ if(exist('ControlInfo','var'))
 	else
 		if(exist(ControlInfo,'file'))
 			% Run the file with path ControlParameters if it is a file.
-			eval(['run ' ControlInfo]);	
+			eval(fileread(ControlInfo));
 		end
 		
 	end
@@ -292,20 +289,6 @@ if(~exist([Paths.out_dir '/CoordFiles'],'dir'))
 end
 
 vecSize = size(InArray,MetaInfo.Dimt1);
-TotalVoxelNo = sum(reshape(mask,1,[]));
-
-
-% creating one batch file PER CPU core for LCmodel processing
-batch_fids = zeros([1 CPU_cores]);
-for core = 1:CPU_cores
-    if(exist(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'file'))
-        %delete(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core));
-    end
-    batch_fids(core) = fopen(sprintf('%s/lcm_process_core_%02d.sh',Paths.batchdir,core),'a');
-	fprintf(batch_fids(core), 'echo -e "Starting batch %d, pid = $$, ppid = $PPID"\nsleep 1\n',core);  
-end
-fprintf(batch_fids(1), 'echo -e ''\nLCModel Processing\t...\t0 %%''\n');  
-
 % Find out the dimensions of InArray over which should be looped (e.g. for [size(InArray) = [32 32 1 1024] these dimensions would be [1 2 3 5 6]
 % The dimensions 5 and 6 will be ignored because size(InArray,5) = 1 = size(InArray,6) with the above InArray)
 ArrayDimIndices = 1:6;
@@ -374,8 +357,6 @@ end
 
 
 %% 1. Loop over all entries of the InArray except vecSize entry
-no_vox=0;
-Percentage_written = false([1 10]); Percentage_written(1) = true;
 for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
     for VarInd2 = 1:size(InArray,ArrayDimIndices(2))
         for VarInd3 = 1:size(InArray,ArrayDimIndices(3))
@@ -654,27 +635,6 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
                     
                     % Close Control File
                     fclose(control_fid);
-
-
-
-                    %% 1.4 write commands to batch files - split work to CPU_cores
-                    
-                    
-                    
-                    core_tmp = mod(no_vox,CPU_cores) + 1;
-                    Percentage_done = round(100*no_vox/TotalVoxelNo);
-                    % The if conditions: 1) Print in steps of 10%. 2) If for this percentage (e.g. 20%) the command was already written, dont write it again.
-                    % 3) Dont write it for 0%, because a different text should be displayed there (see 0.3). 4) Dont write it for 100%, because this case is treated below.
-                    if(mod(Percentage_done,10) == 0 && int8(Percentage_done) ~= 0 && int8(Percentage_done) ~= 100 && ~Percentage_written(int8(Percentage_done/10+1)))
-                        Percentage_written(int8(Percentage_done/10+1)) = true;
-                        fprintf(batch_fids(core_tmp), 'echo ''\t\t\t...\t%d %%''\n', round(100*no_vox/TotalVoxelNo));
-                    end
-                    fprintf(batch_fids(core_tmp), ' %s < %s 2>/dev/null\n', Paths.LCM_ProgramPath, voxel_control_out);  % Suppress the LCModel output
-                    
-
-                    no_vox = no_vox+1;
-            
-                    
                     
                     
                 end  % VarInd5
@@ -684,7 +644,20 @@ for VarInd1 = 1:size(InArray,ArrayDimIndices(1))
 end                  % VarInd1
 
 
-%% Close all batch-fids
+% performs LCM in parallel
+if ~exist('CPU_cores','var') || CPU_cores < 1
+    CPU_cores_string = ''; % If not specified GNU parallel uses all available cores
+else
+    CPU_cores_string = sprintf('-j %d', CPU_cores);
+end
+if ~exist('Progressbar','var') || progressbar == 0
+    progress_string = '';
+else
+    progress_string = '--progress --eta';
+end
+fid = fopen(sprintf('%s/lcm_process_core_parallel.sh',Paths.batchdir),'a');
+fprintf(fid, sprintf('ls %s | grep \\\\.control | parallel %s %s "%s < %s/{} > /dev/null"\n', Paths.out_dir, progress_string, CPU_cores_string, Paths.LCM_ProgramPath, Paths.out_dir));
+fclose(fid);
 
-fprintf(batch_fids(CPU_cores), 'echo ''\t\t\t...\t100 %%''\n');  
 fclose('all');
+end

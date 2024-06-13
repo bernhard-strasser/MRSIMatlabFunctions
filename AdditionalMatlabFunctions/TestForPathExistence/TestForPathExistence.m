@@ -113,7 +113,7 @@ for CurField = transpose(Fields)
 		
 		% Test Local
 		if(TestLocal)
-			if(~exist(PathToTest,'file') && ~exist(PathToTest,'dir'))
+			if(~exist(PathToTest,'file') && ~exist(PathToTest,'dir') && ~strcmp(PathToTest,'lcmodel'))
 				EverythingExists = false;
 				if(~quiet_flag)
 					fprintf('\nError: The path of %s,\n%s\ndoes not exist. Abort...\n',CurFieldStr,PathToTest)
