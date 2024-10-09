@@ -650,7 +650,7 @@ if ~exist('CPU_cores','var') || CPU_cores < 1
 else
     CPU_cores_string = sprintf('-j %d', CPU_cores);
 end
-if ~exist('Progressbar','var') || progressbar == 0
+if ~exist('Progressbar','var') || Progressbar == 0
     progress_string = '';
 else
     progress_string = '--progress --eta';
