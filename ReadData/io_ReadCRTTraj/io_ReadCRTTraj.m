@@ -71,7 +71,7 @@ else
 end
 
 if(isfield(Settings,'GradDelayPerTempInt_us'))
-    Settings.GradDelayAngle_rad = -Settings.GradDelayPerTempInt_us(TIs)*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(TIs);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
+    Settings.GradDelayAngle_rad = -Settings.GradDelayPerTempInt_us(1:NoOfTIs)*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(TIs);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
     
     TIDist = zeros([1 NoOfTIs]);
     for ii = 1:NoOfTIs
