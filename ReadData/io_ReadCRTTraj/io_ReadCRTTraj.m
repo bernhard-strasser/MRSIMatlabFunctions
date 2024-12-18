@@ -49,37 +49,89 @@ end
 if(~isfield(Settings,'ShowTrajs'))
     Settings.ShowTrajs = false;
 end
+if(~isfield(Settings,'GradDelayCorrection_flag'))
+    if(~exist('TrajFile','var') || isempty(TrajFile))
+    Settings.GradDelayCorrection_flag = true;
+    else
+        Settings.GradDelayCorrection_flag = false;        
+    end
+end
+
 
 DataStruct.Par.RewPts = 0;
 
 
+% Settings.GradDelayPerTempInt_us = [12.562838,12.540197,10.082248];     % Estimated on Phantom Trajectory Measurement at Vienna 7 T (Measurement from 2023-10). 
+% Settings.GradDelayPerTempInt_x_us = [12.42 12.38 10.14];
+% Settings.GradDelayPerTempInt_y_us = [10.27 10.75 8.99];
+
+% Gradient Delay Settings
 TIs = unique(DataStruct.Par.nTempIntsPerAngInt);
 NoOfTIs = numel(TIs);
 
-if(~exist('TrajFile','var') || isempty(TrajFile))
-    if(~isfield(Settings,'GradDelayPerTempInt_us')) % 1 Value per Temporal Interleaf, not per axis!
-        Settings.GradDelayPerTempInt_us = [12.562838,12.540197,10.082248];     % Estimated on Phantom Trajectory Measurement at Vienna 7 T (Measurement from 2023-10).
-    end
-    if(numel(Settings.GradDelayPerTempInt_us) < NoOfTIs)
-        Settings.GradDelayPerTempInt_us = repmat(Settings.GradDelayPerTempInt_us,[1 NoOfTIs]);
-    end
-    if(numel(Settings.GradDelayPerTempInt_us) > NoOfTIs)
-        Settings.GradDelayPerTempInt_us = Settings.GradDelayPerTempInt_us(1:NoOfTIs);
+    
+if(Settings.GradDelayCorrection_flag)
+
+    % Estimated on Phantom Trajectory Measurement at Vienna 7 T (Measurement from 2023-10). 
+    if(~isfield(Settings,'GradDelayPerAngInt_x_us') && ~isfield(Settings,'GradDelayPerTempInt_x_us') && ~isfield(Settings,'GradDelayPerTempInt_us'))
+        Settings.GradDelayPerAngInt_x_us = [11.4 11.72 11.8 11.84 13.88 13.88 14.8 17.625 13.86 15.9 11.4 15.165 11.205 10.96 11.49 12.48 11.49 10.5 12.48 10.25 10.25 10.275 10.25 11.55 10.53 11.52 9.6 9.57 10.56 9.3 9.275 9.375];
+        Settings.GradDelayPerAngInt_y_us = [9.2 9.52 9.64 9.76 11.72 11.76 13.2 15.9 12.24 14.22 9.75 13.635 9.54 9.36 9.81 10.86 9.81 8.85 10.95 8.625 8.675 8.625 8.675 10.38 9.39 10.41 8.4 8.4 9.42 8.175 8.175 8.175];        
+    
+
+
+    % Convert GradDelayPerTempInt_x_us --> GradDelayPerAngInt_x_us
+    elseif(isfield(Settings,'GradDelayPerTempInt_x_us'))
+        if(numel(Settings.GradDelayPerTempInt_x_us) < NoOfTIs)
+            Settings.GradDelayPerTempInt_x_us = cat(2,Settings.GradDelayPerTempInt_x_us,repmat(Settings.GradDelayPerTempInt_x_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_x_us)]));
+            Settings.GradDelayPerTempInt_y_us = cat(2,Settings.GradDelayPerTempInt_y_us,repmat(Settings.GradDelayPerTempInt_y_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_y_us)]));
+        end
+        if(numel(Settings.GradDelayPerTempInt_x_us) > NoOfTIs)
+            Settings.GradDelayPerTempInt_x_us = Settings.GradDelayPerTempInt_x_us(1:NoOfTIs);
+            Settings.GradDelayPerTempInt_y_us = Settings.GradDelayPerTempInt_y_us(1:NoOfTIs);
+        end
+        TIDist = zeros([1 NoOfTIs]);
+        for ii = 1:NoOfTIs
+            TIDist(ii) = sum(DataStruct.Par.nTempIntsPerAngInt == TIs(ii));
+        end
+        Settings.GradDelayPerAngInt_x_us  = repelem(Settings.GradDelayPerTempInt_x_us,TIDist);
+        Settings.GradDelayPerAngInt_y_us  = repelem(Settings.GradDelayPerTempInt_y_us,TIDist);  
+
+
+    % Convert GradDelayPerTempInt_us --> GradDelayPerAngInt_x_us
+    elseif(isfield(Settings,'GradDelayPerTempInt_us'))
+        if(numel(Settings.GradDelayPerTempInt_us) < NoOfTIs)
+            Settings.GradDelayPerTempInt_us = cat(2,Settings.GradDelayPerTempInt_us,repmat(Settings.GradDelayPerTempInt_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_us)]));
+        end
+        if(numel(Settings.GradDelayPerTempInt_us) > NoOfTIs)
+            Settings.GradDelayPerTempInt_us = Settings.GradDelayPerTempInt_us(1:NoOfTIs);
+        end
+
+        TIDist = zeros([1 NoOfTIs]);
+        for ii = 1:NoOfTIs
+            TIDist(ii) = sum(DataStruct.Par.nTempIntsPerAngInt == TIs(ii));
+        end
+        Settings.GradDelayPerAngInt_x_us  = repelem(Settings.GradDelayPerTempInt_us,TIDist);
+        Settings.GradDelayPerAngInt_y_us  = repelem(Settings.GradDelayPerTempInt_us,TIDist);  
+
     end
 else
-    Settings.GradDelayPerTempInt_us = zeros([1 NoOfTIs]);
+    Settings.GradDelayPerAngInt_x_us = zeros([1 DataStruct.Par.nAngInts]);
+    Settings.GradDelayPerAngInt_y_us = Settings.GradDelayPerAngInt_x_us;
 end
 
-if(isfield(Settings,'GradDelayPerTempInt_us'))
-    Settings.GradDelayAngle_rad = -Settings.GradDelayPerTempInt_us(1:NoOfTIs)*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(TIs);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
-    
-    TIDist = zeros([1 NoOfTIs]);
-    for ii = 1:NoOfTIs
-        TIDist(ii) = sum(DataStruct.Par.nTempIntsPerAngInt == TIs(ii));
-    end
-    Settings.GradDelayAngle_rad  = repelem(Settings.GradDelayAngle_rad,TIDist);
+if(numel(Settings.GradDelayPerAngInt_x_us) < DataStruct.Par.nAngInts)
+    Settings.GradDelayPerAngInt_x_us = cat(2,Settings.GradDelayPerAngInt_x_us,repmat(Settings.GradDelayPerAngInt_x_us(end),[1 DataStruct.Par.nAngInts-numel(Settings.GradDelayPerAngInt_x_us)]));
+    Settings.GradDelayPerAngInt_y_us = cat(2,Settings.GradDelayPerAngInt_y_us,repmat(Settings.GradDelayPerAngInt_y_us(end),[1 DataStruct.Par.nAngInts-numel(Settings.GradDelayPerAngInt_y_us)]));
 end
+if(numel(Settings.GradDelayPerAngInt_x_us) > DataStruct.Par.nAngInts)
+    Settings.GradDelayPerAngInt_x_us = Settings.GradDelayPerAngInt_x_us(1:DataStruct.Par.nAngInts);
+    Settings.GradDelayPerAngInt_y_us = Settings.GradDelayPerAngInt_y_us(1:DataStruct.Par.nAngInts);
+end    
 
+if(isfield(Settings,'GradDelayPerAngInt_x_us') && isfield(Settings,'GradDelayPerAngInt_y_us'))
+    Settings.GradDelayPerAngIntAngle_x_rad = -Settings.GradDelayPerAngInt_x_us*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(DataStruct.Par.nTempIntsPerAngInt);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
+    Settings.GradDelayPerAngIntAngle_y_rad = -Settings.GradDelayPerAngInt_y_us*10^-6 .* 2*pi * (1E9/DataStruct.Par.Dwelltimes(1))./(DataStruct.Par.nTempIntsPerAngInt);   % (2*pi*(1E9/DataStruct.Par.Dwelltimes(1))./(1:MaxTI));
+end
 
 
 
@@ -87,11 +139,12 @@ end
 
 if(~exist('TrajFile','var') || isempty(TrajFile))
     Radii = sqrt(DataStruct.Par.FirstCirclekSpacePoint(1,:).^2 + DataStruct.Par.FirstCirclekSpacePoint(2,:).^2); 
-    phi0s = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2 + Settings.GradDelayAngle_rad;
+    phi0s_x = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2 + Settings.GradDelayPerAngIntAngle_x_rad;
+    phi0s_y = -atan2(DataStruct.Par.FirstCirclekSpacePoint(2,:),DataStruct.Par.FirstCirclekSpacePoint(1,:))-pi/2 + Settings.GradDelayPerAngIntAngle_y_rad;
     for ii = 1:DataStruct.Par.nAngInts
         DeltaPhi = 2*pi/DataStruct.Par.TrajPts(ii); 
         Phi = (0:-1:-DataStruct.Par.TrajPts(ii)+1)*DeltaPhi; 
-        DataStruct.InTraj.GM{ii} = cat(1,real(Radii(ii)*exp(1i*(Phi+phi0s(ii)))),imag(Radii(ii)*exp(1i*(Phi+phi0s(ii))))); 
+        DataStruct.InTraj.GM{ii} = cat(1,real(Radii(ii)*exp(1i*(Phi+phi0s_x(ii)))),imag(Radii(ii)*exp(1i*(Phi+phi0s_y(ii))))); 
     end
 
 elseif(endsWith(TrajFile,'.mat'))
