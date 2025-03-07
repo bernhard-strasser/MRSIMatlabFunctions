@@ -52,11 +52,6 @@ if(~isfield(Settings,'ScalingMethod'))
         Settings.ScalingMethod = 'UniformNoise';   
     end
 end
-if(isfield(Settings,'ScalingMethod') && strdist(Settings.ScalingMethod,'UniformNoise') < strdist(Settings.ScalingMethod,'UniformSensitivity'))
-    UniformSignal_flag = false;
-else
-    UniformSignal_flag = true;
-end
 if(~isfield(MRStruct,'Par'))
     MRStruct.Par = struct;
     if(isfield(MRStruct,'Data_file'))
@@ -73,9 +68,8 @@ end
 % SoS
 if(~exist('CoilWeightMap','var'))
     CoilWeightMap = MRStruct;
-    CoilWeightMap.Data = conj(CoilWeightMap.Data(:,:,:,1,:));
+    CoilWeightMap.Data = conj(CoilWeightMap.Data(:,:,:,1,:,:));
     CoilWeightMap.Mask = ones(size_MultiDims(CoilWeightMap.Data,[1 2 3])); 
-    UniformSignal_flag = false;
     Settings.ScalingMethod = 'UniformNoise';
 end
 
@@ -99,12 +93,12 @@ end
 %% Resize SensMap
 
 if(ImResize_flag)
-    AdditionalOut.CoilWeightMap = zeros([MRStruct.RecoPar.DataSize(1:2) size_MultiDims(CoilWeightMap.Data,3:5)]);
-    for cha = 1:prod(size_MultiDims(CoilWeightMap.Data,3:5))
+    AdditionalOut.CoilWeightMap = zeros([MRStruct.RecoPar.DataSize(1:2) size_MultiDims(CoilWeightMap.Data,3:6)]);
+    for cha = 1:prod(size_MultiDims(CoilWeightMap.Data,3:6))
         AdditionalOut.CoilWeightMap(:,:,cha) = imresize(CoilWeightMap.Data(:,:,cha),MRStruct.RecoPar.DataSize(1:2));
     end
 else
-    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[MRStruct.RecoPar.DataSize(1:3) size_MultiDims(CoilWeightMap.Data,4:5)],1);
+    AdditionalOut.CoilWeightMap = ZerofillOrCutkSpace(CoilWeightMap.Data,[MRStruct.RecoPar.DataSize(1:3) size_MultiDims(CoilWeightMap.Data,4:6)],1);
 end
 if(MRStruct.RecoPar.DataSize(3) == 1)      % imresize3 for some reason doesnt work for 2D-input...
     AdditionalOut.Mask = imresize(squeeze(CoilWeightMap.Mask(:,:)),MRStruct.RecoPar.DataSize(1:2),'nearest');       
@@ -124,9 +118,10 @@ end
 
 %% Scale Data
 
-if(UniformSignal_flag)
+AdditionalOut.Scaling = 1;
+if(strcmpi(Settings.ScalingMethod,'UniformSensitivity'))
     AdditionalOut.Scaling = AdditionalOut.Mask ./ sum(abs(AdditionalOut.CoilWeightMap).^2,5);
-else
+elseif(strcmpi(Settings.ScalingMethod,'UniformNoise'))
    AdditionalOut.Scaling = AdditionalOut.Mask ./ sqrt(sum(abs(AdditionalOut.CoilWeightMap).^2,5));   
 end
 AdditionalOut.Scaling(isinf(AdditionalOut.Scaling) | isnan(AdditionalOut.Scaling)) = 0;

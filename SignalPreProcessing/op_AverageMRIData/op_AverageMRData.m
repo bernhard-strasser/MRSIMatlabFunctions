@@ -52,19 +52,26 @@ elseif(isfield(MRStruct.RecoPar,'dimnames_small'))
     DimNames = MRStruct.RecoPar.dimnames_small;
 end
 
+
+
+
+%%
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+
+
+
 %% Perform Averaging
 
-if(exist('DimNames','var'))
+if(isfield(Settings,'AverageOverIndex'))
+    AvgInd = Settings.AverageOverIndex;
+elseif(exist('DimNames','var'))
     AvgInd =  find(~cellfun(@isempty,regexpi(DimNames,'Ave')));
     if(isempty(AvgInd))
         fprintf('\nWarning in op_AverageMRData: There seems to be no dimension that corresponds to averages (name ''Ave''). Don''t do anything.')       
         return;
-    end
-    DimNames(AvgInd) = [];
-if(isfield(MRStruct.RecoPar,'dimnames'))
-    MRStruct.RecoPar.dimnames(AvgInd) = [];
-    elseif(isfield(MRStruct.RecoPar,'dimnames_small'))
-        MRStruct.RecoPar.dimnames_small(AvgInd) = [];
     end
 else
     fprintf('\nWarning in op_AverageMRData: I am not sure which dimension I should average. Don''t do anything.')
@@ -73,6 +80,11 @@ end
 MRStruct.Data = sum(MRStruct.Data,AvgInd)/size(MRStruct.Data,AvgInd);
 MRStruct.RecoPar.DataSize = size(MRStruct.Data);
 MRStruct.RecoPar.nAverages = 1;
+if(isfield(MRStruct.RecoPar,'dimnames'))
+    MRStruct.RecoPar.dimnames(AvgInd) = [];
+elseif(isfield(MRStruct.RecoPar,'dimnames_small'))
+    MRStruct.RecoPar.dimnames_small(AvgInd) = [];
+end
 
 
 %%

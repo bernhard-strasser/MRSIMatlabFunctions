@@ -78,8 +78,8 @@ end
 % Display error & stop if no ppm scale found
 
 if(not(ppm_found))
-    fprintf(['\nPfui Toifel! You gave me a wrong file, I cannot digest this file:\n%s\n' ...
-    'Please remember that I am NOT an omnivore. I will stop here . . .\n'],file_path)
+    fprintf(['\nError in read_coord_file: Pfui Toifel! You gave me a wrong file, I cannot digest this file:\n%s\n' ...
+    'Please remember that I am NOT an omnivore. I will vomit and stop reading this file now . . .\n'],file_path)
     PlotData.ppm_points = 0;
     fclose(fid);
 	return

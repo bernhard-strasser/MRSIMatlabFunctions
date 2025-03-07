@@ -53,8 +53,10 @@ end
 
 %% Remove Slice or Partition Index
 
+MultiSliceAcq_flag = false;
+
 if(size(MRStruct.Data,Settings.SliceIndex) > 1)
-    
+    MultiSliceAcq_flag = true;
     RemoveInd = 3;
 else
     RemoveInd = Settings.SliceIndex;
@@ -71,7 +73,10 @@ if(isfield(MRStruct.RecoPar,'dimnames'))
     MRStruct.RecoPar.dimnames(RemoveInd) = [];
 end
 MRStruct.RecoPar.DataSize = cat(2,size(MRStruct.Data),ones([1 6-ndims(MRStruct.Data)]));
-MRStruct.RecoPar.nSLC = 1;
+
+if(~MultiSliceAcq_flag) 
+    MRStruct.RecoPar.nSLC = 1;
+end
 
 
 %% Postparations

@@ -45,10 +45,11 @@ end
 
 
 	% Stepsize (Voxel Size)
-	MRStruct.MncPars.StepRead = -InPars.FoV_Read(1) / InPars.nFreqEnc;		% Coordinate system is reversed in minc with respect to DICOM
-	MRStruct.MncPars.StepPhase = -InPars.FoV_Phase(1) / InPars.nPhasEnc;    
-	MRStruct.MncPars.StepSlice = InPars.FoV_Partition(1) / (InPars.nPartEnc * InPars.nSLC); 
+	MRStruct.MncPars.StepSize(1) = -InPars.FoV_Read(1) / InPars.nFreqEnc;		% Coordinate system is reversed in minc with respect to DICOM
+	MRStruct.MncPars.StepSize(2) = -InPars.FoV_Phase(1) / InPars.nPhasEnc;    
+	MRStruct.MncPars.StepSize(3) = InPars.FoV_Partition(1) / (InPars.nPartEnc * InPars.nSLC); 
 	
+    MRStruct.MncPars.DimSize = size_MultiDims(MRStruct.Data,1:3);
 	
 	% Rename Position Fields
 	[POS_X] = InPars.Pos_Sag;
@@ -90,18 +91,30 @@ end
 	% For checks: See git commits #1383, #004f, #a9be
 % 	FoVHalf = [InPars.FoV_Read(1)/2 InPars.FoV_Phase(1)/2 -InPars.FoV_Partition(1)/InPars.nPartEnc*(InPars.nPartEnc-1)/2]; 
     FoVHalf = [InPars.FoV_Read(1)/2 InPars.FoV_Phase(1)/2 -InPars.FoV_Partition(1)/2];  
+    if(~InPars.ThreeD_flag)
+        FoVHalf(3) = 0;
+    end
 	Pos_Minc = transpose(Pos_Minc) + FoVHalf;
 
+
+    % Only do that for MRSI Sequences:
 	% Get from Center of Voxel (DICOM) to corner of voxel (minc) by subtracting half the voxel 
-	MRStruct.MncPars.POS_X_FirstVoxel = Pos_Minc(1) + MRStruct.MncPars.StepRead/2;         % Be aware that StepRead and StepPhase are reversed and thus the sum is effectively a subtraction.
-	MRStruct.MncPars.POS_Y_FirstVoxel = Pos_Minc(2) + MRStruct.MncPars.StepPhase/2;
-	MRStruct.MncPars.POS_Z_FirstVoxel = Pos_Minc(3);
+    if(strcmpi(MRStruct.Par.AssumedSequence,'Imaging_GRE'))
+        AddHalfStepSize_flag = 0;
+    else
+        AddHalfStepSize_flag = 1;
+    end
 
-	
-	if(InPars.ThreeD_flag)
-		MRStruct.MncPars.POS_Z_FirstVoxel = MRStruct.MncPars.POS_Z_FirstVoxel + MRStruct.MncPars.StepSlice/2;     
-	end
+    
+    MRStruct.MncPars.POS_X_FirstVoxel = Pos_Minc(1) + AddHalfStepSize_flag*MRStruct.MncPars.StepSize(1)/2;         % Be aware that StepSize(1) and StepSize(2) are reversed and thus the sum is effectively a subtraction.
+    MRStruct.MncPars.POS_Y_FirstVoxel = Pos_Minc(2) + AddHalfStepSize_flag*MRStruct.MncPars.StepSize(2)/2;
+    MRStruct.MncPars.POS_Z_FirstVoxel = Pos_Minc(3);
 
+    
+    if(InPars.ThreeD_flag)
+	    MRStruct.MncPars.POS_Z_FirstVoxel = MRStruct.MncPars.POS_Z_FirstVoxel + AddHalfStepSize_flag*MRStruct.MncPars.StepSize(3)/2;     
+    end
 
+    
 
 

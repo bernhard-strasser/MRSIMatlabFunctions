@@ -59,6 +59,13 @@ if(iscell(MRStruct.Data))
     end
 end
 
+
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+
+
 if(~isfield(MRStruct,'RecoPar'))
     MRStruct.RecoPar = MRStruct.Par;
 end
@@ -194,11 +201,13 @@ end
 %% Create Synthetic Noise
 if(Settings.CreateSyntheticNoise)
     if(iscell(size_InData))
+        Classy = class(MRStruct.Data{1});
         for ii = 1:numel(size_InData)
-            MRStruct.NoiseData{ii} = complex(randn(size_InData{ii}),randn(size_InData{ii})) ;  
+            MRStruct.NoiseData{ii} = complex(randn(size_InData{ii},Classy),randn(size_InData{ii},Classy)) ;  
         end
     else
-        MRStruct.NoiseData = complex(randn(size_InData),randn(size_InData));        
+        Classy = class(MRStruct.Data);
+        MRStruct.NoiseData = complex(randn(size_InData,Classy),randn(size_InData,Classy));        
     end
 end
 
@@ -222,7 +231,8 @@ end
 %% Scale Noise Data
 if(isfield(MRStruct,'NoiseData') && iscell(MRStruct.NoiseData))
     for ii = 1:numel(MRStruct.NoiseData)
-        MRStruct.NoiseData{ii} = MRStruct.NoiseData{ii} * CircleFactors(ii);
+        % Ratio of averages: Only if averaging was alrdy performed
+        MRStruct.NoiseData{ii} = MRStruct.NoiseData{ii} * CircleFactors(ii) / sqrt(MRStruct.Par.nAverages/MRStruct.RecoPar.nAverages);
     end
 end
 

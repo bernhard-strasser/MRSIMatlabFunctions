@@ -77,6 +77,11 @@ if(~isfield(Settings,'ApplyHammingFilter_flag'))
 end
 
 
+%%
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
 
 %% Calculate Density Compensation According to Hoge1997 - Abrupt Changes
 
@@ -218,6 +223,6 @@ if(nargout > 1 && exist('DCFPreG','var'))
     AdditionalOut.DCFPreG = DCFPreG;
 end
 
-% MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
+MRStruct = supp_UpdateRecoSteps(MRStruct,Settings);
 
 

@@ -1,4 +1,4 @@
-function Out = read_CoordFolder(file_path,MRSISizeOrMRSIPar)
+function Out = read_CoordFolder(file_path,MRSISizeOrMRSIPar,Flip_flag)
 %
 % read_coord_file Read All Coordinate LCModel Files Within Folder
 %
@@ -37,9 +37,17 @@ function Out = read_CoordFolder(file_path,MRSISizeOrMRSIPar)
 %% 0. Preparations
 
 
+if(~exist('Flip_flag','var'))
+    Flip_flag = true;
+end
+
 if(exist('MRSISizeOrMRSIPar','var'))
     if(isstruct(MRSISizeOrMRSIPar))
-        MRSISize = [];
+        if(isfield(MRSISizeOrMRSIPar,'Data'))
+            MRSISize = size(MRSISizeOrMRSIPar.Data); MRSISize = MRSISize(1:3);
+        elseif(isfield(MRSISizeOrMRSIPar,'DataSize'))
+            MRSISize = MRSISizeOrMRSIPar.DataSize(1:3);
+        end
     else
         MRSISize = MRSISizeOrMRSIPar;
     end
@@ -84,9 +92,14 @@ Out.BaselineMap = Out.SpectrumMap;
 for Ind = 1:numel(CoordFiles_Full)
 
     xx = XCoord(Ind); yy = YCoord(Ind); zz = ZCoord(Ind);
-    xx_Nii = MRSISize(1) - xx + 1;
-    yy_Nii = MRSISize(2) - yy + 1;
-
+    
+    if(Flip_flag)
+    	xx_Nii = MRSISize(1) - xx + 1;
+    	yy_Nii = MRSISize(2) - yy + 1;
+    else
+        xx_Nii = xx;
+        yy_Nii = yy;
+    end
 
     FileName = CoordFiles_Full{Ind};
     if(~exist(FileName,'file'))
