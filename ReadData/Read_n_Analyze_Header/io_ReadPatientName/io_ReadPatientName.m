@@ -51,7 +51,7 @@ end
 
 
 % Read Patientname
-if(endsWith(File, '.IMA'))
+if(endsWith(File, '.IMA') || endsWith(File, '.dcm'))
     [bla, PatientName] = unix(['dcmdump +P "0010,0010" ' File] );
     PatientName = regexp(PatientName,'\[(?!^).*\^?(?!^).*\]','match');
     if(bla > 0)		% If dcmdump doesnt exist, search for the Patient field manually. One day this probably should be directly implemented in Matlab, without using bash via unix command

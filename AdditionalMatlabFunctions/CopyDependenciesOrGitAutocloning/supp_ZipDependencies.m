@@ -53,6 +53,7 @@ if(exist(ZipPath,'file'))
 	if(strcmpi(Overwrite,'n'))
 		return;
 	end
+	delete(ZipPath);
 end
 
 % mkdir if path to ZipPath does not exists
@@ -67,11 +68,12 @@ end
 FileDeps = [];
 for ii = 1:numel(FilesToZip)
     
-    CurFileToZip = which(FilesToZip{ii});
+    CurFileToZip = ls(FilesToZip{ii});
     if(numel(CurFileToZip) == 0)
         fprintf('\nProblem: Function or Script\n%s\ndoes not exist.\n',FilesToZip{ii})
         continue;
     end
+    CurFileToZip = CurFileToZip(1:end-1);
 
     % Try to cd to folder where file lies in
     CDDir = regexp(CurFileToZip,'.*/','match'); 
@@ -88,10 +90,33 @@ end
 
 
 %% Zip
-
-for File = transpose(FileDeps)
-    unix(['zip -j -q ' ZipPath ' '  File{:}]);	
+if(endsWith(ZipPath,'tar.gz'))
+    ZipString = 'tar -r -f ';
+    ZipString1 = 'tar -c -f ';
+    ZipPathWithoutGZ = strrep(ZipPath,'.gz','');
+    ii = 0;
+    for File = transpose(FileDeps)
+        ii = ii +1;
+        [Patthh,FileNamme, ext] = fileparts(File{:});
+        cd(Patthh)
+        if(ii == 1)
+            unix([ZipString1 ZipPathWithoutGZ ' ' FileNamme ext]);	
+        else
+            unix([ZipString ZipPathWithoutGZ ' ' FileNamme ext]);	
+        end
+    end
+    unix(['gzip ' ZipPathWithoutGZ])
+    
+    
+    
+else
+    ZipString = 'zip -j -q ';  
+    for File = transpose(FileDeps)
+        unix([ZipString ZipPath ' '  File{:}]);	
+    end
 end
+
+
 
 %% Posparations
 

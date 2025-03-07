@@ -1,4 +1,4 @@
-function MatchIndex = FindClosestIndex(InVec,MatchValue,Epsilon)
+function MatchIndex = FindClosestIndex(InVec,MatchValue,Epsilon,SelectMinOrMax)
 %
 % FindClosestIndex Find Index of Closest Match of Vector to Provided Values Up to Epsilon
 %
@@ -33,7 +33,7 @@ function MatchIndex = FindClosestIndex(InVec,MatchValue,Epsilon)
 
 %% 0. Preparations & Housekeeping
 
-if(~exist('Epsilon','var'))
+if(~exist('Epsilon','var') || isempty(Epsilon))
     Epsilon = eps;
 end
 
@@ -43,6 +43,15 @@ end
 MatchIndex = cell([1 numel(MatchValue)]);
 for CurValInd = 1:numel(MatchValue)
     MatchIndex{CurValInd} = find( abs(InVec - MatchValue(CurValInd)) <=  min(abs(InVec - MatchValue(CurValInd))) + Epsilon );
+    
+    if(exist('SelectMinOrMax','var'))
+        if(strcmpi(SelectMinOrMax,'min'))
+            MatchIndex{CurValInd} = min(MatchIndex{CurValInd});
+        elseif(strcmpi(SelectMinOrMax,'max'))
+            MatchIndex{CurValInd} = max(MatchIndex{CurValInd});
+        end
+    end
+    
 end
 
 

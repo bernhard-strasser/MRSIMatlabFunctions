@@ -111,7 +111,7 @@ for dummy_dim = ApplyAlongDims
         if(strcmpi(Settings.AppendZerosTo{dummy_dim},'Beginning'))
             NoOfXsAtBeginning = AppendZeros(dummy_dim);
             NoOfXsAtEnd = 0;
-        elseif(strcmpi(Settings.AppendZerosTo{dummy_dim},'Beginning'))
+        elseif(strcmpi(Settings.AppendZerosTo{dummy_dim},'End'))
             NoOfXsAtBeginning = 0;
             NoOfXsAtEnd = AppendZeros(dummy_dim);            
         else

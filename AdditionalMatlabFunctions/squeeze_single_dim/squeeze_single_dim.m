@@ -38,6 +38,11 @@ if(~exist('quiet_flag','var'))
     quiet_flag = false;
 end
 
+if(numel(in_array) == 1)
+    out_array = in_array;
+    return;
+end
+
 if(any(numel(sz) < squeeze_dims))
     TooHighDims = squeeze_dims(numel(sz) < squeeze_dims);
     if(~quiet_flag)
@@ -88,6 +93,14 @@ end
 
 new_dimensions = setxor(1:numel(sz), squeeze_dims);  % numel(size(..)) gives the number of dimensions of in_array; so 1:numel... gives [1 2 3 ... dimensionality(in_array)]; setxor: removes squeeze_dims out of this vec
 new_size = sz(new_dimensions);                       % gives a vector with the same size as sz but where the sz(squeeze_dims) does not occur
+
+if(numel(new_size) == 1)
+    if(new_dimensions == 1)
+        new_size = [new_size 1];
+    else
+        new_size = [1 new_size];
+    end
+end
 
 out_array = reshape(in_array, new_size);
 

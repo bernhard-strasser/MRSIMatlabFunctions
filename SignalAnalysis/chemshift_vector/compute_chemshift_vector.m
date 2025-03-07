@@ -1,4 +1,4 @@
-function chemshift_vector = compute_chemshift_vector(LarmorFreqOrPar,dwelltime,vecSize,CenterAroundPPM)
+function [chemshift_vector, FIDTime, freq_vector, bandwidth_frequency, step_frequency] = compute_chemshift_vector(LarmorFreqOrPar,dwelltime,vecSize,CenterAroundPPM)
 % In units of:
 % water_frequency: Hz
 % dwelltime: s
@@ -11,6 +11,13 @@ if(~exist('CenterAroundPPM','var'))
     CenterAroundPPM = 4.65;
 end
 if(isstruct(LarmorFreqOrPar))
+    
+    if(isfield(LarmorFreqOrPar,'RecoPar'))
+        LarmorFreqOrPar = LarmorFreqOrPar.RecoPar;
+    end
+    if(isfield(LarmorFreqOrPar,'Par'))
+        LarmorFreqOrPar = LarmorFreqOrPar.Par;
+    end    
     LarmorFreq = LarmorFreqOrPar.LarmorFreq;
     if(~exist('dwelltime','var') || isempty(dwelltime))
         dwelltime = LarmorFreqOrPar.Dwelltimes(1)/1E9;
@@ -41,4 +48,7 @@ freq_vector = ((ceil(vecSize/2)-1):-1:-floor(vecSize/2)) * step_frequency;
 chemshift_vector = 10^6*freq_vector / LarmorFreq + CenterAroundPPM;
 
 
+%% FID Time
+
+FIDTime = (0:dwelltime:(dwelltime*(vecSize-1)));
 
