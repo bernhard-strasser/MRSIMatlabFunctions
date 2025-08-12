@@ -47,7 +47,7 @@ function [ParList,ascconv] = read_ascconv_VE11_eh(file_path,NumberOfAscconvEnds)
 %% 0. Preparations
 
 if(~exist('NumberOfAscconvEnds','var'))
-    NumberOfAscconvEnds = 3;
+    NumberOfAscconvEnds = 0;
 end
 
 
@@ -242,17 +242,63 @@ ParList_Convert = { ...
 };
 
 
+
+BasicInfo = io_GetBasicTwixfileInfos(file_path);
+fid = fopen(file_path,'r','n','UTF-8');
+wiff = fread(fid,BasicInfo.BeginningOfData,'int8=>char');   % Read in only until beginning of data. Otherwise the search of big files takes ages.
+wiff = convertCharsToStrings(wiff);
+Tmp = regexp(wiff,'<ParamDouble."flReadoutOSFactor">  { <Precision> 6  \d\.\d*\s*}','match');
+if(isempty(Tmp))        % For new XA versions
+    Tmp = regexp(wiff,'<ParamDouble."flReadoutOSFactor">{\s*\d*\s*}','match','once');
+end
+% [~, Tmp] = unix(['grep -a -m 4 ReadoutOSFactor ' file_path]);
+% Tmp = regexp(Tmp, '<ParamDouble."flReadoutOSFactor">  { <Precision> 6  .*  }','match');
+Tmp = regexp(Tmp{1}, '{.*}','match');
+Tmp = regexprep(Tmp,'<Precision> 6  ','');
+Tmp = regexprep(Tmp,'{\s+','');
+Tmp = regexprep(Tmp,'\s+}','');
+ReadoutOSFactor = str2double(Tmp{1});
+if(isempty(ReadoutOSFactor) || isnan(ReadoutOSFactor))
+    ReadoutOSFactor = 2;
+end
+
+
+
 % Initialize ParList
 for Par_no = 1:numel(ParList_Search)
     eval([ 'ParList.' ParList_Assign{Par_no} ' = ' ParList_Convert{Par_no} '(''0'');' ]);
 end
+ParListBak = ParList;
 
-% open file
-fid = fopen(file_path,'r');
+% rewind
+frewind(fid);
 
+
+firstInt  = fread(fid,1,'uint32');
+secondInt = fread(fid,1,'uint32');
+
+NScans = secondInt;
+measID = fread(fid,1,'uint32');
+fileID = fread(fid,1,'uint32');
+measOffset = cell(1, NScans);
+measLength = cell(1, NScans);
+for k=1:NScans
+    measOffset{k} = fread(fid,1,'uint64');
+    measLength{k} = fread(fid,1,'uint64'); 
+    fseek(fid, 152 - 16, 'cof');
+end
 
 
 %% 1. Track down & save element: ASCCONV
+
+
+for CurSet = 1:NScans
+    
+    ParList = ParListBak;   % For now only take last ParList. If others are also necessary, can make a cell out of it later
+    CurAscconvEndCount = 1;
+    MeaningfulAscconvNotFound = true;
+    fseek(fid,measOffset{CurSet},'bof');
+    while(MeaningfulAscconvNotFound)
 
 begin_found = 0;
 ascconv = [];
@@ -262,7 +308,12 @@ Ascconv_No = 0;
 while(sLine > -1)
     
     sLine = fgets(fid); % get string line
-    
+
+    CurPos = ftell(fid);
+    if(CurPos > BasicInfo.BeginningOfData)
+        break;
+    end
+
     if(not(begin_found))                                            % If begin of ascconv not yet found
         
         
@@ -328,9 +379,7 @@ ascconv = strtrim([ascconv(1:2:end) ascconv(2:2:end)]);
 
 
 
-%% 5. Close File
 
-fclose(fid);
 
 
 
@@ -363,16 +412,26 @@ end
 
 
 
-%% 5. Change & Correct certain values
+        %%
+        if((ParList.TR == 0 || all(ParList.TEs == 0) || all(ParList.Dwelltimes == 0) || strcmpi(ParList.Nucleus,'0')) && CurAscconvEndCount < 10)
+            CurAscconvEndCount = CurAscconvEndCount + 1;
+            continue
+        else
+            MeaningfulAscconvNotFound = false;
+        end
+    end
 
 
+    
+    
+    %% 5. Change & Correct certain values
 
 
 % FoV in Partition Direction
 if(ParList.nPartEnc == 1)
     ParList.FoV_Partition(1) = ParList.VoI_Partition(1);
 else
-    ParList.FoV_Partition = sum(ParList.SliceThickness) + sum(ParList.SliceGap);
+    ParList.FoV_Partition = sum(ParList.SliceThickness) + (ParList.nSLC > 1)*sum(ParList.SliceGap);
 end
 
 % Convert from 0x1 etc. to logicals
@@ -457,22 +516,7 @@ end
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
 
-BasicInfo = io_GetBasicTwixfileInfos(file_path);
-fid = fopen(file_path,'r');
-wiff = fread(fid,BasicInfo.BeginningOfData,'int8=>char');   % Read in only until beginning of data. Otherwise the search of big files takes ages.
-wiff = convertCharsToStrings(wiff);
-Tmp = regexp(wiff,'<ParamDouble."flReadoutOSFactor">  { <Precision> 6  \d\.\d*\s*}','match');
-fclose(fid);
-
-% [~, Tmp] = unix(['grep -a -m 4 ReadoutOSFactor ' file_path]);
-% Tmp = regexp(Tmp, '<ParamDouble."flReadoutOSFactor">  { <Precision> 6  .*  }','match');
-Tmp = regexp(Tmp{1}, '{.*}','match');
-Tmp = regexprep(Tmp,'{ <Precision> 6  ','');
-Tmp = regexprep(Tmp,'\s+}','');
-ParList.ReadoutOSFactor = str2double(Tmp{1});
-if(isempty(ParList.ReadoutOSFactor) || isnan(ParList.ReadoutOSFactor))
-    ParList.ReadoutOSFactor = 2;
-end
+    ParList.ReadoutOSFactor = ReadoutOSFactor;
 
 if(numel(strfind(file_path, '.dat')) > 0 ...
 	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
@@ -570,9 +614,10 @@ end
 
 end
 
+fclose(fid);
 
 
-
+end
 
 
 

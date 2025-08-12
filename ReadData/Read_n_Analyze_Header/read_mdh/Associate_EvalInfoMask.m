@@ -64,7 +64,11 @@ elseif(EvalInfoMask_logical(23))									% NOISEADJSCAN
 elseif(EvalInfoMask_logical(21))									% PATREFANDIMASCAN
 	Association = 'PATREFANDIMASCAN';
 elseif(EvalInfoMask_logical(20))									% PATREFSCAN
-	Association = 'PATREFSCAN';    
+	Association = 'PATREFSCAN';  
+elseif(EvalInfoMask_logical(2))                                     % RTFEEDBACK
+	Association = 'RTFEEDBACK';  
+elseif(EvalInfoMask_logical(19))									% PHASCOR
+	Association = 'PHASCOR'; 
 elseif(EvalInfoMask_logical(4))										% ONLINE
 	Association = 'ONLINE';
 elseif(EvalInfoMask_logical(1))										% 
@@ -72,7 +76,6 @@ elseif(EvalInfoMask_logical(1))										%
 else
 	Association = 'Other';
 end
-
 
 
 
