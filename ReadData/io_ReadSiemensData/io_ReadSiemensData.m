@@ -1,4 +1,4 @@
-function MRStruct = io_ReadSiemensData(MRStructOrFile)
+function MRStruct = io_ReadSiemensData(MRStructOrFile,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -40,7 +40,13 @@ tic
 fprintf('\n\tReading data\t\t\t\t...')
 
 
-Settings = struct; 
+if(~exist('Settings','var'))
+    Settings = struct; 
+end
+
+if(~isfield(Settings,'OmitDataSets'))
+    Settings.OmitDataSets = {}; 
+end
 
 % Find out memory used by MATLAB
 memused_before = memused_linux(1); 
@@ -125,7 +131,7 @@ end
 
 ParList = read_ascconv(MRStruct.DataFile);
 MRStruct.Par = ParList;
-
+MRStruct.Par.BaselineVersion = version;
 
 
 %% 3. READ DATA
@@ -161,6 +167,14 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
 
         CurChak = fread(file_fid, MdhSizeInBytes, 'uint8=>uint8');
         EvalInfoMask = de2bi_own(CurChak(EvalInfoRelPosInBytes:EvalInfoRelPosInBytes+7),8); EvalInfoMask = reshape(EvalInfoMask',1,[]);
+
+        % Sync Data, We move forward. This is necessary for XA data.
+        if(EvalInfoMask(6) == 1 && all(EvalInfoMask(setdiff(1:numel(EvalInfoMask),6)) == 0))
+            ulDMALength = double( typecast( CurChak(1:4), 'uint32' ) );
+            fseek(file_fid,ulDMALength-MdhSizeInBytes,'cof');
+            continue;
+        end
+
         chak_header(1:5) = typecast(CurChak(1:20),'uint32');
         dummy = typecast(CurChak(EvalInfoRelPosInBytes+8:end),'uint16');
         chak_header(8:7+numel(dummy)) = dummy;
@@ -228,7 +242,11 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
 % 	      chak_data = fread(file_fid, (MRStruct.mdhInfo.(CurrentMeasSet).mdhInfo(9,CurADC.(CurrentMeasSet))*2+8)*ParList.total_channel_no_measured, 'float32'); 
 
         
-        
+        % Read Data
+        if(any(strcmp(Settings.OmitDataSets,CurrentMeasSet)))
+            % Omit Data read in
+            fseek(file_fid, (MRStruct.mdhInfo.(CurrentMeasSet).Col(CurADC.(CurrentMeasSet))*2+ChannelMdhOffset+HeaderMdhOffset)*ParList.total_channel_no_measured*4-HeaderMdhOffset*4,'cof');            
+        else
         chak_data = fread(file_fid, (MRStruct.mdhInfo.(CurrentMeasSet).Col(CurADC.(CurrentMeasSet))*2+ChannelMdhOffset+HeaderMdhOffset)*ParList.total_channel_no_measured, 'float32=>float32'); 
         fseek(file_fid, -HeaderMdhOffset*4,'cof');
         if(round(numel(chak_data)/ParList.total_channel_no_measured) - numel(chak_data)/ParList.total_channel_no_measured ~= 0)
@@ -236,7 +254,7 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
         end
         chak_data = reshape(chak_data,[numel(chak_data)/ParList.total_channel_no_measured ParList.total_channel_no_measured]);
         MRStruct.Data.(CurrentMeasSet){CurADC.(CurrentMeasSet)} = complex(chak_data(ChannelMdhOffset+1:2:end-HeaderMdhOffset,:),chak_data(ChannelMdhOffset+2:2:end-HeaderMdhOffset,:));
-        
+        end
 
 
         % Check if this was the last measurement of scan
@@ -249,7 +267,7 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
 
     end
 
-    if(numel(MRStruct.Data.ONLINE) == 1 && isnan(MRStruct.Data.ONLINE))
+    if(isfield(MRStruct.Data,'ONLINE') && numel(MRStruct.Data.ONLINE) == 1 && numel(MRStruct.Data.ONLINE{1}) == 1 && isnan(MRStruct.Data.ONLINE{1}))
         MRStruct.Data = rmfield(MRStruct.Data,'ONLINE');
     end
 
@@ -277,7 +295,7 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
         MRStruct.mdhInfo.(CurDataset).Seg(MRStruct.mdhInfo.(CurDataset).Seg > 1E4) = ...
         MRStruct.mdhInfo.(CurDataset).Seg(MRStruct.mdhInfo.(CurDataset).Seg > 1E4) - 65535 - 1;
         if(any(MRStruct.mdhInfo.(CurDataset).Seg <= 0))
-        MRStruct.mdhInfo.(CurDataset).Seg = MRStruct.mdhInfo.(CurDataset).Seg + floor(MRStruct.mdhInfo.(CurDataset).NSeg/2);
+            MRStruct.mdhInfo.(CurDataset).Seg = MRStruct.mdhInfo.(CurDataset).Seg + floor(MRStruct.mdhInfo.(CurDataset).NSeg/2);
         end
     end
     

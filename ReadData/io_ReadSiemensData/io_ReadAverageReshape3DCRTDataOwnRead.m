@@ -1,4 +1,4 @@
-function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRTDataOwnRead(file, Settings)
+function [MRStruct,MRStruct_refscan,MRStruct_Noise,AdditionalOut] = io_ReadAverageReshape3DCRTDataOwnRead(file, Settings)
     %
     % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
     %
@@ -60,6 +60,9 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     if(~isfield(Settings,'ReadInAdditionalDataSets'))
         Settings.ReadInAdditionalDataSets = {};
     end
+    if(~isfield(Settings,'OmitDataSets'))
+        Settings.OmitDataSets = {};
+    end
     MRStruct_Noise = [];
     % Time total
     TicTotal = tic;
@@ -67,9 +70,12 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
 
     %% Read Data
 
-    MRStructRaw = io_ReadSiemensData(file);
+    MRStructRaw = io_ReadSiemensData(file,Settings);
     
     
+%     %% DELETEME DEBUG: I USED WRONG SEQUENCE, SO RENAME FIELD. SHOULD NOT BE DONE NORMALLY 
+%     MRStructRaw.Data.RTFEEDBACK = MRStructRaw.Data.PATREFANDIMASCAN; MRStructRaw.Data = rmfield(MRStructRaw.Data,'PATREFANDIMASCAN');
+%     MRStructRaw.mdhInfo.RTFEEDBACK = MRStructRaw.mdhInfo.PATREFANDIMASCAN; MRStructRaw.mdhInfo = rmfield(MRStructRaw.mdhInfo,'PATREFANDIMASCAN');
     
 
     %% Read Parameters
@@ -78,6 +84,7 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     ticcyReadPars = tic;
     [MRStruct,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'ONLINE'); 
     [MRStruct_refscan,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFSCAN');
+    AdditionalOut.CoilCompScan = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFANDIMASCAN');
     MRStruct.Par.dicom_flag = false;
     MRStruct_refscan.Par.dicom_flag = false;
     fprintf('\n\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadPars))
@@ -86,13 +93,20 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise] = io_ReadAverageReshape3DCRT
     %% Reshape Data 
     ticcyReadAverageReshape = tic;
     fprintf('\n\tReading, Averaging & Reshaping data\t...\n')
-    [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,'ONLINE');
+    if(isfield(MRStructRaw.Data,'ONLINE'))
+        [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,'ONLINE');
+    end
     if(nargout > 1 && isfield(MRStructRaw.Data,'PATREFSCAN'))
     	[MRStruct_refscan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct_refscan,'PATREFSCAN');
     end
-    if(nargout > 2)
-    	MRStruct_Noise = ReshapeNoisePrescan(MRStructRaw);
+    if(nargout > 2 && isfield(MRStructRaw.Data,'NOISEADJSCAN'))
+    	[MRStruct_Noise,MRStructRaw]  = ReshapeNoisePrescan(MRStructRaw);
     end
+
+    if(nargout > 3)
+    	[AdditionalOut.CoilCompScan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,AdditionalOut.CoilCompScan,'PATREFANDIMASCAN');
+    end
+    
     clear MRStructRaw;
     fprintf('\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadAverageReshape))
 
@@ -120,7 +134,16 @@ end
 %%
 function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,CurDataSet)
 
+	
+    if(~isfield(MRStructRaw.mdhInfo,CurDataSet))
+        return
+    end
     
+	InputName = inputname(1);
+	if(~isempty(InputName))
+	    evalin('caller',['clear ' InputName])
+	end
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Reshape raw Data 1 & Perform averaging                                               %
     % Current Size: {nTotADCs}[nADCPts]                                                    %
@@ -142,10 +165,15 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
         % (1,2,...,13), which is saved in CurSegToSave
         CurSegToSave = MRStructRaw.mdhInfo.(CurDataSet).Seg(ii) - (MRStruct.Par.nPartEnc_Meas-size(TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)},2))/2;
         CurData = reshape(MRStructRaw.Data.(CurDataSet){ii},[1 1 1 MRStruct.Par.nPtsPerADC( CurCrcl) 1 MRStruct.Par.total_channel_no_reco]);
+        MRStructRaw.Data.(CurDataSet){ii} = [];
         TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Rep(ii)) = ...
         TmpData2{MRStructRaw.mdhInfo.(CurDataSet).Lin(ii)}(MRStructRaw.mdhInfo.(CurDataSet).Idb(ii),CurSegToSave,MRStructRaw.mdhInfo.(CurDataSet).Sli(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Ida(ii),:,MRStructRaw.mdhInfo.(CurDataSet).Rep(ii)) + CurData; 
     end
-    TmpData2 = cellfun(@(x) x/MRStructRaw.mdhInfo.(CurDataSet).NSet,TmpData2,'UniformOutput',false);     % For averaging
+    MRStructRaw.Data = rmfield(MRStructRaw.Data,CurDataSet);
+    for ii = 1:numel(TmpData2)
+        TmpData2{ii} = TmpData2{ii}/MRStructRaw.mdhInfo.(CurDataSet).NSet;     % For averaging
+    end
+    MRStructRaw.mdhInfo = rmfield(MRStructRaw.mdhInfo,CurDataSet);
     clear TmpData1; 
 
 
@@ -164,6 +192,7 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
         TmpData3 = reshape(TmpData3,[MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.TrajPts(CurCrcl) MRStruct.Par.vecSize/MRStruct.Par.nTempIntsPerAngInt(CurCrcl) MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep] ); 
         TmpData3 = permute(TmpData3,[4 2 3 1 5 6 7]); % Permute from [nCha x nTempIntsPerAngInt x nPart x nSlc x nTrajPoints x vecSize/nTempIntsPerAngInt] to [nTrajPoints x nPart x nSlc x vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt x nCha]
         TmpData3 = reshape(TmpData3,[MRStruct.Par.TrajPts(CurCrcl) 1 MRStruct.Par.nPartEncsPerAngInt(CurCrcl) MRStruct.Par.nSLC MRStruct.Par.vecSize MRStruct.Par.total_channel_no_reco MRStruct.Par.nRep]); % Merge vecSize/nTempIntsPerAngInt x nTempIntsPerAngInt to vecSize
+        TmpData2{CurCrcl} = [];
         MRStruct.Data{CurCrcl} = TmpData3;
 %         for Curkz = 1:MRStruct.Par.nPartEnc
 %             MRStruct.Data{Curkz}(:,CurCrcl,:,:,:,:) = TmpData3(:,:,Curkz,:,:,:);
@@ -172,18 +201,32 @@ function [MRStruct,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,MRStruct,C
 
 
     MRStruct.Par.DataSize = cellfun(@size,MRStruct.Data,'uni',false);     % Generalize later for more than 1 partition!
-    MRStructRaw.mdhInfo = rmfield(MRStructRaw.mdhInfo,CurDataSet);
-    MRStructRaw.Data = rmfield(MRStructRaw.Data,CurDataSet);
+
     
     MRStruct.Par.dimnames_small_cell = {'nAngInts'};
     
     MRStruct.Par.dimnames_small = {'TrajPts','dummy','Part','Slc','vecSize','cha','Rep'};
     
     
+    
+    %% Averaging
+    MRStruct.RecoPar = MRStruct.Par;
+    MRStruct.RecoPar.nAverages = 1;
+    MRStruct.RecoPar.AverageDataDuringReshape_flag = true;
+    
+    
+    
 end
 
 
 function [MRStruct,MRStructRaw] = ReshapeNoisePrescan(MRStructRaw)    
+
+	
+% InputName = inputname(1);
+% if(~isempty(InputName))
+%     evalin('caller',['clear ' InputName])
+% end
+
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Reshape raw Data 1 & Perform averaging                                               %
     % Current Size: {nTotADCs}[nADCPts]                                                    %
@@ -224,14 +267,12 @@ end
 function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 
 
-    if(~isfield(MRStructRaw.mdhInfo,CurDataset))
+    if(~isfield(MRStructRaw.mdhInfo,CurDataset) || ~isfield(MRStructRaw.Data,CurDataset))
         MRStruct = struct();
         return;
     end
 
 
-    
-    
     % CORRECT MRStructRaw
     
     % Our int32 values that we write into the iceParam gets converted to uint32 by the iceParam. Therefore, all negative values that are written into the header are interpreted wrongly:
@@ -263,7 +304,8 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         MRStructRaw.Par.Hamming_flag = false;                                                                      % circles, Hamming must have been enabled
     end
     
-    if(~strcmpi(CurDataset,'NoiseAdjScan') && MRStructRaw.Par.nPartEnc > 1 && (strcmpi(version,'vb') || all(MRStructRaw.mdhInfo.(CurDataset).Seg == 1) ))
+    
+    if(~strcmpi(CurDataset,'NoiseAdjScan') && MRStructRaw.Par.nPartEnc > 1 && (strcmpi(MRStructRaw.Par.BaselineVersion,'vb') || all(MRStructRaw.mdhInfo.(CurDataset).Seg == 1) ))
         MRStructRaw = CorrMdhForOldADC(MRStructRaw,CurDataset);
     end
     
@@ -278,18 +320,17 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         MRStruct.(CurField{1}) = MRStructRaw.(CurField{1});
     end
     
-    
     MRStruct.Par.nAngInts = MRStructRaw.mdhInfo.(CurDataset).NLin;
     
     % Find first occurence of circle CurCrcl. Take the info for that circle. All the other circles have the same entries and are not needed
     for CurCrcl = 1:MRStruct.Par.nAngInts   
-        FirstCircleMeas = find(MRStructRaw.mdhInfo.ONLINE.Lin == CurCrcl,1); 
-        MRStruct.Par.FirstCirclekSpacePoint(1,CurCrcl) = (MRStructRaw.mdhInfo.ONLINE.iceParam(1,FirstCircleMeas) + MRStructRaw.mdhInfo.ONLINE.iceParam(2,FirstCircleMeas)/10000);
-        MRStruct.Par.FirstCirclekSpacePoint(2,CurCrcl) = (MRStructRaw.mdhInfo.ONLINE.iceParam(3,FirstCircleMeas) + MRStructRaw.mdhInfo.ONLINE.iceParam(4,FirstCircleMeas)/10000);
+        FirstCircleMeas = find(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl,1); 
+        MRStruct.Par.FirstCirclekSpacePoint(1,CurCrcl) = (MRStructRaw.mdhInfo.(CurDataset).iceParam(1,FirstCircleMeas) + MRStructRaw.mdhInfo.(CurDataset).iceParam(2,FirstCircleMeas)/10000);
+        MRStruct.Par.FirstCirclekSpacePoint(2,CurCrcl) = (MRStructRaw.mdhInfo.(CurDataset).iceParam(3,FirstCircleMeas) + MRStructRaw.mdhInfo.(CurDataset).iceParam(4,FirstCircleMeas)/10000);
     end
     
 
-    MRStruct.Par.nRep = max(MRStructRaw.mdhInfo.ONLINE.Rep); 
+    MRStruct.Par.nRep = max(MRStructRaw.mdhInfo.(CurDataset).Rep); 
 
     
     MRStruct.Par.ReadoutOSFactor = MRStructRaw.Hdr.Dicom.flReadoutOSFactor;
@@ -308,56 +349,32 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         MRStruct.Par.nADCsPerAngInt(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Ida(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));     
         MRStruct.Par.nPtsPerADC(CurCrcl) = max(MRStructRaw.mdhInfo.(CurDataset).Col(MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
         MRStruct.Par.TrajPts(CurCrcl) = MRStruct.Par.ReadoutOSFactor*max(MRStructRaw.mdhInfo.(CurDataset).iceParam(6,MRStructRaw.mdhInfo.(CurDataset).Lin == CurCrcl));
-
         
     end
-    
-    % For Lukas's sequence, he writes the TrajPts into Idc. Last if condition: In Lukis newer sequence, the IceParam(6,:) stores the partition number 
-    if(any(MRStruct.Par.TrajPts == 0) || all(MRStruct.Par.TrajPts == MRStruct.Par.ReadoutOSFactor) || all(MRStruct.Par.TrajPts + 1 == MRStruct.Par.nPartEncsPerAngInt))
-        MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
-    end
-
-    % Define which angular interleaves are measured for each kz (matrix of nPartEncmax x nCircles)
-%     MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
-    dummy1 = max(MRStruct.Par.nPartEncsPerAngInt);
-    dummy2 = ceil(dummy1/2);
-    MRStruct.Par.kzPositions = zeros([1 dummy1]);
-    for kz = 1:max(MRStruct.Par.nPartEncsPerAngInt)
-        MRStruct.Par.AngIntsPerPartEnc(kz,:) = MRStruct.Par.nPartEncsPerAngInt >= dummy1-(     (kz - (kz>dummy2)*2*mod(kz,dummy2))        -1)*2;
-        
-        % Restrict somehow to only define this in certain cases?
-        %fn: change hamming addresses to 10,11,12
-        MRStruct.Par.kzPositions(kz) = (-1).^max(MRStructRaw.mdhInfo.(CurDataset).iceParam(10,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) .* max( MRStructRaw.mdhInfo.(CurDataset).iceParam(11,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) + max(MRStructRaw.mdhInfo.(CurDataset).iceParam(12,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)/10000);
-
-        
-    end
-
-    % Hack -- Delete me later
-    if(MRStruct.Par.TrajPts == 0)
-        MRStruct.Par.TrajPts = [4 10 18 24 30 36 45 48 60 60 72 80 80 90 120 120 120 120 120 144 144 144 144 180 180 180 180 180 180 216 216 216] * 2;
-    end
-
-    MRStruct.Par.nPartEnc_Meas = max(MRStruct.Par.nPartEncsPerAngInt);  % The measured ones can be different than the one written in the header
-
-    MRStruct.Par.RewPts = 0;
-    MRStruct.Par.TrajTotPts = MRStruct.Par.TrajPts + MRStruct.Par.RewPts;
-
-
-
-    MRStruct.Par.VTI_Flag = ~all(MRStruct.Par.nTempIntsPerAngInt == MRStruct.Par.nTempIntsPerAngInt(1));
-
-
 
     % For getting vecSize, it depends on whether we read in ONLINE or refscan data
-    if(strcmpi(CurDataset,'ONLINE'))
+    if(strcmpi(CurDataset,'PATREFANDIMASCAN'))
+        if(any(MRStructRaw.Hdr.Dicom.alICEProgramPara(18:21)))
+            MRStruct.Par.nFreqEnc = MRStructRaw.Hdr.Dicom.alICEProgramPara(20);
+            MRStruct.Par.nPhasEnc = MRStruct.Par.nFreqEnc;
+            MRStruct.Par.nPartEnc = MRStructRaw.Hdr.Dicom.alICEProgramPara(21); 
+            MRStruct.Par.Dwelltimes = MRStructRaw.Hdr.Dicom.alICEProgramPara(18)*1E3; 
+            MRStruct.Par.vecSize = MRStruct.Hdr.Dicom.alICEProgramPara(19);  
+        else
+            MRStruct.Par.vecSize = 5;  
+            if(isfield_recursive(MRStructRaw,'mdhInfo.ONLINE.Idb'))
+                MRStruct.Par.Dwelltimes = MRStruct.Par.Dwelltimes/max(MRStructRaw.mdhInfo.ONLINE.Idb);
+            end
+        end
+    elseif(strcmpi(CurDataset,'ONLINE'))
          MRStruct.Par.vecSize = MRStruct.Hdr.Dicom.alICEProgramPara(7);  
     else
         MRStruct.Par.vecSize = MRStruct.Hdr.Dicom.alICEProgramPara(8);
         if(any(mod(MRStruct.Par.vecSize,MRStruct.Par.nTempIntsPerAngInt)))
             MRStruct.Par.vecSize = MRStruct.Hdr.Dicom.alICEProgramPara(8) * max(MRStruct.Par.nTempIntsPerAngInt);    % In one version of my sequence we need to do that...
-        end
-
+        end        
     end
+
     if(MRStruct.Par.vecSize <= 0)
 
         MRStruct.Par.vecSize = round(MRStruct.Par.nPtsPerADC(1)*MRStruct.Par.nADCsPerAngInt(1)/MRStruct.Par.TrajPts(1)*MRStruct.Par.nTempIntsPerAngInt(1)-0.5);
@@ -377,7 +394,61 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         
         
     end
+    
+    % For Lukas's sequence, he writes the TrajPts into Idc. Last if condition: In Lukis newer sequence, the IceParam(6,:) stores the partition number 
+    if(any(MRStruct.Par.TrajPts == 0) || all(MRStruct.Par.TrajPts == MRStruct.Par.ReadoutOSFactor) || all(MRStruct.Par.TrajPts + 1 == MRStruct.Par.nPartEncsPerAngInt))
+        MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
+    end
+
+    % Define which angular interleaves are measured for each kz (matrix of nPartEncmax x nCircles)
+%     MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
+    dummy1 = max(MRStruct.Par.nPartEncsPerAngInt);
+    dummy2 = ceil(dummy1/2);
+    MRStruct.Par.kzPositions = zeros([1 dummy1]);
+    for kz = 1:max(MRStruct.Par.nPartEncsPerAngInt)
+        MRStruct.Par.AngIntsPerPartEnc(kz,:) = MRStruct.Par.nPartEncsPerAngInt >= dummy1-(     (kz - (kz>dummy2)*2*mod(kz,dummy2))        -1)*2;
+        
+        % Restrict somehow to only define this in certain cases?
+        %fn: change hamming addresses to 10,11,12
+        MRStruct.Par.kzPositions(kz) = (-1).^max(MRStructRaw.mdhInfo.(CurDataset).iceParam(10,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) .* (max( MRStructRaw.mdhInfo.(CurDataset).iceParam(11,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)) + max(MRStructRaw.mdhInfo.(CurDataset).iceParam(12,MRStructRaw.mdhInfo.(CurDataset).Seg == kz)/10000));
+
+        
+    end
+
+    % Hack -- Delete me later
+    if(MRStruct.Par.TrajPts == 0)
+        MRStruct.Par.TrajPts = [4 10 18 24 30 36 45 48 60 60 72 80 80 90 120 120 120 120 120 144 144 144 144 180 180 180 180 180 180 216 216 216] * 2;
+    end
+
+    MRStruct.Par.nPartEnc_Meas = max(MRStruct.Par.nPartEncsPerAngInt);  % The measured ones can be different than the one written in the header
+
+    MRStruct.Par.RewPts = 0;
+    MRStruct.Par.TrajTotPts = MRStruct.Par.TrajPts + MRStruct.Par.RewPts;
+
+    
+    % Three-D Hamming filter
+    % In very rare cases this could be true although there was no 3D Hamming measured...
+    MRStruct.Par.ThreeDHamming_flag = MRStructRaw.Par.Hamming_flag && (MRStruct.Par.nPartEnc_Meas > MRStruct.Par.nPartEnc);
+
+    MRStruct.Par.VTI_Flag = ~all(MRStruct.Par.nTempIntsPerAngInt == MRStruct.Par.nTempIntsPerAngInt(1));
+
+    %coil compression
+    MRStruct.Par.coilcompression_to_numb_coils=MRStructRaw.Hdr.Dicom.alICEProgramPara(10);
+    % MRStruct.Par.coilcompression_to_numb_coils = 8;
+    if (MRStruct.Par.coilcompression_to_numb_coils<1 || MRStruct.Par.coilcompression_to_numb_coils>MRStruct.Par.total_channel_no_reco)
+        MRStruct.Par.coilcompression_to_numb_coils=MRStruct.Par.total_channel_no_reco;
+    end
+
+
     MRStruct.Par.UsefulADCPtsPerAngInt=MRStruct.Par.vecSize./MRStruct.Par.nTempIntsPerAngInt.*MRStruct.Par.TrajPts;
+    
+    if(isfield(MRStruct.Par,'WipMemBlock_alFree') && numel(MRStruct.Par.WipMemBlock_alFree) > 58)
+        fprintf('\n\n\n\nWARNING: New Dwelltime-calculation based on wipmemblock!\nOld Dwelltime: %f.',MRStruct.Par.Dwelltimes)
+%         MRStruct.Par.Dwelltimes = MRStruct.Par.WipMemBlock_alFree(59)/MRStruct.Par.ReadoutOSFactor*MRStruct.Par.TrajPts(1)/MRStruct.Par.nTempIntsPerAngInt(1);   % ADC-dt times TrajPts divided by TempInt
+        MRStruct.Par.Dwelltimes = round(MRStruct.Par.Dwelltimes/10^4)*10^4;
+        fprintf('\nNew  Dwelltime: %f.\nIf there is a discrepancy, the reco might be wrong.\n\n\n\n',MRStruct.Par.Dwelltimes)
+    end
+    
     MRStruct.Par.ADCdtPerAngInt_ns = MRStruct.Par.Dwelltimes(1).*MRStruct.Par.nTempIntsPerAngInt./MRStruct.Par.TrajPts;       
     % Factor 2 NO LONGER NECESSARY, it's done in read_ascconv_VE11_eh!
 
@@ -393,6 +464,12 @@ end
 
 %%
 function MRStruct = CorrMdhForOldADC(MRStruct,CurSet)
+
+		
+	InputName = inputname(1);
+	if(~isempty(InputName))
+	    evalin('caller',['clear ' InputName])
+	end
 
     Settings = struct;
     if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))

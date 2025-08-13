@@ -1,4 +1,4 @@
-function [MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file,NonCartTrajFile)
+function [MRStruct,RefStruct,NoiseStruct,AdditionalOut] = io_ReadAndReshapeSiemensData(file,NonCartTrajFile,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -38,7 +38,14 @@ function [MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file,No
 
 RefStruct = struct();
 NoiseStruct = struct();
+AdditionalOut = struct();
+
+if(~exist('Settings','var'))
 Settings = struct();
+end
+if(~isfield(Settings,'OmitDataSets'))
+    Settings.OmitDataSets = {}; 
+end
 
 if(~exist('NonCartTrajFile','var'))
     NonCartTrajFile = [];
@@ -62,8 +69,8 @@ else
     MRStruct.Par = read_ascconv(file{1});
     MRStruct.Par.dicom_flag = false;	
 	if(strcmpi(MRStruct.Par.AssumedSequence,'ViennaCRT'))
-		[MRStruct,RefStruct,NoiseStruct] = io_ReadAverageReshape3DCRTDataOwnRead(file{1});
-        MRStruct.TrajFile = NonCartTrajFile; RefStruct.TrajFile = NonCartTrajFile;
+		[MRStruct,RefStruct,NoiseStruct,AdditionalOut] = io_ReadAverageReshape3DCRTDataOwnRead(file{1},Settings);
+%         MRStruct.TrajFile = NonCartTrajFile; RefStruct.TrajFile = NonCartTrajFile; AdditionalOut.TrajFile = NonCartTrajFile;
 	elseif(strcmpi(MRStruct.Par.AssumedSequence,'BorjanSpiral'))
 		MRStruct = io_ReadAverageReshapeBorjanSpiralData(file{1},NonCartTrajFile);
     elseif(strcmpi(MRStruct.Par.AssumedSequence,'CSIOrSVS'))
@@ -88,6 +95,12 @@ if(~isempty(RefStruct) && ~isempty(fieldnames(RefStruct)))
     RefStruct.DataFile = file;
     if(exist('NonCartTrajFile','var'))
         RefStruct.TrajFile = NonCartTrajFile;
+    end
+end
+if(~isempty(AdditionalOut) && isfield(AdditionalOut,'CoilCompScan') && ~isempty(fieldnames(AdditionalOut.CoilCompScan)))
+    AdditionalOut.CoilCompScan.DataFile = file;
+    if(exist('NonCartTrajFile','var'))
+        AdditionalOut.CoilCompScan.TrajFile = NonCartTrajFile;
     end
 end
 if(~isempty(NoiseStruct) && ~isempty(fieldnames(NoiseStruct)))

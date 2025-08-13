@@ -51,7 +51,7 @@ if(~isfield(Settings,'ShowTrajs'))
 end
 if(~isfield(Settings,'GradDelayCorrection_flag'))
     if(~exist('TrajFile','var') || isempty(TrajFile))
-    Settings.GradDelayCorrection_flag = true;
+        Settings.GradDelayCorrection_flag = true;
     else
         Settings.GradDelayCorrection_flag = false;        
     end
@@ -74,13 +74,17 @@ if(Settings.GradDelayCorrection_flag)
 
     % Estimated on Phantom Trajectory Measurement at Vienna 7 T (Measurement from 2023-10). 
     if(~isfield(Settings,'GradDelayPerAngInt_x_us') && ~isfield(Settings,'GradDelayPerTempInt_x_us') && ~isfield(Settings,'GradDelayPerTempInt_us'))
-        Settings.GradDelayPerAngInt_x_us = [11.4 11.72 11.8 11.84 13.88 13.88 14.8 17.625 13.86 15.9 11.4 15.165 11.205 10.96 11.49 12.48 11.49 10.5 12.48 10.25 10.25 10.275 10.25 11.55 10.53 11.52 9.6 9.57 10.56 9.3 9.275 9.375];
-        Settings.GradDelayPerAngInt_y_us = [9.2 9.52 9.64 9.76 11.72 11.76 13.2 15.9 12.24 14.22 9.75 13.635 9.54 9.36 9.81 10.86 9.81 8.85 10.95 8.625 8.675 8.625 8.675 10.38 9.39 10.41 8.4 8.4 9.42 8.175 8.175 8.175];        
-    
-
+        if(NoOfTIs == 3)
+            Settings.GradDelayPerAngInt_x_us = [11.4 11.72 11.8 11.84 13.88 13.88 14.8 17.625 13.86 15.9 11.4 15.165 11.205 10.96 11.49 12.48 11.49 10.5 12.48 10.25 10.25 10.275 10.25 11.55 10.53 11.52 9.6 9.57 10.56 9.3 9.275 9.375];
+            Settings.GradDelayPerAngInt_y_us = [9.2 9.52 9.64 9.76 11.72 11.76 13.2 15.9 12.24 14.22 9.75 13.635 9.54 9.36 9.81 10.86 9.81 8.85 10.95 8.625 8.675 8.625 8.675 10.38 9.39 10.41 8.4 8.4 9.42 8.175 8.175 8.175];
+        else
+            Settings.GradDelayPerTempInt_x_us = [12.42 12.38 10.14 10];
+            Settings.GradDelayPerTempInt_y_us = [10.27 10.75 8.99 9];
+        end
+    end
 
     % Convert GradDelayPerTempInt_x_us --> GradDelayPerAngInt_x_us
-    elseif(isfield(Settings,'GradDelayPerTempInt_x_us'))
+    if(isfield(Settings,'GradDelayPerTempInt_x_us') && ~isfield(Settings,'GradDelayPerAngInt_x_us'))
         if(numel(Settings.GradDelayPerTempInt_x_us) < NoOfTIs)
             Settings.GradDelayPerTempInt_x_us = cat(2,Settings.GradDelayPerTempInt_x_us,repmat(Settings.GradDelayPerTempInt_x_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_x_us)]));
             Settings.GradDelayPerTempInt_y_us = cat(2,Settings.GradDelayPerTempInt_y_us,repmat(Settings.GradDelayPerTempInt_y_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_y_us)]));
@@ -95,10 +99,10 @@ if(Settings.GradDelayCorrection_flag)
         end
         Settings.GradDelayPerAngInt_x_us  = repelem(Settings.GradDelayPerTempInt_x_us,TIDist);
         Settings.GradDelayPerAngInt_y_us  = repelem(Settings.GradDelayPerTempInt_y_us,TIDist);  
-
+    end
 
     % Convert GradDelayPerTempInt_us --> GradDelayPerAngInt_x_us
-    elseif(isfield(Settings,'GradDelayPerTempInt_us'))
+    if(isfield(Settings,'GradDelayPerTempInt_us') && ~isfield(Settings,'GradDelayPerAngInt_x_us'))
         if(numel(Settings.GradDelayPerTempInt_us) < NoOfTIs)
             Settings.GradDelayPerTempInt_us = cat(2,Settings.GradDelayPerTempInt_us,repmat(Settings.GradDelayPerTempInt_us(end),[1 NoOfTIs-numel(Settings.GradDelayPerTempInt_us)]));
         end
@@ -211,11 +215,11 @@ for ii = 1:numel(dGradientValues)
     TakePtsTo = TakePtsFrom + NumberOfLoopPointsCell{ii}*DataStruct.Par.ADC_OverSamp-1;   % Start from TakePtsFrom. Then we take all interpolated points from there, but minus 1
     CurTraj = CurTraj(TakePtsFrom:TakePtsTo);                               % (this last point is actually the first point of the next circumference of the circle)
 
-    blaa = -cumtrapz(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
-    blaa = GMLaunchtrack + blaa;                                                   % Add Gradient Moment of LaunchTrack
-    DataStruct.InTraj.GM{ii}(:,:) = [imag(blaa); real(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
+    tmp = -cumtrapz(CurTraj*dMaxGradAmpl*10/DataStruct.Par.ADC_OverSamp);              % 5 is the ADC_dwelltime in us, GradientRaterTime = 2*ADC_dwelltime
+    tmp = GMLaunchtrack + tmp;                                                   % Add Gradient Moment of LaunchTrack
+    DataStruct.InTraj.GM{ii}(:,:) = [imag(tmp); real(tmp)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
     DataStruct.InTraj.GV{ii}(:,:) = [imag(CurTraj); real(CurTraj)];      
-%     DataStruct.InTraj.GM(:,:,ii) = [real(blaa); imag(blaa)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
+%     DataStruct.InTraj.GM(:,:,ii) = [real(tmp); imag(tmp)];                % For some reason the x- and y-axes of the data seem to be swapped wrt to e.g. spirals...
 %     DataStruct.InTraj.GV(:,:,ii) = [real(CurTraj); imag(CurTraj)]; 
 end
 

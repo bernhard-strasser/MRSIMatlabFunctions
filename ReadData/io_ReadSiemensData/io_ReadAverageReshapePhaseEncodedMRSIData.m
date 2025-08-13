@@ -76,8 +76,14 @@ end
 [MRStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,'ONLINE');
 MRStruct.WeightedAveragingMap = WeightedAveragingMap.ONLINE;
 [RefStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,'PATREF*');
-if(numel(fieldnames(RefStruct)) > 0)
-    MRStruct.WeightedAveragingMap = WeightedAveragingMap.PATREFSCAN;
+
+if(isfield(MRStruct,'DataRefScan'))
+    RefStruct = MRStruct; RefStruct.Data = RefStruct.DataRefScan; RefStruct = rmfield(RefStruct,'DataRefScan');
+    MRStruct = rmfield(MRStruct,'DataRefScan');
+end
+
+if(numel(fieldnames(RefStruct)) > 0 && isfield(WeightedAveragingMap,'PATREFSCAN'))
+    RefStruct.WeightedAveragingMap = WeightedAveragingMap.PATREFSCAN;
 end
 NoiseStruct = op_ReshapeNoisePrescan(MRStructRaw);
 
@@ -87,12 +93,14 @@ NoiseStruct = op_ReshapeNoisePrescan(MRStructRaw);
 %% Correct RefStruct fields
 
 if(numel(fieldnames(RefStruct)) > 0)
-    RefStruct.Par.AssumedSequence = 'Imaging_GRE';
-    RefStruct.Par.nFreqEnc = size(RefStruct.Data,5)/2;
-    RefStruct.Par.nPhasEnc = size(RefStruct.Data,1);
-    RefStruct.Par.nFreqEnc_FinalMatrix = size(RefStruct.Data,5);
-    RefStruct.Par.nPhasEnc_FinalMatrix = size(RefStruct.Data,1);
     RefStruct.Par.SpatialSpectralEncoding_flag = false;
+    if(any(size_MultiDims(RefStruct.Data,1:4) > 1))
+        RefStruct.Par.AssumedSequence = 'Imaging_GRE';
+        RefStruct.Par.nFreqEnc = size(RefStruct.Data,5)/2;
+        RefStruct.Par.nPhasEnc = size(RefStruct.Data,1);
+        RefStruct.Par.nFreqEnc_FinalMatrix = size(RefStruct.Data,5);
+        RefStruct.Par.nPhasEnc_FinalMatrix = size(RefStruct.Data,1);
+    end
 end
 MRStruct.Par.SpatialSpectralEncoding_flag = false;
 
@@ -106,6 +114,9 @@ if(regexp(MRStruct.Par.ScannerVersion,'syngo MR B'))
 %     MRStruct = op_PermuteMRData(MRStruct,[3 7 4 5 1 2 6 8 9 10 11 12 13 14 15 16]);
 else
     MRStruct = op_PermuteMRData(MRStruct,[11 1 3 4 5 6 7 2 8 9 10]);
+    if(numel(fieldnames(RefStruct)) > 0)
+        RefStruct = op_PermuteMRData(RefStruct,[11 1 3 4 5 6 7 2 8 9 10]);
+    end
 end
 
 

@@ -76,20 +76,19 @@ if(numel(csi_path) > 1)
 else
     
     % If we get one IMA file
-    if(endsWith(csi_path{1},{'.IMA','.dcm'}))
+    if(endsWith(csi_path{1},{'.IMA','.dcm'},'IgnoreCase',true))
         csi_first_file = csi_path{1};
         csi_path_allfiles = csi_path(1);
         
     % If we get a folder
     else
-        csi_path_allfiles = dir( fullfile(csi_path{1},'*.IMA') );
+
+        csi_path_allfiles = dir( fullfile(csi_path{1},'*.*') );
+        csi_path_allfiles = natsortfiles(csi_path_allfiles);
         csi_path_allfiles = {csi_path_allfiles.name}';
-        
-        csi_path_allfiles2 = dir( fullfile(csi_path{1},'*.dcm') );
-        csi_path_allfiles2 = {csi_path_allfiles2.name}';
-        
-        csi_path_allfiles = cat(1,csi_path_allfiles,csi_path_allfiles2);
-        
+        DicomFoundVec = ~cellfun(@isempty,regexpi(csi_path_allfiles,'\.IMA|\.dcm'));
+        csi_path_allfiles = csi_path_allfiles(DicomFoundVec);
+
         csi_path_allfiles = strcat(csi_path,'/',csi_path_allfiles);
         if(numel(csi_path_allfiles) == 0)
             fprintf('\nError in read_csi_dicom: Could not find any DICOM file. Abort.\n');
