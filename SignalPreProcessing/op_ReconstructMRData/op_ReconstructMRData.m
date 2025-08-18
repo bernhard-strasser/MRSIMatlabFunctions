@@ -47,6 +47,12 @@ if(~isfield(Settings,'PreWhitenData_flag'))
     Settings.PreWhitenData_flag = true;
 end
 
+%%
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+
 
 %% PreWhiten Data
 

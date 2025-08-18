@@ -176,6 +176,8 @@ end
 
 if(FlipDim_flag && sum(ApplyAlongDims == FlipDim) == 1 && ~Ifft_flag)	% Only if the FlipDim dimension is to be applied
 	InData = flip(InData,FlipDim);		% THIS FLIPS LEFT AND RIGHT IN SPATIAL DOMAIN BECAUSE PHYSICIANS WANT TO SEE IMAGES FLIPPED 
+    Tmp = zeros([1 numel(InData)]); Tmp(FlipDim) = 1;
+    InData = circshift(InData,Tmp);
 end
 if(~quiet_flag)
     fprintf('\nOverall FFT Process\t\t...\ttook\t%10.6f seconds', toc(tic_overall))

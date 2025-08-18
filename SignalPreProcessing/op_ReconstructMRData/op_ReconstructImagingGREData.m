@@ -50,6 +50,9 @@ function [MRStruct,AdditionalOut] = op_ReconstructImagingGREData(MRStruct,Settin
 if(~exist('Settings','var'))
     Settings = struct;
 end
+if(iscell(MRStruct.Data))
+    MRStruct.Data = MRStruct.Data{1};
+end
 
 
 % MRStruct.Data = EllipticalFilter(MRStruct.Data,[1 2],[2 1 1 32],1);
@@ -71,17 +74,19 @@ MRStruct = op_SliceReco(MRStruct);
 
 %% Assymmetric Echo Zerofilling
 
-if(MRStruct.RecoPar.DataSize(1) < MRStruct.RecoPar.nFreqEnc*MRStruct.RecoPar.OversamplingFactor )
-    NewDataSize = MRStruct.RecoPar.DataSize; NewDataSize(1) = MRStruct.Par.nFreqEnc*MRStruct.RecoPar.OversamplingFactor;
+if(MRStruct.RecoPar.DataSize(1) < MRStruct.RecoPar.nFreqEnc*MRStruct.RecoPar.ReadoutOSFactor )
+    NewDataSize = MRStruct.RecoPar.DataSize; NewDataSize(1) = MRStruct.Par.nFreqEnc*MRStruct.RecoPar.ReadoutOSFactor;
     MRStruct = op_XFillOrCutData(MRStruct,struct('X',0,'Zerofill_To',NewDataSize,'AppendZerosTo',{{'Beginning'}}));
 end
 
 
 %% Remove Oversampling
 
-if(MRStruct.RecoPar.OversamplingFactor > 1)
-    Sz = MRStruct.RecoPar.DataSize; Sz(1) = Sz(1)/MRStruct.RecoPar.OversamplingFactor;
+if(MRStruct.RecoPar.ReadoutOSFactor > 1)
+    Sz = MRStruct.RecoPar.DataSize; Sz(1) = Sz(1)/MRStruct.RecoPar.ReadoutOSFactor;
     MRStruct = op_XFillOrCutData(MRStruct,struct('Zerofill_To',Sz));
+    MRStruct.RecoPar.DataSize(1) = MRStruct.RecoPar.DataSize(1)/MRStruct.RecoPar.ReadoutOSFactor;
+    MRStruct.RecoPar.FoV_Read = MRStruct.RecoPar.FoV_Read/MRStruct.RecoPar.ReadoutOSFactor;
 end
 
 

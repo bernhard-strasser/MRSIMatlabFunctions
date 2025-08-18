@@ -1,4 +1,4 @@
-function plot_SpecOfAllVoxels(MRStruct, Settings,Mask)
+function plot_SpecOfAllVoxels(MRStruct, Settings,Mask,FigureHandles)
 %
 % op_PermuteMRData Permute MR Data
 %
@@ -44,6 +44,9 @@ end
 if(isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var') && isfield(MRStruct,(Settings.UseThisInStructMask)))
     Mask = MRStruct.(Settings.UseThisInStructMask);
 end
+if(exist('Mask','var') && isempty(Mask))
+    clear Mask;
+end
 if(~exist('Mask','var'))
     Mask = ones(size_MultiDims(MRStruct.Data,1:3));
 end
@@ -53,6 +56,9 @@ if(~isfield(Settings,'TakeRealAbsImagComplex'))
 end
 if(~isfield(Settings,'PlotIndividualSpectra_flag'))
     Settings.PlotIndividualSpectra_flag = false;
+end
+if(~exist('FigureHandles','var'))
+    FigureHandles(1) = figure;
 end
 
 
@@ -85,7 +91,7 @@ if(isfield(Settings,'PlotPPMRange'))
 end
 
 
-figure; plot(chemy,sum(MRStruct.Data(:,:),2)); title('Summed Spectrum')
+figure(FigureHandles(1)); plot(chemy,sum(MRStruct.Data(:,:),2)); title('Summed Spectrum')
 
 if(Settings.PlotIndividualSpectra_flag)
     figure; plot(chemy,MRStruct.Data(:,:)); title('Individual Spectra')

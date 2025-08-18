@@ -113,6 +113,23 @@ fprintf('\n\nReconstructing data\t\t...')
 
 
 
+%%
+
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+
+
+%% Fix Data
+
+if(isfield(Output,'Data'))
+    Output.Data = fixnan(Output.Data);
+end
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = fixnan(Output.NoiseData);
+end
+
 
 %% Remove first ADC Points
 
@@ -122,7 +139,7 @@ if(isfield(Settings,'RemoveFirstADCPoints'))
         Tmpp = permute(Output.Data{ii},[1 5 2 3 4 6]);
         Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4) Siz(6)]); 
         Start = Settings.RemoveFirstADCPoints{ii};
-        RmFIDPts = ceil(Start/Siz(1));
+        RmFIDPts = ceil((Start-1)/Siz(1));
         End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
         Tmpp = Tmpp(Start:End,:,:,:,:,:);
         NewSiz = zeros([1 numel(Siz)]); NewSiz(5) = RmFIDPts*Output.Par.nTempIntsPerAngInt(ii); NewSiz = Siz - NewSiz;
@@ -141,7 +158,7 @@ if(isfield(Settings,'RemoveFirstADCPoints'))
             Tmpp = permute(Output.NoiseData{ii},[1 5 2 3 4 6]);
             Tmpp = reshape(Tmpp,[Siz(1)*Siz(5)/Output.Par.nTempIntsPerAngInt(ii) Output.Par.nTempIntsPerAngInt(ii) Siz(2) Siz(3) Siz(4) Siz(6)]); 
             Start = Settings.RemoveFirstADCPoints{ii};
-            RmFIDPts = ceil(Start/Siz(1));
+            RmFIDPts = ceil((Start-1)/Siz(1));
             End = size(Tmpp,1) - (RmFIDPts*Siz(1) - Start + 1);
             Tmpp = Tmpp(Start:End,:,:,:,:,:);
             NewSiz = zeros([1 numel(Siz)]); NewSiz(5) = RmFIDPts*Output.Par.nTempIntsPerAngInt(ii); NewSiz = Siz - NewSiz;
@@ -209,6 +226,11 @@ FOVShift = cellfun( @(x) transpose(exp(ConjSign*1i*x(1,:)/0.5*Output.RecoPar.Dat
 FOVShift2 = cellfun( @(x) transpose(exp(ConjSign*1i*x(2,:)/0.5*Output.RecoPar.DataSize(1)*pi*PRS(1)/Output.RecoPar.FoV_Phase)),Output.InTraj.GM,'uni',false);
 
 Output.Data = cellfun( @(x,y,z) x.*(y.*z),Output.Data, FOVShift,FOVShift2,'uni',false);
+
+if(isfield(Output,'NoiseData'))
+    Output.NoiseData = cellfun( @(x,y,z) x.*(y.*z),Output.NoiseData, FOVShift,FOVShift2,'uni',false);
+end
+
 
 
 %% Conj in Beginning
@@ -392,7 +414,9 @@ end
 
 if(Settings.DensComp_flag)
     [Output,Dummy] = op_CalcAndApplyDensComp(Output,sft2_Oper,Settings.DensComp);
-    AdditionalOut.DCFPreG = Dummy.DCFPreG; clear Dummy;
+    if(nargout > 1)
+        AdditionalOut.DCFPreG = Dummy.DCFPreG; clear Dummy;
+    end
 end
     
         
@@ -412,10 +436,10 @@ for CurPartEnc = 1:Output.RecoPar.nPartEnc_Meas
         Part = CurPartEnc;
     end
     
-    Temp(:,:,CurPartEnc,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.Data{CurPartEnc},1),:)' * Output.Data{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
+    Temp(:,:,CurPartEnc,:,:,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.Data{CurPartEnc},1),:)' * Output.Data{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
     Output.Data{CurPartEnc} = [];
     if(isfield(Output,'NoiseData') && numel(Output.NoiseData) >= 1) %SB22
-            Temp2(:,:,CurPartEnc,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.NoiseData{CurPartEnc},1),:)' * Output.NoiseData{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
+            Temp2(:,:,CurPartEnc,:,:,:,:,:,:) = reshape(sft2_Oper{Part}(1:size(Output.NoiseData{CurPartEnc},1),:)' * Output.NoiseData{CurPartEnc} * size(Output.OutTraj.GM(:,:),2),[Output.RecoPar.DataSize(1:2) 1 Output.RecoPar.DataSize(4:end)]);
             Output.NoiseData{CurPartEnc} = [];
     end
 end
@@ -429,9 +453,9 @@ clear Temp Temp2
 % Remove fov_overgrid
 Output.RecoPar.DataSize(1:2) = Output.RecoPar.DataSize(1:2)/Output.RecoPar.fov_overgrid;
 bla = ([size(Output.Data,1) size(Output.Data,2)] - Output.RecoPar.DataSize(1:2))/2+1;
-Output.Data = Output.Data(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:);
+Output.Data = Output.Data(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:,:,:);
 if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
-    Output.NoiseData = Output.NoiseData(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:);
+    Output.NoiseData = Output.NoiseData(bla(1):bla(1)+Output.RecoPar.DataSize(1)-1,bla(1):bla(2)+Output.RecoPar.DataSize(2)-1,:,:,:,:,:,:);
 end
 
 if(nargout > 1)
@@ -448,7 +472,8 @@ if(Size(3) > 1 && Settings.PerformZFFT_flag)
     
     
     % z-FT needs to be sFT bc its non-Cartesian
-    if(Output.Par.Hamming_flag)
+%     ThreeDHamming_flag = Output.Par.nPartEnc_Meas == Output.Par.nAngInts;
+    if(Output.Par.Hamming_flag && Output.Par.ThreeDHamming_flag)
         
         
         kSpaceVector_Normalized = Output.Par.kzPositions/max(abs(Output.Par.kzPositions))/2;

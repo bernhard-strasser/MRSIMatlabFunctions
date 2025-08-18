@@ -105,6 +105,11 @@ function [MRStruct,MRStructRaw] = op_ReshapeGenericMRData(MRStructRaw,CurDataSet
 %     TmpData2 = cellfun(@(x) x/MRStructRaw.mdhInfo.(CurDataSet).NSet,TmpData2,'UniformOutput',false);     % For averaging
 %     clear TmpData1; 
 
+    % In SVS we can have a refscan, which just uses a Phs of 1. Need to separate this here.
+    if(MRStruct.Par.DataSize(1) == 1 && MRStruct.Par.DataSize(11) == 1 && MRStruct.Par.DataSize(2) > 1)
+        MRStruct.DataRefScan = MRStruct.Data(:,1:end-1,:,:,:,:,:,:,:);
+        MRStruct.Data = MRStruct.Data(:,end,:,:,:,:,:,:,:);
+    end
 
     MRStruct.Par.DataSize = size(MRStruct.Data);     % Generalize later for more than 1 partition!
     MRStruct.Par.dimnames = MRStruct.Par.dimnames(1:numel(MRStruct.Par.DataSize));

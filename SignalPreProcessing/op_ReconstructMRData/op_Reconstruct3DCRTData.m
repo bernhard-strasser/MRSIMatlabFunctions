@@ -75,6 +75,21 @@ end
 
 
 
+if(MRStruct.Par.Hamming_flag && Settings.NonCartReco.DensComp_flag)
+    fprintf('\nWarning in op_ReadAndReco3DCRTData: Data were Hamming measured, but DensComp was on. Turned DensComp off in Reco.\n')
+    Settings.NonCartReco.DensComp_flag = false;
+end
+
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+
+%% Fix Data
+
+if(isfield(MRStruct,'Data'))
+    MRStruct.Data = fixnan(MRStruct.Data);
+end
 
 
 %% Calc & Read Trajectories
@@ -92,7 +107,9 @@ if(isfield(MRStruct.InTraj,'StartingPointAfterLaunchTrack'))
     Settings.NonCartReco.RemoveFirstADCPoints = MRStruct.InTraj.StartingPointAfterLaunchTrack;
 end
 
-% Reco MRStruct
+
+
+%% Reco MRStruct
 MRStruct = op_ReconstructNonCartMRData(MRStruct,[],Settings.NonCartReco);
 
 

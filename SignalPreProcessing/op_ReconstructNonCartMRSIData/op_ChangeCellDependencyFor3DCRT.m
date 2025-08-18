@@ -50,6 +50,12 @@ Output.RecoPar.DataSize = [size_MultiDims(Output.OutTraj.GM,[3 4]) Output.RecoPa
                            Output.RecoPar.vecSize Output.RecoPar.total_channel_no_measured Output.RecoPar.nRep];
 
 
+%%
+InputName = inputname(1);
+if(~isempty(InputName))
+    evalin('caller',['clear ' InputName])
+end
+                       
 
 %% Change cell-dependency of nAngInt --> nPart (each Partition one cell-element)
 % from {nAngInt}(nTrajPoints x 1 x nPart x nSlc x nTempInt*vecSize x nCha) --> {nPart}(nAngInt*nTrajPoints x Rest)

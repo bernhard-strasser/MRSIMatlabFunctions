@@ -1,4 +1,4 @@
-function [MRStruct,RefStruct,NoiseStruct] = op_ReadAndRecoSiemensData(file,NonCartTrajFile,AdditionalInput,Settings)
+function [MRStruct,RefStruct,NoiseStruct,AdditionalOut] = op_ReadAndRecoSiemensData(file,NonCartTrajFile,AdditionalInput,Settings)
 %
 % read_csi_dat Read in raw data from Siemens
 %
@@ -36,11 +36,29 @@ function [MRStruct,RefStruct,NoiseStruct] = op_ReadAndRecoSiemensData(file,NonCa
 
 %% 0. Preparations
 
-if(~exist('Settings','var'))
+if(~exist('AdditionalInput','var'))
     AdditionalInput = struct();
 end
 if(~exist('Settings','var'))
     Settings = struct();
+end
+if(~isfield(Settings,'ReadIn'))
+    Settings.ReadIn = struct;
+end
+if(~isfield(Settings.ReadIn,'OmitDataSets'))
+    Settings.ReadIn.OmitDataSets = {}; 
+end
+if(~iscell(Settings.ReadIn.OmitDataSets))
+    Settings.ReadIn.OmitDataSets = {Settings.ReadIn.OmitDataSets};
+end
+if(nargout < 2)
+	Settings.ReadIn.OmitDataSets{numel(Settings.ReadIn.OmitDataSets)+1} = 'PATREFSCAN';
+    Settings.ReadIn.OmitDataSets{numel(Settings.ReadIn.OmitDataSets)+1} = 'NOISEADJSCAN';
+elseif(nargout < 3)
+	Settings.ReadIn.OmitDataSets{numel(Settings.ReadIn.OmitDataSets)+1} = 'NOISEADJSCAN';
+end
+if(~isfield_recursive(Settings,'NonCartReco.PhaserollRefScan_flag'))
+   Settings.NonCartReco.PhaserollRefScan_flag = false;    
 end
 if(~exist('NonCartTrajFile','var'))
     NonCartTrajFile = [];
@@ -53,7 +71,7 @@ if(~iscell(file))
     file = tmp; clear tmp;
 end
 
-if(numel(file) > 1 && ~endsWith(file{1},'IMA'))
+if(numel(file) > 1 && ~endsWith(file{1},{'.IMA','.dcm'},'IgnoreCase',true))
     fprintf('\nError in op_ReadAndRecoSiemensData: You gave me several non-DICOM files. I cannot digest that. Need to stop here.')
     return;
 end
@@ -62,13 +80,13 @@ end
 %% Read Data
 
 dicom_flag = false;
-if(  endsWith(file{1},'IMA') || isdir(file{1})  )
+if(  endsWith(file{1},{'.IMA','.dcm'},'IgnoreCase',true) || isfolder(file{1})  )
     dicom_flag = true;
     MRStruct = read_csi_dicom(file);
     MRStruct.Par.dicom_flag = true;	
     RefStruct = struct; NoiseStruct = struct;
 else
-    [MRStruct,RefStruct,NoiseStruct] = io_ReadAndReshapeSiemensData(file{1},NonCartTrajFile);
+    [MRStruct,RefStruct,NoiseStruct,AdditionalOut] = io_ReadAndReshapeSiemensData(file{1},NonCartTrajFile,Settings.ReadIn);
     MRStruct.Par.dicom_flag = false;
 end
 
@@ -83,8 +101,18 @@ end
 
 %% Reconstruct Data
 if(~dicom_flag)
-    MRStruct = op_ReconstructMRData(MRStruct,NoiseStruct,Settings);
-    RefStruct = op_ReconstructMRData(RefStruct,NoiseStruct,Settings);
+    if(isfield(MRStruct,'Data'))
+        MRStruct = op_ReconstructMRData(MRStruct,NoiseStruct,Settings);
+    end
+    if(nargout > 1 && isfield(RefStruct,'Data'))
+        Settings.NonCartReco.Phaseroll_flag = Settings.NonCartReco.PhaserollRefScan_flag;
+        RefStruct = op_ReconstructMRData(RefStruct,NoiseStruct,Settings);
+    end
+    if(nargout > 3 && isfield(AdditionalOut.CoilCompScan,'Data'))
+
+        Settings.NonCartReco.Phaseroll_flag = Settings.NonCartReco.PhaserollRefScan_flag;    
+        AdditionalOut.CoilCompScan = op_ReconstructMRData(AdditionalOut.CoilCompScan,NoiseStruct,Settings);
+    end
 end
 
 %% Postparations

@@ -80,9 +80,19 @@ end
 
 %% Reorder dimnames
 if(isfield(MRStruct.RecoPar,'dimnames'))
+    N1 = numel(Settings.PermuteVec);
+    N2 = numel(MRStruct.RecoPar.dimnames);
+    if(N1 > N2)
+       MRStruct.RecoPar.dimnames(N2+1:N1) = {'dummydim'}; 
+    end
     MRStruct.RecoPar.dimnames = MRStruct.RecoPar.dimnames(Settings.PermuteVec);
 end
 if(isfield(MRStruct.RecoPar,'dimnames_small'))
+    N1 = numel(Settings.PermuteVec);
+    N2 = numel(MRStruct.RecoPar.dimnames_small);
+    if(N1 > N2)
+       MRStruct.RecoPar.dimnames_small(N2+1:N1) = {'dummydim'}; 
+    end
     MRStruct.RecoPar.dimnames_small = MRStruct.RecoPar.dimnames_small(Settings.PermuteVec);
 end
 

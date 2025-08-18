@@ -50,6 +50,9 @@ end
 if(~isfield(Settings,'TakeRealAbsImagComplex'))
     Settings.TakeRealAbsImagComplex = @abs;
 end
+if(~isfield(Settings,'PlotPosition_flag'))
+    Settings.PlotPosition_flag = true;
+end
 
 if(~isfield(Settings,'UseThisInStructMask') && ~exist('Mask','var'))
     if(isfield(InStruct,'BrainMask'))
@@ -143,17 +146,21 @@ ref_image = ref_image / max(abs(ref_image(:)));
 % dB scale
 % ref_image = 20*log10(sum(abs(Data_fft(:,:,Settings.f_first:Settings.f_end)),3));
 
-figure(Settings.figno_2); imagesc(abs(ref_image)); colormap jet; colorbar; axis square; hold on;
-rectangle('Position',[y(1),x(1),y(end)-y(1),x(end)-x(1)],'EdgeColor','y', 'LineStyle','--');
-hold off; pause(0.1)
-
+if(Settings.PlotPosition_flag)
+    figure(Settings.figno_2); imagesc(abs(ref_image)); colormap jet; colorbar; axis square; hold on;
+    rectangle('Position',[y(1),x(1),y(end)-y(1),x(end)-x(1)],'EdgeColor','y', 'LineStyle','--');
+    hold off; pause(0.1)
+end
 
 
 
 Data_ = feval(Settings.TakeRealAbsImagComplex,(Data_fft(Settings.x_start:Settings.x_start+Settings.x_size-1, Settings.y_start:Settings.y_start+Settings.y_size-1,Settings.plot_z,Settings.f_first:Settings.f_end)));
 y_max = max(Data_(:));
 y_min = min(Data_(:));
-
+if(isfield(Settings,'OverwritePlotYLims'))
+    y_min = min(Settings.OverwritePlotYLims);
+    y_max = max(Settings.OverwritePlotYLims);
+end
 PlotVec = [ChemyOrPtsVec(Settings.f_first),ChemyOrPtsVec(Settings.f_end)];
 
 figure(Settings.figno_1);

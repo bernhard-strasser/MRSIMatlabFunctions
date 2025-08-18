@@ -63,7 +63,8 @@ if(~exist('Settings','var'))
     Settings = struct;
 end
 if(~isfield(Settings,'ApplyAlongDim'))
-    Settings.ApplyAlongDim = find(size_InArray == max(size_InArray));
+%     Settings.ApplyAlongDim = find(size_InArray == max(size_InArray));
+    Settings.ApplyAlongDim = 4;
 end
 if(Settings.ApplyAlongDim ~= 4)
     error('ApplyAlongDim has to be 4 currently, but it is %d',Settings.ApplyAlongDim);
@@ -131,10 +132,22 @@ else
 	MaskWasProvided = false;	
 end
 
+
+% Assume B0Map is in Hz
+if(exist('AdditionalIn','var') && isfield(AdditionalIn,'B0Map'))
+    AdditionalIn.B0Map_Hz = AdditionalIn.B0Map; 
+    AdditionalIn = rmfield(AdditionalIn,'B0Map');
+end
+if(exist('AdditionalIn','var') && isfield(AdditionalIn,'B0Map_Hz'))
+    HzPerPt = 1E9/MRStruct.RecoPar.Dwelltimes(1)/MRStruct.RecoPar.vecSize;
+    AdditionalIn.ShiftMap = AdditionalIn.B0Map_Hz / HzPerPt;
+end
+
 if(exist('AdditionalIn','var') && isfield(AdditionalIn,'ShiftMap'))
     AdditionalOut.ShiftMap = AdditionalIn.ShiftMap;
 	OnlyApplyShiftMap_flag = true;
     RefSpecWasProvided = false;
+    Settings.AlignRefPeak_flag = false;
 else
 	OnlyApplyShiftMap_flag = false;
 
@@ -150,9 +163,9 @@ if(~OnlyApplyShiftMap_flag)
         
         if(Settings.UseSVDForRef_flag)
             CurData = MRStruct.Data .* mask;    % We don't want to take all the lipids etc.
-            [~, ~, V] = svd(reshape(CurData,[numel(CurData)/size(CurData,4) size(CurData,4)]));
+            [~, ~, V] = svd(reshape(CurData,[numel(CurData)/size(CurData,4) size(CurData,4)]),'econ');
             V = V';
-            RefSpec = reshape(sum(V(1:Settings.UseSVDForRef_NoSingVals,:),1),[ones([1 Settings.ApplyAlongDim-1]) size(V,1)]); RefVox = [0 0 0];
+            RefSpec = reshape(sum(V(1:Settings.UseSVDForRef_NoSingVals,:),1),[ones([1 Settings.ApplyAlongDim-1]) size(V,2)]); RefVox = [0 0 0];
             clear CurData
         else
         
@@ -259,52 +272,67 @@ if(~OnlyApplyShiftMap_flag)
 	
 end
 
+%% Temp: caluclate shift in Hz of reference spectrum
+if(~OnlyApplyShiftMap_flag && strcmpi(Settings.FindShiftAlgorithm,'DotProduct'))    % Only for DotProduct we use the reference spectrum
+	
+    [PeakHght,PeakPos] = findpeaks(abs(squeeze(RefSpec2))/max(abs(RefSpec2(SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts))),'MinPeakProminence',0.3);
+    n_points = size(RefSpec2, Settings.ApplyAlongDim);
+    nominal_peak_pos = n_points/2 + 1;
+    Shift_points = PeakPos - nominal_peak_pos;
+    RefSpec_ShiftHz = - Shift_points * 1E9 / (MRStruct.Par.Dwelltimes) / (size(RefSpec2, Settings.ApplyAlongDim)-1);
+    AdditionalOut.RefSpec_ShiftHz = [Shift_points RefSpec_ShiftHz];
+else
+    AdditionalOut.RefSpec_ShiftHz = [0 0];
+	
+end
+
 
 %% 3. Calculate & Apply ShiftMap
 
 % MRStruct.Data = fftshift(fft(MRStruct.Data,[],Settings.ApplyAlongDim),Settings.ApplyAlongDim);
+if(~OnlyApplyShiftMap_flag)
+    for x = 1:size(MRStruct.Data,1)
+        for y = 1:size(MRStruct.Data,2)
+            for z = 1:size(MRStruct.Data,3)
 
-for x = 1:size(MRStruct.Data,1)
-	for y = 1:size(MRStruct.Data,2)
-		for z = 1:size(MRStruct.Data,3)
-			
-            if(mask(x,y,z) == 0 || (RefSpecWasProvided && x==RefVox(1) && y == RefVox(2) && z == RefVox(3)))			% Dont process if mask=0 or reference voxel
-				continue
-            end
-            
-%             if(x==23 && y == 24)
-%                 sadf = 1; 
-%             end
-			
-			TmpSpec = squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
-%             TmpSpec = TmpSpec - fftshift(fft(exp(-transpose(0:numel(TmpSpec)-1)/1) .* ifft(ifftshift(TmpSpec))));
-%             TmpSpec = abs(TmpSpec);
-            TmpSpec = conj(TmpSpec) / norm(TmpSpec);
-            DotProd = abs(ReferenceSpecMat * TmpSpec);
-            AdditionalOut.DotProdMap(x,y,z) = max(DotProd);
-            if(~OnlyApplyShiftMap_flag && max(abs(TmpSpec)) > Settings.PeakDetection.MinSNR*std(TmpSpec))
-				% Calculate ShiftMap
-                if(strcmpi(Settings.FindShiftAlgorithm,'DotProduct'))
-                    MaxDotProd =  max(DotProd);
-                    MaxDotProdMatch = find(DotProd == MaxDotProd); MaxDotProdMatch = MaxDotProdMatch(1);
-                    ShiftPoint = -( CircShiftVec(MaxDotProdMatch) / Settings.ZerofillingFactor);
-                else
-                    [~, MaxPos] = max(abs(abs(TmpSpec))); 
-                    ShiftPoint = (ceil(numel(TmpSpec)/2) - MaxPos )/ Settings.ZerofillingFactor; % Max should be always in center of TmpSpec!
-                    MaxDotProd = 1E9;    % So that we have no condition on DotProd
+                if(mask(x,y,z) == 0 || (RefSpecWasProvided && x==RefVox(1) && y == RefVox(2) && z == RefVox(3)))			% Dont process if mask=0 or reference voxel
+                    continue
                 end
-                if(MaxDotProd > Settings.PeakDetection.MinDotProd && ShiftPoint > min(MaxShifts_Pts) && ShiftPoint < max(MaxShifts_Pts))
-                    AdditionalOut.ShiftMap(x,y,z) = ShiftPoint; % - because we shifted the reference, but below we want to shift the other spectra
-                else
-                    AdditionalOut.ShiftMap(x,y,z) = NaN; continue;
+
+%                 if((x==45 && y == 40))
+%                     sadf = 1; 
+%                 end
+
+                TmpSpec = squeeze(SearchArray(x,y,z,SearchForPeak_LeftPt_Pts:SearchForPeak_RightPt_Pts));
+    %             TmpSpec = TmpSpec - fftshift(fft(exp(-transpose(0:numel(TmpSpec)-1)/1) .* ifft(ifftshift(TmpSpec))));
+    %             TmpSpec = abs(TmpSpec);
+                TmpSpec = conj(TmpSpec) / norm(TmpSpec);
+                DotProd = abs(ReferenceSpecMat * TmpSpec);
+                AdditionalOut.DotProdMap(x,y,z) = max(DotProd);
+                if(max(abs(TmpSpec)) > Settings.PeakDetection.MinSNR*std(TmpSpec))
+                    % Calculate ShiftMap
+                    if(strcmpi(Settings.FindShiftAlgorithm,'DotProduct'))
+                        MaxDotProd =  max(DotProd);
+                        MaxDotProdMatch = find(DotProd == MaxDotProd); MaxDotProdMatch = MaxDotProdMatch(1);
+                        ShiftPoint = -( CircShiftVec(MaxDotProdMatch) / Settings.ZerofillingFactor);
+                    else
+                        [~, MaxPos] = max(abs(abs(TmpSpec))); 
+                        ShiftPoint = (ceil(numel(TmpSpec)/2) - MaxPos )/ Settings.ZerofillingFactor; % Max should be always in center of TmpSpec!
+                        MaxDotProd = 1E9;    % So that we have no condition on DotProd
+                    end
+                    if(MaxDotProd > Settings.PeakDetection.MinDotProd && ShiftPoint > min(MaxShifts_Pts) && ShiftPoint < max(MaxShifts_Pts))
+                        AdditionalOut.ShiftMap(x,y,z) = ShiftPoint; % - because we shifted the reference, but below we want to shift the other spectra
+                    else
+                        AdditionalOut.ShiftMap(x,y,z) = NaN; continue;
+                    end
                 end
+
+                % Apply ShiftMap
+    % 			MRStruct.Data(x,y,z,:) = circshift(squeeze(MRStruct.Data(x,y,z,:)),[AdditionalOut.ShiftMap(x,y,z) 1]);
+
             end
-            
-			% Apply ShiftMap
-% 			MRStruct.Data(x,y,z,:) = circshift(squeeze(MRStruct.Data(x,y,z,:)),[AdditionalOut.ShiftMap(x,y,z) 1]);
-			
-		end
-	end
+        end
+    end
 end
 
 % MRStruct.Data = ifft(fftshift(MRStruct.Data,Settings.ApplyAlongDim),[],Settings.ApplyAlongDim);
