@@ -155,7 +155,7 @@ for CurPart = 1:numel(MRStruct.InTraj.GM)
         OnesData = ones(MRStruct.RecoPar.DataSize(1:2));
         OutOnesData = abs(NUFTOperator{CurPart}'*(DCFPreG{CurPart}(:) .* (NUFTOperator{CurPart}*OnesData(:)))*size(MRStruct.OutTraj.GM(:,:),2));
         OutOnesData(OutOnesData == 0) = NaN;
-        Scale = nanmean_own(OutOnesData)*20/3;
+        Scale = nanmean(OutOnesData)*20/3;
 
     else
         %         FudgeFactor = 1.2743;     % For old trajectory

@@ -36,6 +36,11 @@ function [Output, AdditionalOut] = op_ConstructNonCartMRData(Output,AdditionalIn
 %% 0. Preparations
 
 
+FunExists = which('fieldnamesr');
+if(isempty(FunExists))
+    error('Function depends on function ''fieldnamesr''.\nPlease download e.g. from here: https://de.mathworks.com/matlabcentral/fileexchange/33262-get-structure-field-names-in-recursive-manner')
+end
+
 if(~exist('Settings','var'))
    Settings = struct();  
 end

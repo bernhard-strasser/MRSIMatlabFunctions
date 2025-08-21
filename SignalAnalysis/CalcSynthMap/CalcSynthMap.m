@@ -88,8 +88,8 @@ SynthMap = sum(SynthMapWeights_mat .* MetMap_small,4);
 %% 3. Clip Maps
 
 if(Clip_flag)   
-    SynthMap_MedMad1 = transpose(nanmedian_own(SynthMap(:)) + 6*mad_own(SynthMap(:),1)); 
-    SynthMap_MedMad2 = transpose(nanmedian_own(SynthMap(:)) - 6*mad_own(SynthMap(:),1)); 
+    SynthMap_MedMad1 = transpose(nanmedian(SynthMap(:)) + 6*mad(SynthMap(:),1)); 
+    SynthMap_MedMad2 = transpose(nanmedian(SynthMap(:)) - 6*mad(SynthMap(:),1)); 
     SynthMap(SynthMap > repmat(SynthMap_MedMad1,size(SynthMap))) = NaN;
 	SynthMap(SynthMap < repmat(SynthMap_MedMad2,size(SynthMap))) = NaN;
 end

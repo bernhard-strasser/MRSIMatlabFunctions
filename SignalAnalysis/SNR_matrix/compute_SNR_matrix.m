@@ -893,12 +893,12 @@ end % z-loop
 
 SNR_mat(SNR_mat == 0) = NaN;
 SNR_mat_Reshape = reshape(SNR_mat, [numel(SNR_mat) 1]);            
-SNR_mat_MedMad = nanmedian_own(SNR_mat_Reshape) + 13*mad_own(SNR_mat_Reshape,1);                  % clip values that are 13 median-absolute-deviations away from the median.
+SNR_mat_MedMad = nanmedian(SNR_mat_Reshape) + 13*mad(SNR_mat_Reshape,1);                  % clip values that are 13 median-absolute-deviations away from the median.
 SNR_mat(SNR_mat > repmat(SNR_mat_MedMad,size(SNR_mat))) = NaN;                               % Clip Data.
 
 Shift_mat(Shift_mat == 0) = NaN;
 Shift_mat_Reshape = reshape(Shift_mat, [numel(Shift_mat) 1]);            
-Shift_mat_MedMad = nanmedian_own(Shift_mat_Reshape) + 13*mad_own(Shift_mat_Reshape,1);                  % clip values that are 13 median-absolute-deviations away from the median.
+Shift_mat_MedMad = nanmedian(Shift_mat_Reshape) + 13*mad(Shift_mat_Reshape,1);                  % clip values that are 13 median-absolute-deviations away from the median.
 Shift_mat(Shift_mat > repmat(Shift_mat_MedMad,size(Shift_mat))) = NaN;                               % Clip Data.
 
 

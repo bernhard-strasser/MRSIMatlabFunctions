@@ -39,6 +39,12 @@ function MRStruct = io_ReadSiemensData(MRStructOrFile,Settings)
 tic
 fprintf('\n\tReading data\t\t\t\t...')
 
+FunExists = which('catstruct');
+if(isempty(FunExists))
+    error('Function depends on function ''catstruct''.\nPlease download e.g. from here: https://de.mathworks.com/matlabcentral/fileexchange/7842-catstruct')
+end
+
+
 
 if(~exist('Settings','var'))
     Settings = struct; 
@@ -166,7 +172,7 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
         % Read mdh
 
         CurChak = fread(file_fid, MdhSizeInBytes, 'uint8=>uint8');
-        EvalInfoMask = de2bi_own(CurChak(EvalInfoRelPosInBytes:EvalInfoRelPosInBytes+7),8); EvalInfoMask = reshape(EvalInfoMask',1,[]);
+        EvalInfoMask = de2bi(CurChak(EvalInfoRelPosInBytes:EvalInfoRelPosInBytes+7),8); EvalInfoMask = reshape(EvalInfoMask',1,[]);
 
         % Sync Data, We move forward. This is necessary for XA data.
         if(EvalInfoMask(6) == 1 && all(EvalInfoMask(setdiff(1:numel(EvalInfoMask),6)) == 0))
