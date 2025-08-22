@@ -77,6 +77,8 @@ Sizy = size(MRStruct.Data); Sizy(Sizy > 80) = NaN;
 if(~isfield(Settings,'ChaDim'))
     if(isfield(MRStruct.RecoPar,'dimnames_small') && any(find(strcmpi(MRStruct.RecoPar.dimnames_small,'cha'))))
        Settings.ChaDim = find(strcmpi(MRStruct.RecoPar.dimnames_small,'cha'));
+    elseif(isfield(MRStruct.RecoPar,'dimnames') && any(find(strcmpi(MRStruct.RecoPar.dimnames,'cha'))))
+        Settings.ChaDim = find(strcmpi(MRStruct.RecoPar.dimnames,'cha'));
     elseif(any(Sizy > 1))   % Any remaining size above 1?
         Settings.ChaDim = FindClosestIndex(Sizy,32); Settings.ChaDim = Settings.ChaDim{1}(1);
     else    % Assume Cha is first dimension that is 1
@@ -126,6 +128,7 @@ end
 
 %% Scale NoiseCorrMat
 
+if(isfield(MRStruct.RecoPar,'nTempIntsPerAngInt') && iscell(MRStruct.Par.DataSize))
 NoiseScalingFactor = NoiseCorrMatStruct.Par.Dwelltimes(1) / (MRStruct.RecoPar.Dwelltimes(1)*MRStruct.RecoPar.nTempIntsPerAngInt(1)/MRStruct.Par.DataSize{1}(1));
 
 % REMARK: Do I need to take care of the fact that different TIs have different ADC-dt's, and for my acquisition also the TrajPoints are different?
@@ -137,6 +140,10 @@ NoiseScalingFactor = NoiseCorrMatStruct.Par.Dwelltimes(1) / (MRStruct.RecoPar.Dw
 
 Sizze = cellfun(@(x )x(1),MRStruct.Par.DataSize,'uni',0); Sizze = cat(2,Sizze{:});
 CircleFactors = sqrt((MRStruct.RecoPar.nTempIntsPerAngInt(1)./Sizze(1))./(MRStruct.RecoPar.nTempIntsPerAngInt./Sizze));
+
+else
+    NoiseScalingFactor = NoiseCorrMatStruct.Par.Dwelltimes(1) / MRStruct.RecoPar.Dwelltimes(1);
+end
 
 NoiseCorrMatStruct.Data = NoiseCorrMatStruct.Data * NoiseScalingFactor;
 
@@ -229,10 +236,14 @@ end
 
 
 %% Scale Noise Data
-if(isfield(MRStruct,'NoiseData') && iscell(MRStruct.NoiseData))
+if(isfield(MRStruct,'NoiseData')) 
+    if(iscell(MRStruct.NoiseData))
     for ii = 1:numel(MRStruct.NoiseData)
         % Ratio of averages: Only if averaging was alrdy performed
         MRStruct.NoiseData{ii} = MRStruct.NoiseData{ii} * CircleFactors(ii) / sqrt(MRStruct.Par.nAverages/MRStruct.RecoPar.nAverages);
+        end
+    else
+        MRStruct.NoiseData = MRStruct.NoiseData / sqrt(MRStruct.Par.nAverages/MRStruct.RecoPar.nAverages);
     end
 end
 

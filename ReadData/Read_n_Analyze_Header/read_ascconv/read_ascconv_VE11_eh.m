@@ -502,11 +502,15 @@ end
 % Corrections
 
 ParList.AssumedSequence = 'CSIOrSVS';
+ParList.SpatialSpectralEncoding_flag = 0;
 if(~isempty(regexpi(ParList.tSequenceFileName,'Eccentric')))
+    ParList.SpatialSpectralEncoding_flag = 1;
         ParList.AssumedSequence = 'AntoinesEccentricOrRosette';
 elseif((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
+    ParList.SpatialSpectralEncoding_flag = 1;
     ParList.AssumedSequence = 'ViennaCRT';
 elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
+    ParList.SpatialSpectralEncoding_flag = 1;
         ParList.AssumedSequence = 'BorjanSpiral';
 elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre|tfl|bow_ph_map')))
         ParList.AssumedSequence = 'Imaging_GRE';    

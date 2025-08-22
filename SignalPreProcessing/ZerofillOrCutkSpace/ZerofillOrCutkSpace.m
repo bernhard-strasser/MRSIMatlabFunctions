@@ -1,4 +1,4 @@
-function OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
+function OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag,EllipticalFilter_flag)
 %
 % ZerofillOrCutkSpace Zerofill or Cut k-Space Data
 %
@@ -9,13 +9,15 @@ function OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
 % (zerofilling only one-sided instead of on both sides like in k-space), use "Zerofilling_Spectral".
 %
 %
-% OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag)
+% OutArray = ZerofillOrCutkSpace(OutArray,Zerofill_To,PerformFFT_flag, EllipticalFilter_flag)
 %
 % Input: 
 % -     OutArray                     ...    Input array to which the filter should be applied.
 % -     Zerofill_To                  ...    Array to which data should be zerofilled or cut. E.g. size(OutArray) = [32 64 64 512], Zerofill_To = [32 128 128 512]. 
 % -     PerformFFT_flag              ...    If it is 1, the image gets Fourier transformed to k-space before applying the filter, 
 %                                           and transformed back to image domain afterwards
+% -     EllipticalFilter_flag        ...    If it is 1, the k-space also gets elliptically filtered with size 
+%                                           [floor(size(OutArray,1)/2) floor(size(OutArray,2)/2) floor(size(OutArray,3)/2) 1]
 %
 % Output:
 % -     OutArray                     ...    The filtered/masked output array
@@ -43,6 +45,9 @@ if(nargin < 2)
 end
 if(~exist('PerformFFT_flag','var'))
    PerformFFT_flag = false; 
+end 
+if(~exist('EllipticalFilter_flag','var'))
+   EllipticalFilter_flag = false; 
 end 
 
 
@@ -100,6 +105,12 @@ for dummy_dim = ApplyAlongDims
     
 end
 
+%% 3. Elliptical Filter
+if(EllipticalFilter_flag)
+    EllFilterSize = [floor(size(OutArray,1)/2) floor(size(OutArray,2)/2) floor(size(OutArray,3)/2) 1];
+    EllFilterSize(EllFilterSize < 1) = 1;
+    OutArray = EllipticalFilter(OutArray,[1 2 3],[EllFilterSize 1]);
+end
 
 %% 4. FFT to ImageSpace
 

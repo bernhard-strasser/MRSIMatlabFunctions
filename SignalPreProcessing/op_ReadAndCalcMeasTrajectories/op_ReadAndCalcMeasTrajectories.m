@@ -201,6 +201,7 @@ kSpaceTrajectoryAllFIDPts.GM = TrajjAllFIDPts;
 
 %% Postparations
 
+Output = supp_UpdateRecoSteps(Output,Settings);
 
 fprintf('\n\t\t\t\t...\ttook\t%10.6f seconds',toc)
 

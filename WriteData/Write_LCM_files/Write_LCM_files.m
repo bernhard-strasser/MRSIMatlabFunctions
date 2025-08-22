@@ -130,6 +130,10 @@ end
 if(~exist('mask','var') || numel(mask) <= 1)
     mask = ones(size(squeeze_single_dim(InArray,MetaInfo.Dimt1)));
 end
+if(~exist('CPU_cores','var'))
+    CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
+	CPU_cores(CPU_cores > 20) = 20;
+end
 if(exist('ControlInfo','var') && isnumeric(ControlInfo))
 	clear ControlInfo;				% Easier to handle this way
 end

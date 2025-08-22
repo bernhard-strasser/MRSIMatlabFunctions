@@ -281,6 +281,7 @@ if(Settings.Phaseroll_flag)
         % Symmetrized frequencies. Here I assume that my spectrum is symmetric around 0. 
         % E.g. SBW = 20, vs = 20. Can make spectrum go from -10:1:9, or from -9:1:10, or from -9.5:1:9.5. Here I chose the last option. 
         % Before that change, I assumed the first option.
+        vs=Output.RecoPar.vecSize*2;
         timeoffset = 0:(ns(ii)-1);
         timeoffset = repmat(transpose(timeoffset),[1 1 vs]);
         Freq = ((0:vs-1)/vs+0.5*(1/vs-1))/(nrew + ns(ii)).*nTI(ii);
@@ -320,20 +321,26 @@ if(Settings.Phaseroll_flag)
         
 
         phasecorr = exp(-2*1i*pi*timeoffset .* Freq);    % Freq(:,2*end/3)
-        Sizzy = size(Output.Data{ii});  Sizzy = cat(2,Sizzy,ones([1 5-numel(Sizzy)]));    % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
+        Sizzy = size(Output.Data{ii}); 
+        Sizzy(5)=vs;
+        Sizzy = cat(2,Sizzy,ones([1 5-numel(Sizzy)]));    % Output.RecoPar.DataSize has wrong size for a short time during the reco. It's alrdy set to the output size
         phasecorr = reshape(phasecorr,[Sizzy(1:2) 1 Sizzy(4:5) 1]); clear Sizzy
     %     phasecorr = myrepmat(phasecorr,size(Output.Data));
     %     phasecorr = conj(phasecorr);
     %     bla = Output.Data(:,:,:,:,1,:,:);
+        Output.Data{ii}(:,:,:,:,vs/2+1:vs,:)=0;
         Output.Data{ii} = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.Data{ii},[],5),5),5),[],5);
+        Output.Data{ii}(:,:,:,:,vs/2+1:vs,:)=[];
         if(isfield(Output,'NoiseData') && numel(Output.NoiseData) > 1)
+            Output.NoiseData{ii}(:,:,:,:,vs/2+1:vs,:)=0;
             Output.NoiseData{ii} = fft(fftshift(conj(phasecorr).*fftshift(ifft(Output.NoiseData{ii},[],5),5),5),[],5);
+            Output.NoiseData{ii}(:,:,:,:,vs/2+1:vs,:)=[];
         end
     %     Output.Data = conj(phasecorr).*Output.Data;     % For correcting only one constant frequency (e.g. at 3ppm which is about the metabo region)
 
     %     Output.Data(:,:,:,:,1,:,:) = bla;
 
-        TiltTrajMat{ii} = reshape(phasecorr(:,:,1,1,:,1),[Output.RecoPar.TrajPts(ii) 1 Output.RecoPar.vecSize]);  
+        TiltTrajMat{ii} = reshape(phasecorr(:,:,1,1,1:vs/2,1),[Output.RecoPar.TrajPts(ii) 1 Output.RecoPar.vecSize]);  
     end
     
 else

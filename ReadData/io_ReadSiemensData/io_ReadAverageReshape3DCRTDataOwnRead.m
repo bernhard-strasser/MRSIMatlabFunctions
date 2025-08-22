@@ -85,6 +85,7 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise,AdditionalOut] = io_ReadAvera
     [MRStruct,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'ONLINE'); 
     [MRStruct_refscan,MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFSCAN');
     AdditionalOut.CoilCompScan = io_Read3DCRTParsOwnRead(MRStructRaw,'PATREFANDIMASCAN');
+    AdditionalOut.FreqCorScan = io_Read3DCRTParsOwnRead(MRStructRaw,'PHASCOR');
     MRStruct.Par.dicom_flag = false;
     MRStruct_refscan.Par.dicom_flag = false;
     fprintf('\n\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadPars))
@@ -106,6 +107,11 @@ function [MRStruct,MRStruct_refscan,MRStruct_Noise,AdditionalOut] = io_ReadAvera
     if(nargout > 3)
     	[AdditionalOut.CoilCompScan,MRStructRaw] = Reshape3DCRTDataOwnRead(MRStructRaw,AdditionalOut.CoilCompScan,'PATREFANDIMASCAN');
     end
+    
+    if(nargout > 3 && isfield(MRStructRaw.mdhInfo,'PHASCOR') )
+    	AdditionalOut.FreqCorScan.Data = MRStructRaw.Data.PHASCOR;
+    end
+    
     
     clear MRStructRaw;
     fprintf('\t\t\t\t\t\t...\ttook\t%10.6f seconds',toc(ticcyReadAverageReshape))
