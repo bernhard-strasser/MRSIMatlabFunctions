@@ -121,7 +121,7 @@ total_channel_no = MRStruct.Par.total_channel_no_reco;
 % else
 %     SLC = MRStruct.Par.nPartEnc;
 % end
-SLC = numel(csi_path_allfiles);
+TotFiles = numel(csi_path_allfiles);
 if(ROW < 1)
     ROW = 1;
 end
@@ -129,9 +129,13 @@ if(COL < 1)
     COL = 1;
 end
 if(MRStruct.Par.nPartEnc == 1)
-    SLC = 1;
+    TotFiles = 1;
 end
-%SLC = MRStruct.Par.nSLC * SLC;  % Only correct for multislice data with nPartitions > 1 (never occurring!)
+SLC_PerFile = 1;
+if(MRStruct.Par.nPartEnc > 1 && numel(csi_path_allfiles) == 1)
+    SLC_PerFile = MRStruct.Par.nPartEnc;
+end
+SLC = SLC_PerFile * TotFiles;  % Only correct for multislice data with nPartitions > 1 (never occurring!)
 vecSize = MRStruct.Par.vecSize;
 
 
@@ -144,10 +148,10 @@ MRStruct.Data = zeros(ROW,COL,SLC,vecSize);
 MRStruct.Data = complex(MRStruct.Data,MRStruct.Data);
 
 
-for CurSlc = 1:SLC
+for CurFile = 1:TotFiles
 
     % Read Data
-    csi_fid = fopen(csi_path_allfiles{CurSlc},'r');
+    csi_fid = fopen(csi_path_allfiles{CurFile},'r');
     % Find a certain bit pattern which indicates the end of the data
     % (For some reason, some of the VE spiral data sets have traling zeros at the end of the file
     % I dont understand the reason for that, but this code should work in both cases.)
@@ -160,13 +164,13 @@ for CurSlc = 1:SLC
     % Go to beginning of data: From the end of data (end - FoundBitPattern_Ind/8) back the amount of data we expect ( -((vecSize*ROW*COL*SLC*2*4)) )
     if(isempty(FoundBitPattern_Ind))
         pause(0.1)
-        fseek(csi_fid, -((vecSize*ROW*COL*2*4)), 'eof');
+        fseek(csi_fid, -((vecSize*ROW*COL*SLC_PerFile*2*4)), 'eof');
     else
-        fseek(csi_fid, -((vecSize*ROW*COL*2*4)) - FoundBitPattern_Ind/8, 'eof');   % /8 because I searched for bits, but fseek works with bytes
+        fseek(csi_fid, -((vecSize*ROW*COL*SLC_PerFile*2*4)) - FoundBitPattern_Ind/8, 'eof');   % /8 because I searched for bits, but fseek works with bytes
     end
 
     % Read data
-    csi_data = fread(csi_fid,vecSize*ROW*COL*2,'float32');
+    csi_data = fread(csi_fid,vecSize*ROW*COL*SLC_PerFile*2,'float32');
     fclose(csi_fid);
 
     % Separate real & imaginary part
@@ -179,8 +183,8 @@ for CurSlc = 1:SLC
 
 
     % total channel number not yet implemented, since ICE always creates 1 fiile per channel. there is anyway only one channel in the DICOM file.
-    csi_complex2 = permute(reshape(csi_complex,[vecSize ROW COL]),[4 2 3 5 6 1]);
-    MRStruct.Data(:,:,CurSlc,:) = csi_complex2;
+    csi_complex2 = permute(reshape(csi_complex,[vecSize ROW COL SLC_PerFile]),[2 3 4 1]);
+    MRStruct.Data(:,:,(CurFile-1)*SLC_PerFile+1:(CurFile)*SLC_PerFile,:) = csi_complex2;
 
 
 end

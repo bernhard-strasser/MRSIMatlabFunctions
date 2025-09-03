@@ -273,7 +273,7 @@ end
 function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDataset)
 
 
-    if(~isfield(MRStructRaw.mdhInfo,CurDataset) || ~isfield(MRStructRaw.Data,CurDataset))
+    if(~isfield(MRStructRaw.mdhInfo,CurDataset)) % || ~isfield(MRStructRaw.Data,CurDataset)
         MRStruct = struct();
         return;
     end
@@ -358,6 +358,15 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         
     end
 
+    
+    % For Lukas's sequence, he writes the TrajPts into Idc. Last if condition: In Lukis newer sequence, the IceParam(6,:) stores the partition number 
+    if(any(MRStruct.Par.TrajPts <= 0) || all(MRStruct.Par.TrajPts == MRStruct.Par.ReadoutOSFactor) || all(MRStruct.Par.TrajPts + 1 == MRStruct.Par.nPartEncsPerAngInt))
+        MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
+    end
+
+    MRStruct.Par.VTI_Flag = ~all(MRStruct.Par.nTempIntsPerAngInt == MRStruct.Par.nTempIntsPerAngInt(1));
+
+
     % For getting vecSize, it depends on whether we read in ONLINE or refscan data
     if(strcmpi(CurDataset,'PATREFANDIMASCAN'))
         if(any(MRStructRaw.Hdr.Dicom.alICEProgramPara(18:21)))
@@ -400,11 +409,7 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
         
         
     end
-    
-    % For Lukas's sequence, he writes the TrajPts into Idc. Last if condition: In Lukis newer sequence, the IceParam(6,:) stores the partition number 
-    if(any(MRStruct.Par.TrajPts == 0) || all(MRStruct.Par.TrajPts == MRStruct.Par.ReadoutOSFactor) || all(MRStruct.Par.TrajPts + 1 == MRStruct.Par.nPartEncsPerAngInt))
-        MRStruct.Par.TrajPts = repmat(MRStruct.Par.ReadoutOSFactor*(MRStructRaw.mdhInfo.(CurDataset).Idc(1)-1),[1 MRStruct.Par.nAngInts]); 
-    end
+
 
     % Define which angular interleaves are measured for each kz (matrix of nPartEncmax x nCircles)
 %     MRStruct.Par.nPartEncsPerAngInt = [9 9 9 7 7 7 7 5 5 5 5 5 5 5 5 5 5 3 3 3 3 3 3 3 3 3 3 3 1 1 1 1]; % For simulating 3D
@@ -435,8 +440,6 @@ function [MRStruct, MRStructRaw] = io_Read3DCRTParsOwnRead(MRStructRaw,CurDatase
     % Three-D Hamming filter
     % In very rare cases this could be true although there was no 3D Hamming measured...
     MRStruct.Par.ThreeDHamming_flag = MRStructRaw.Par.Hamming_flag && (MRStruct.Par.nPartEnc_Meas > MRStruct.Par.nPartEnc);
-
-    MRStruct.Par.VTI_Flag = ~all(MRStruct.Par.nTempIntsPerAngInt == MRStruct.Par.nTempIntsPerAngInt(1));
 
     %coil compression
     MRStruct.Par.coilcompression_to_numb_coils=MRStructRaw.Hdr.Dicom.alICEProgramPara(10);

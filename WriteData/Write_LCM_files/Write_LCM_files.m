@@ -1,4 +1,4 @@
-function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores)
+function Write_LCM_files(InArray,Paths,MetaInfo,ControlInfo,mask,CPU_cores,Progressbar_flag)
 %
 % Write_LCM_files Write the files necessary for LCModel fittting.
 %
@@ -80,6 +80,11 @@ if(nargin < 4)
     return
 end
 
+if(~exist('Progressbar_flag','var') || isempty(Progressbar_flag))
+    Progressbar_flag = true;
+end
+
+
 % if InArray contains WaterReference
 if(isstruct(InArray))
 	if(isfield(InArray,'watref') && numel(InArray.watref) > 1)	% Ignore if there is some field which is not water ref
@@ -117,7 +122,7 @@ end
 
 %% 0.2 Assign standard values to MetaInfo, mask and CPUcores if nothing is passed to the function.
 
-
+TotalVoxelsToFit = sum(mask(:));
 if(~isfield(MetaInfo,'Dimt1'))
     MetaInfo.Dimt1 = find(max(size(InArray)) == size(InArray));
 end
@@ -131,14 +136,23 @@ if(~exist('mask','var') || numel(mask) <= 1)
     mask = ones(size(squeeze_single_dim(InArray,MetaInfo.Dimt1)));
 end
 if(~exist('CPU_cores','var'))
-    CPU_cores = sum(mask(:))/20;	% E.g. every core should have at least 20 spectra to process
+    CPU_cores = TotalVoxelsToFit/20;	% E.g. every core should have at least 20 spectra to process
 	CPU_cores(CPU_cores > 20) = 20;
 end
 if(exist('ControlInfo','var') && isnumeric(ControlInfo))
 	clear ControlInfo;				% Easier to handle this way
 end
 
-
+if (~exist('Progressbar_flag','var') || Progressbar_flag == 0)
+    progress_string_ForJobLog = '';
+    progress_string = '';
+else
+    ParallelLCMProgressLogFile = [Paths.batchdir '/ParallelLCMProgressLog.log'];
+    progress_string = ['--joblog ' ParallelLCMProgressLogFile];
+    SleepDurationInSeconds = ceil(sum(mask(:))*5/(100*CPU_cores));  % Assume that one voxel takes ~1 s. Want to roughly show every 5 % of voxels an update.
+    SleepDurationInSeconds(SleepDurationInSeconds<=0) = 1;          % Want to show update every N*5/100 voxels. Need to show update every N*5/(100*CPU_cores) s
+    progress_string_ForJobLog = sprintf('\ntouch %s\nPAR_PID=$!\nwhile kill -0 $PAR_PID 2>/dev/null; do\nDONE=$(($(wc -l < %s)-1))\n(( DONE = DONE<0 ? 0 : DONE ));\necho \"$DONE of %d jobs finished ($(bc <<< \"scale=1; 100*$DONE/%d\")%%)\"\nsleep %d\ndone\nrm %s',ParallelLCMProgressLogFile,ParallelLCMProgressLogFile,TotalVoxelsToFit,TotalVoxelsToFit,SleepDurationInSeconds,ParallelLCMProgressLogFile);
+end
 
 
 
@@ -654,14 +668,12 @@ if ~exist('CPU_cores','var') || CPU_cores < 1
 else
     CPU_cores_string = sprintf('-j %d', CPU_cores);
 end
-if ~exist('Progressbar','var') || Progressbar == 0
-    progress_string = '';
-else
-    progress_string = '--progress --eta';
-end
+
 fid = fopen(sprintf('%s/lcm_process_core_parallel.sh',Paths.batchdir),'a');
-fprintf(fid, sprintf('ls %s | grep \\\\.control | parallel %s %s "%s < %s/{} > /dev/null"\n', Paths.out_dir, progress_string, CPU_cores_string, Paths.LCM_ProgramPath, Paths.out_dir));
+fprintf(fid,'ls %s | grep \\\\.control | parallel %s %s \"%s < %s/{} 2> /dev/null\" &\n%s\n\n', Paths.out_dir, progress_string, CPU_cores_string, Paths.LCM_ProgramPath, Paths.out_dir,progress_string_ForJobLog);
+
 fclose(fid);
 
 fclose('all');
 end
+

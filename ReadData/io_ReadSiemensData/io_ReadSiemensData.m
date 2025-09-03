@@ -287,15 +287,19 @@ for CurSet = NScans:NScans    %NScans % Currently not implemented. Always read l
     end
 
     % Create info about dimension sizes (e.g. NRep, NSet etc.)
-    for CurDataset2 = transpose(fieldnames(MRStruct.Data))
+    for CurDataset2 = transpose(fieldnames(MRStruct.mdhInfo))
         CurDataset = CurDataset2{1};
         Dummy = structfun(@numel,structfun(@unique,MRStruct.mdhInfo.(CurDataset),'uni',0),'uni',0);
         MRStruct.mdhInfo.(CurDataset) = catstruct(  MRStruct.mdhInfo.(CurDataset),cell2struct( struct2cell(Dummy),strcat('N',fieldnames(Dummy)) )  );
         MRStruct.mdhInfo.(CurDataset).NCol = MRStruct.mdhInfo.(CurDataset).Col(1);
-        MRStruct.mdhInfo.(CurDataset).NCha = size(MRStruct.Data.(CurDataset){1},2);        
+        if(isfield(MRStruct.Data,CurDataset))
+            MRStruct.mdhInfo.(CurDataset).NCha = size(MRStruct.Data.(CurDataset){1},2);        
+        else
+            MRStruct.mdhInfo.(CurDataset).NCha = MRStruct.Par.total_channel_no_measured; % Best guess, but I think it shouldnt matter if there is no data
+        end
     end
     
-    for CurDataset2 = transpose(fieldnames(MRStruct.Data))
+    for CurDataset2 = transpose(fieldnames(MRStruct.mdhInfo))
         CurDataset = CurDataset2{1};
 %         MRStruct.mdhInfo.(CurDataset).Seg = MRStruct.mdhInfo.(CurDataset).Seg - 1; % We take +1 above, but this index goes from -N/2 to N/2
         MRStruct.mdhInfo.(CurDataset).Seg(MRStruct.mdhInfo.(CurDataset).Seg > 1E4) = ...

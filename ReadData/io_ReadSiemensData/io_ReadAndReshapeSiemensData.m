@@ -61,7 +61,7 @@ end
 
 %% Read Data
 
-if(endsWith(file{1},'IMA') || isdir(file{1}))
+if(endsWith(file{1},{'IMA','dcm'},"IgnoreCase",true) || isfolder(file{1}))
 	MRStruct = read_csi_dicom(file); % Differences between VB and VD/VE?
 	MRStruct.Par.dicom_flag = true;	
     RefStruct = struct; NoiseStruct = struct;

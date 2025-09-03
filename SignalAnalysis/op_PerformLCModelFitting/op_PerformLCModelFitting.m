@@ -132,8 +132,13 @@ end
 %% Run LCModel
 
 ticcy = tic;
-fprintf('\n\nStarting LCModel fitting')
-system(['bash ' Paths.TmpDir '/RunLCModel.sh']);
+fprintf('\n\nStarting LCModel fitting\n')
+
+if(exist([Paths.TmpDir '/RunLCModel.sh'],'file'))
+    system(['bash ' Paths.TmpDir '/RunLCModel.sh']); % For old Write_LCM_files
+else
+    system(['bash ' Paths.TmpDir '/lcm_process_core_parallel.sh']); % For old Write_LCM_files
+end
 fprintf('\n\nFinished LCModel fitting within %f s',toc(ticcy))
 
 % Remove unnecessary files
@@ -142,7 +147,7 @@ delete([Paths.OutputDir '/' MetaInfo.pat_name '_*.RAW'])
 delete([Paths.OutputDir '/' MetaInfo.pat_name '_*.control'])
 delete([Paths.TmpDir '/lcm_process_core_*.sh'])
 delete([Paths.TmpDir '/Core_*_Finished.txt'])
-delete([Paths.TmpDir '/RunLCModel.sh'])
+delete([Paths.TmpDir '/ParallelLCMProgressLog.log'])
 TmpDirr = dir(Paths.TmpDir);
 if(numel(TmpDirr) == 2)
     rmdir(Paths.TmpDir)
