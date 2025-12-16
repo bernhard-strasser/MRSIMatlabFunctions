@@ -67,13 +67,16 @@ end
 
 FileDeps = [];
 for ii = 1:numel(FilesToZip)
-    
-    CurFileToZip = ls(FilesToZip{ii});
-    if(numel(CurFileToZip) == 0)
+    try
+        CurFileToZip = ls(FilesToZip{ii});
+        CurFileToZip = CurFileToZip(1:end-1);
+    catch errie
+        CurFileToZip = which(FilesToZip{ii});
+    end
+    if(~exist('CurFileToZip','var') || numel(CurFileToZip) == 0)
         fprintf('\nProblem: Function or Script\n%s\ndoes not exist.\n',FilesToZip{ii})
         continue;
     end
-    CurFileToZip = CurFileToZip(1:end-1);
 
     % Try to cd to folder where file lies in
     CDDir = regexp(CurFileToZip,'.*/','match'); 

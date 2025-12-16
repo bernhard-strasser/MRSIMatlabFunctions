@@ -1,4 +1,4 @@
-function [ParList,ascconv] = read_ascconv(file_path)
+function [ParList,ascconv] = read_ascconv_VB(file_path)
 %
 % read_ascconv Read ascconv header part of DICOM and Siemens raw data
 %
@@ -244,7 +244,9 @@ end
 fid = fopen(file_path,'r');
 
 
-
+% hdr_len = fread(fid, 1,'uint32');
+% wuff = fread(fid,hdr_len,'char*1=>char*1');
+% fseek(fid,0,'bof');
 
 
 
@@ -442,14 +444,11 @@ end
 
 % Corrections
 
-ParList.AssumedSequence = 'CSIOrSVS';
-if((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
-    ParList.AssumedSequence = 'ViennaCRT';
-elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
-        ParList.AssumedSequence = 'BorjanSpiral';
-elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre|tfl|bow_ph_map')))
-        ParList.AssumedSequence = 'Imaging_GRE';    
-end
+% Check which sequence we are assuming. This is implemented really badly by checking the SequenceFileName, SequenceDescription, and SequenceString.
+% Better would be a unique code for each sequence
+ParList = CheckAssumedSequence(ParList,file_path);
+
+
     
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
@@ -821,3 +820,40 @@ function ParList = InterpretWipMemBlock(ParList)
 
 end
 
+
+function ParList = CheckAssumedSequence(ParList,file_path)
+
+    if(numel(strfind(file_path, '.dat')) > 0)
+        TmpTwixHdr = mapVBVD_ReadOnlyHdr(file_path);
+        ParList.SequenceDescription = TmpTwixHdr.hdr.Config.SequenceDescription;
+        ParList.SequenceString = TmpTwixHdr.hdr.Config.SequenceString;
+    end
+    CheckFields = {ParList.tSequenceFileName};
+    if(isfield(ParList,'SequenceDescription'))
+        CheckFields(2) = {ParList.SequenceDescription};
+    end
+    if(isfield(ParList,'SequenceString'))
+        CheckFields(3) = {ParList.SequenceString};
+    end
+    
+    CheckFor = {'Eccentric','','';'CRT','Rollercoa','CONCEPT';'Spiral','','';'gre','tfl','bow_ph_map'};
+    AssumedSequences = {'AntoinesEccentricOrRosette';'ViennaCRT';'BorjanSpiral';'Imaging_GRE'};
+    SpatialSpectralEncoding_flags = [1;1;1;0];
+    
+    ParList.AssumedSequence = 'CSIOrSVS';
+    ParList.SpatialSpectralEncoding_flag = 0;
+    for ii = 1:size(CheckFor,1)
+        for jj = 1:size(CheckFor,2)
+            for kk = 1:numel(CheckFields)
+                if(~isempty(CheckFor{ii,jj}) && ~isempty(CheckFields{kk}))
+                    if(contains(CheckFields{kk},CheckFor{ii,jj},'IgnoreCase',true))
+                        ParList.AssumedSequence = AssumedSequences{ii};
+                        ParList.SpatialSpectralEncoding_flag = SpatialSpectralEncoding_flags(ii);
+                        break;
+                    end
+                end
+            end
+        end
+    end
+
+end

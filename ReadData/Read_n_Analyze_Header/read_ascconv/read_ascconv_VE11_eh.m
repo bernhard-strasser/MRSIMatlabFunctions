@@ -499,28 +499,17 @@ else
     ParList.SlicePartialFourier = 0;
 end
 
-% Corrections
+% Check which sequence we are assuming. This is implemented really badly by checking the SequenceFileName, SequenceDescription, and SequenceString.
+% Better would be a unique code for each sequence
+ParList = CheckAssumedSequence(ParList,file_path);
 
-ParList.AssumedSequence = 'CSIOrSVS';
-ParList.SpatialSpectralEncoding_flag = 0;
-if(~isempty(regexpi(ParList.tSequenceFileName,'Eccentric')))
-    ParList.SpatialSpectralEncoding_flag = 1;
-        ParList.AssumedSequence = 'AntoinesEccentricOrRosette';
-elseif((~isempty(regexpi(ParList.tSequenceFileName,'CRT')) || ~isempty(regexpi(ParList.tSequenceFileName,'Rollercoaster'))) || (numel(ParList.WipMemBlock_alFree) > 58 && ParList.WipMemBlock_alFree(1) > 0 && ParList.WipMemBlock_alFree(2) > 10 && ParList.WipMemBlock_alFree(4) > 0 && ParList.WipMemBlock_alFree(5) > 0 && ParList.WipMemBlock_alFree(59) > 100))
-    ParList.SpatialSpectralEncoding_flag = 1;
-    ParList.AssumedSequence = 'ViennaCRT';
-elseif(~isempty(regexpi(ParList.tProtocolName,'spiral')) && ~isempty(regexpi(ParList.tSequenceFileName,'spiral')))
-    ParList.SpatialSpectralEncoding_flag = 1;
-        ParList.AssumedSequence = 'BorjanSpiral';
-elseif(~isempty(regexpi(ParList.tSequenceFileName,'gre|tfl|bow_ph_map')))
-        ParList.AssumedSequence = 'Imaging_GRE';    
-end
+
     
 % In the header, there is always the vector size written with oversampling removed. In the .dat-files, the oversampling is never removed. In the IMA files, it is removed, 
 % if ParList.RemoveOversampling=true, otherwise not. Thus: .dat-vecsize always has to be multiplied by 2, IMA only in case of RemoveOversampling=false.
 % PROBLEM: SPIRAL IS NEVER (?) OVERSAMPLED. FOR NOW: ONLY REMOVE OVERSAMPLING FOR FULLY SAMPLED DATA SET. BUT THIS IS A HACK.
 
-    ParList.ReadoutOSFactor = ReadoutOSFactor;
+ParList.ReadoutOSFactor = ReadoutOSFactor;
 
 if(numel(strfind(file_path, '.dat')) > 0 ...
 	|| (numel(strfind(file_path, '.IMA')) > 0 && ~ParList.RemoveOversampling && ParList.Full_ElliptWeighted_Or_Weighted_Acq ~= 1))
@@ -623,7 +612,42 @@ fclose(fid);
 
 end
 
+function ParList = CheckAssumedSequence(ParList,file_path)
 
+    if(numel(strfind(file_path, '.dat')) > 0)
+        TmpTwixHdr = mapVBVD_ReadOnlyHdr(file_path);
+        ParList.SequenceDescription = TmpTwixHdr.hdr.Config.SequenceDescription;
+        ParList.SequenceString = TmpTwixHdr.hdr.Config.SequenceString;
+    end
+    CheckFields = {ParList.tSequenceFileName};
+    if(isfield(ParList,'SequenceDescription'))
+        CheckFields(2) = {ParList.SequenceDescription};
+    end
+    if(isfield(ParList,'SequenceString'))
+        CheckFields(3) = {ParList.SequenceString};
+    end
+    
+    CheckFor = {'Eccentric','','';'CRT','Rollercoa','CONCEPT';'Spiral','','';'gre','tfl','bow_ph_map'};
+    AssumedSequences = {'AntoinesEccentricOrRosette';'ViennaCRT';'BorjanSpiral';'Imaging_GRE'};
+    SpatialSpectralEncoding_flags = [1;1;1;0];
+    
+    ParList.AssumedSequence = 'CSIOrSVS';
+    ParList.SpatialSpectralEncoding_flag = 0;
+    for ii = 1:size(CheckFor,1)
+        for jj = 1:size(CheckFor,2)
+            for kk = 1:numel(CheckFields)
+                if(~isempty(CheckFor{ii,jj}) && ~isempty(CheckFields{kk}))
+                    if(contains(CheckFields{kk},CheckFor{ii,jj},'IgnoreCase',true))
+                        ParList.AssumedSequence = AssumedSequences{ii};
+                        ParList.SpatialSpectralEncoding_flag = SpatialSpectralEncoding_flags(ii);
+                        break;
+                    end
+                end
+            end
+        end
+    end
+
+end
 
 
 

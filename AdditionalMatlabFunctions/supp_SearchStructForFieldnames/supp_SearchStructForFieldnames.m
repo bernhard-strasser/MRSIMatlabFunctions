@@ -1,4 +1,4 @@
-function FoundString = supp_SearchStructForFieldnames(Structure,SearchString)
+function [FoundString, Findings] = supp_SearchStructForFieldnames(Structure,SearchString)
 %
 % op_ReadAndRecoBorjanSpiralData Read and reconstruct data from Borjan Gagoski's Spiral MRSI Sequence
 %
@@ -55,8 +55,12 @@ FoundString = [];
 FirstLayerFieldnames = fieldnames(Structure); 
 
 FoundInd = 0;
-Occurrences = sum(contains(FirstLayerFieldnames,SearchString));
+Found_Logi = contains(FirstLayerFieldnames,SearchString);
+Occurrences = sum(Found_Logi);
 if(Occurrences > 0)
+    Findings.FirstLayer = FirstLayerFieldnames(Found_Logi);
+    Tmp = cellfun(@(f) Structure.(f), FirstLayerFieldnames(Found_Logi), 'UniformOutput', false);
+    Findings.FirstLayer(:,2) = Tmp;
     FoundInd = FoundInd + 1;
     FoundString{FoundInd} = ['FirstLayer: ' num2str(Occurrences)];
 end
@@ -66,12 +70,16 @@ end
 %% Search First Layer
 
 for ii = 1:numel(FirstLayerFieldnames)
-    
-    if(isstruct(Structure.(FirstLayerFieldnames{ii})))
+    CurStruct = Structure.(FirstLayerFieldnames{ii});
+    if(isstruct(CurStruct))
         SecondLayerFieldnames = fieldnames(Structure.(FirstLayerFieldnames{ii}));
-        
-        Occurrences = sum(contains(SecondLayerFieldnames,SearchString));
+        Found_Logi = contains(SecondLayerFieldnames,SearchString);
+        Occurrences = sum(Found_Logi);
+
         if(Occurrences > 0)
+            Findings.(FirstLayerFieldnames{ii}) = SecondLayerFieldnames(Found_Logi);
+            Tmp = cellfun(@(f) CurStruct.(f), SecondLayerFieldnames(Found_Logi), 'UniformOutput', false);
+            Findings.(FirstLayerFieldnames{ii})(:,2) = Tmp;
             FoundInd = FoundInd + 1;
             FoundString{FoundInd} = ['FirstLayer.' FirstLayerFieldnames{ii} ': ' num2str(Occurrences)];
         end        

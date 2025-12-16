@@ -43,6 +43,12 @@ if(nargin < 1)
 	FigHandle = 0;
 	return;
 end
+
+if(~exist('ImageEdges','var') && ~exist('PixelsOrPercent','var'))
+    PixelsOrPercent = 'Percent';
+    ImageEdges = 100;
+end
+
 if(~exist('PixelsOrPercent','var'))
     PixelsOrPercent = 'Pixels';
 end
