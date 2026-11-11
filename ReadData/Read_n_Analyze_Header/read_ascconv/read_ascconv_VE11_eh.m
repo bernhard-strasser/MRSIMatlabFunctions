@@ -245,7 +245,10 @@ ParList_Convert = { ...
 
 BasicInfo = io_GetBasicTwixfileInfos(file_path);
 fid = fopen(file_path,'r','n','UTF-8');
-wiff = fread(fid,BasicInfo.BeginningOfData,'int8=>char');   % Read in only until beginning of data. Otherwise the search of big files takes ages.
+% Only the header of the last measurement, which the ascconv below is taken from. XA files start with an
+% AdjCoilSens measurement whose flReadoutOSFactor can differ from the scan's.
+fseek(fid,BasicInfo.measOffset{end},'bof');
+wiff = fread(fid,BasicInfo.BeginningOfData - BasicInfo.measOffset{end},'int8=>char');   % Read in only until beginning of data. Otherwise the search of big files takes ages.
 wiff = convertCharsToStrings(wiff);
 Tmp = regexp(wiff,'<ParamDouble."flReadoutOSFactor">  { <Precision> 6  \d\.\d*\s*}','match');
 if(isempty(Tmp))        % For new XA versions
